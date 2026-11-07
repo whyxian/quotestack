@@ -85,3 +85,71 @@ async def test_empty_series_raises() -> None:
             await source.nav(_FUND)
     finally:
         await source.aclose()
+
+
+_HOLDINGS_HTML = (
+    'var apidata={ content:"'
+    "<div><h4 class='t'><label class='left'>某基金&nbsp;&nbsp;2026年3季度股票投资明细</label></h4>"
+    "<table><tbody>"
+    "<tr><th>序号</th><th>股票代码</th><th>股票名称</th><th>占净值比例</th></tr>"
+    # Nine cells, as the newest quarter reports them.
+    "<tr><td>1</td><td>300308</td><td>中际旭创</td><td></td><td></td>"
+    "<td>变动详情</td><td>4.66%</td><td>66.35</td><td>53,641.53</td></tr>"
+    "<tr><td>2</td><td>600519</td><td>贵州茅台</td><td></td><td></td>"
+    "<td>变动详情</td><td>3.10%</td><td>12.00</td><td>9,000.00</td></tr>"
+    "</tbody></table>"
+    "<h4 class='t'><label class='left'>某基金&nbsp;&nbsp;2026年2季度股票投资明细</label></h4>"
+    "<table><tbody>"
+    # Seven cells: older quarters omit the price columns.
+    "<tr><td>1</td><td>300308</td><td>中际旭创</td><td>股吧行情</td>"
+    "<td>8.45%</td><td>83.61</td><td>106,184.70</td></tr>"
+    '</tbody></table></div>",arryear:[2026],curyear:2026};'
+)
+
+
+@respx.mock
+async def test_holdings_parses_quarters_and_variable_cells() -> None:
+    """Cell counts differ per quarter, so columns are read from the end."""
+    respx.get(url__regex=r"https://fundf10\.eastmoney\.com/FundArchivesDatas\.aspx").mock(
+        return_value=httpx.Response(200, text=_HOLDINGS_HTML)
+    )
+    source = TiantianSource()
+    try:
+        quarters = await source.holdings(_FUND, 2026)
+    finally:
+        await source.aclose()
+
+    assert [q.quarter for q in quarters] == ["2026Q3", "2026Q2"]
+    assert quarters[0].as_of.isoformat() == "2026-09-30"
+    assert [h.code for h in quarters[0].holdings] == ["300308", "600519"]
+    assert quarters[0].holdings[0].weight == pytest.approx(4.66)
+    # The second quarter's row has an extra cell before the ratio.
+    assert quarters[1].holdings[0].weight == pytest.approx(8.45)
+
+
+@respx.mock
+async def test_holdings_sends_referer() -> None:
+    """Without a Referer the endpoint answers 404."""
+    route = respx.get(url__regex=r"https://fundf10\.eastmoney\.com/FundArchivesDatas\.aspx").mock(
+        return_value=httpx.Response(200, text=_HOLDINGS_HTML)
+    )
+    source = TiantianSource()
+    try:
+        await source.holdings(_FUND, 2026)
+    finally:
+        await source.aclose()
+
+    assert route.calls[0].request.headers["Referer"].endswith("ccmx_022430.html")
+
+
+@respx.mock
+async def test_holdings_empty_envelope_is_not_a_schema_change() -> None:
+    """Money market funds return a valid envelope with no quarters."""
+    respx.get(url__regex=r"https://fundf10\.eastmoney\.com/FundArchivesDatas\.aspx").mock(
+        return_value=httpx.Response(200, text='var apidata={ content:"",arryear:[],curyear:2026};')
+    )
+    source = TiantianSource()
+    try:
+        assert await source.holdings(_FUND, 2026) == []
+    finally:
+        await source.aclose()

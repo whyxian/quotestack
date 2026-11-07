@@ -29,6 +29,7 @@ _ROUTES: dict[tuple[AssetClass, Market, Capability], tuple[str, ...]] = {
     (AssetClass.FUND, Market.US, Capability.HISTORY): ("eastmoney",),
     # Open-end funds publish NAV only; Tiantian is the sole provider.
     (AssetClass.FUND, Market.CN, Capability.NAV): ("tiantian",),
+    (AssetClass.FUND, Market.CN, Capability.HOLDINGS): ("tiantian",),
 }
 
 

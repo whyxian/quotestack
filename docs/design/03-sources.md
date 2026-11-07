@@ -94,7 +94,7 @@
 | 全量基金列表 | `fund.eastmoney.com/js/fundcode_search.js` | **3.1 MB，28,305 只** |
 | 单只基础信息 | `fundmobapi.eastmoney.com/FundMNewApi/FundMNNBasicInformation` | ~1 KB，含类型与成立日 |
 | 基金概况 | `fundf10.eastmoney.com/jbgk_{code}.html` | 跟踪标的、业绩基准、管理人、规模 |
-| 季度持仓 | `fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc` | **当前 404，M4 需重找入口** |
+| 季度持仓 | `fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&year=YYYY` | **必须带 `Referer`，否则 404** |
 
 **净值 JSON 里还带**：`Data_assetAllocation`（股票/债券/现金占净比时序）、`stockCodesNew`（持仓 secid）。
 

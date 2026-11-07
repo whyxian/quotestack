@@ -16,14 +16,23 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import replace
+from datetime import datetime
+from functools import partial
 from types import TracebackType
 from typing import Self, cast
 
 from quotestack.cache import MemoryCache, default_max_stale, make_key, merge_ttl
 from quotestack.client.fetch import FetchPolicy
-from quotestack.errors import MarketDataError, UnsupportedError, UpstreamError
+from quotestack.errors import (
+    InvalidArgumentError,
+    MarketDataError,
+    UnavailableError,
+    UnsupportedError,
+    UpstreamError,
+)
 from quotestack.identity import resolve as resolve_rules
 from quotestack.logging import event, get_logger
 from quotestack.models import (
@@ -37,6 +46,7 @@ from quotestack.models import (
     Interval,
     Market,
     NavPoint,
+    QuarterHoldings,
     Quote,
     QuoteResult,
 )
@@ -53,6 +63,11 @@ from quotestack.sources.routing import route
 __all__ = ["MarketData"]
 
 _log = get_logger("client")
+
+_QUARTER_LABEL = re.compile(r"^\d{4}Q[1-4]$")
+
+# No fund published quarterly holdings before this year.
+_EARLIEST_HOLDINGS_YEAR = 2004
 
 # Which sources can enumerate a market. ``listed`` separates exchange-traded
 # funds from the open-end universe, which share (FUND, CN).
@@ -315,6 +330,78 @@ class MarketData:
         )
         return cast("list[Bar]", bars)[-limit:]
 
+    async def holdings(
+        self,
+        code: str,
+        asset_class: AssetClass = AssetClass.FUND,
+        market: Market = Market.CN,
+        *,
+        before: str | None = None,
+        limit: int = 4,
+    ) -> list[QuarterHoldings]:
+        """Fetch quarterly top-holdings reports.
+
+        Args:
+            code: Fund code.
+            asset_class: Defaults to ``FUND``.
+            market: Defaults to ``CN``.
+            before: Exclusive cursor such as ``2025Q4``; only earlier quarters
+                are returned.
+            limit: Number of quarters, not number of stocks.
+
+        Returns:
+            Quarters in descending order, newest first.
+
+        Raises:
+            InvalidArgumentError: ``before`` is not a quarter label.
+            UnsupportedError: The instrument has no holdings reports.
+            UpstreamError: The source failed.
+        """
+        if before is not None and not _QUARTER_LABEL.match(before):
+            raise InvalidArgumentError(
+                "before must look like 2025Q4",
+                before=before,
+            )
+
+        instrument = self.resolve(code, asset_class, market)
+        self._require(instrument, Capability.HOLDINGS)
+        if limit < 1:
+            raise InvalidArgumentError("limit must be positive", limit=limit)
+
+        collected: list[QuarterHoldings] = []
+        year = int(before[:4]) if before else datetime.now().year
+        while year >= _EARLIEST_HOLDINGS_YEAR:
+            # Filter before counting: a year can contribute zero usable
+            # quarters when the cursor sits at its first quarter.
+            usable = [q for q in collected if before is None or q.quarter < before]
+            if len(usable) >= limit:
+                break
+            key = make_key(Capability.HOLDINGS, instrument.id, str(year))
+            try:
+                quarters = await self._fetch.get(
+                    key,
+                    Capability.HOLDINGS,
+                    instrument,
+                    fetch=partial(self._fetch_holdings, instrument, year),
+                    is_expected=lambda value: isinstance(value, list),
+                )
+            except UnavailableError:
+                # A missing year must not fail the whole call; return what we
+                # already have.
+                break
+
+            batch = cast("list[QuarterHoldings]", quarters)
+            if not batch and not collected:
+                # Money market funds publish no stock positions at all. Stop
+                # instead of walking back to the earliest supported year.
+                return []
+            collected.extend(batch)
+            year -= 1
+
+        usable = [q for q in collected if before is None or q.quarter < before]
+        usable.sort(key=lambda q: q.quarter, reverse=True)
+        return usable[:limit]
+
     async def nav(
         self,
         code: str,
@@ -537,6 +624,14 @@ class MarketData:
         return await source.history(  # type: ignore[attr-defined]
             instrument, interval, adjust, limit
         )
+
+    async def _fetch_holdings(
+        self,
+        instrument: Instrument,
+        year: int,
+        source: object,
+    ) -> object:
+        return await source.holdings(instrument, year)  # type: ignore[attr-defined]
 
     async def _fetch_nav(self, source: object, instrument: Instrument) -> object:
         return await source.nav(instrument)  # type: ignore[attr-defined]

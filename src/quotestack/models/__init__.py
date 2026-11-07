@@ -12,6 +12,7 @@ from quotestack.models.enums import (
     QuoteStatus,
 )
 from quotestack.models.fx import FxRate
+from quotestack.models.holdings import Holding, QuarterHoldings
 from quotestack.models.instrument import Instrument
 from quotestack.models.nav import NavPoint
 from quotestack.models.quote import Quote
@@ -26,11 +27,13 @@ __all__ = [
     "Confidence",
     "FundClass",
     "FxRate",
+    "Holding",
     "Instrument",
     "InstrumentSummary",
     "Interval",
     "Market",
     "NavPoint",
+    "QuarterHoldings",
     "Quote",
     "QuoteResult",
     "QuoteStatus",

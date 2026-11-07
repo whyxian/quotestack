@@ -24,7 +24,17 @@ _CN_OFFEXCHANGE = "offexchange"
 _EM_MARKET_ID = {"sh": "1", "sz": "0", "bj": "0"}
 
 _CAPABILITIES_LISTED = frozenset({Capability.QUOTE, Capability.HISTORY})
-_CAPABILITIES_OFFEXCHANGE_FUND = frozenset({Capability.NAV, Capability.PROFILE})
+# Every fund publishes NAV, a profile, quarterly holdings and a
+# benchmark; only listed ones also trade intraday.
+_CAPABILITIES_OFFEXCHANGE_FUND = frozenset(
+    {
+        Capability.NAV,
+        Capability.PROFILE,
+        Capability.HOLDINGS,
+        Capability.BENCHMARK,
+        Capability.ESTIMATE,
+    }
+)
 
 
 def resolve(code: str, asset_class: AssetClass, market: Market) -> Instrument:
