@@ -14,20 +14,30 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import AsyncIterator
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import httpx
 
 from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
-from quotestack.models import AssetClass, Capability, Instrument, Market, NavPoint
+from quotestack.models import (
+    AssetClass,
+    Capability,
+    Instrument,
+    InstrumentSummary,
+    Market,
+    NavPoint,
+)
 from quotestack.sources.base import SourceMeta
 
 __all__ = ["TiantianSource"]
 
 _URL = "https://fund.eastmoney.com/pingzhongdata/{code}.js"
+_LIST_URL = "https://fund.eastmoney.com/js/fundcode_search.js"
 _NAME_RE = re.compile(r'var fS_name\s*=\s*"([^"]*)"')
 _NAV_RE = re.compile(r"var Data_netWorthTrend\s*=\s*(\[.*?\]);", re.S)
+_LIST_RE = re.compile(r"var\s+r\s*=\s*(\[.*\]);", re.S)
 
 _CN_TZ = ZoneInfo("Asia/Shanghai")
 
@@ -37,7 +47,7 @@ class TiantianSource:
 
     meta = SourceMeta(
         name="tiantian",
-        capabilities=frozenset({Capability.NAV}),
+        capabilities=frozenset({Capability.NAV, Capability.LIST}),
         markets=frozenset({(AssetClass.FUND, Market.CN)}),
         timeout=8.0,  # the payload can reach several hundred kilobytes
     )
@@ -65,6 +75,89 @@ class TiantianSource:
         """Close the owned HTTP client."""
         if self._owns_client:
             await self._client.aclose()
+
+    async def list_instruments(
+        self,
+        *,
+        page_size: int = 500,
+    ) -> AsyncIterator[list[InstrumentSummary]]:
+        """Walk the full open-end fund universe.
+
+        The whole list is a single JavaScript file, so it is fetched once and
+        then sliced into batches for the caller.
+
+        Args:
+            page_size: Rows per yielded batch.
+
+        Yields:
+            Batches of fund summaries.
+
+        Raises:
+            SchemaChangedError: The list payload lost its shape.
+            UpstreamError: The request failed.
+        """
+        response = await self._client.get(
+            _LIST_URL,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        if response.status_code >= 400:
+            raise UpstreamError(
+                f"tiantian list responded with {response.status_code}",
+                source=self.meta.name,
+                status_code=response.status_code,
+            )
+
+        rows = self._parse_list(response.text, response)
+        for start in range(0, len(rows), page_size):
+            chunk = rows[start : start + page_size]
+            if chunk:
+                yield chunk
+
+    def _parse_list(self, text: str, response: httpx.Response) -> list[InstrumentSummary]:
+        match = _LIST_RE.search(text)
+        if match is None:
+            raise SchemaChangedError(
+                "tiantian fund list has an unexpected shape",
+                source=self.meta.name,
+                capability="list",
+                assertion="payload contains 'var r = [[...]]'",
+                sample=text[:400],
+                url=str(response.url),
+                hint="the fund list script changed; check tests/fixtures/tiantian",
+            )
+
+        try:
+            raw = json.loads(match.group(1))
+        except json.JSONDecodeError as exc:
+            raise SchemaChangedError(
+                "tiantian fund list is not valid JSON",
+                source=self.meta.name,
+                capability="list",
+                assertion="the r array parses as JSON",
+                sample=match.group(1)[:300],
+                url=str(response.url),
+                hint="inspect the sample for unexpected syntax",
+            ) from exc
+
+        summaries: list[InstrumentSummary] = []
+        for row in raw:
+            # [code, pinyin, name, fund type, full pinyin]
+            if not isinstance(row, list) or len(row) < 4:
+                continue
+            code, name, fund_type = row[0], row[2], row[3]
+            if not isinstance(code, str) or not isinstance(name, str):
+                continue
+            summaries.append(
+                InstrumentSummary(
+                    code=code,
+                    name=name,
+                    asset_class=AssetClass.FUND,
+                    market=Market.CN,
+                    currency="CNY",
+                    fund_type=fund_type if isinstance(fund_type, str) else None,
+                )
+            )
+        return summaries
 
     async def nav(self, instrument: Instrument, limit: int | None = None) -> list[NavPoint]:
         """Fetch the NAV series.

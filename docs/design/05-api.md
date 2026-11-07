@@ -22,7 +22,8 @@
 | 7 | `holdings(code, asset_class, market, before, limit)` | M4 | 季度持仓分页 |
 | 8 | `benchmark(code, asset_class, market, start, end)` | M4 | 基准加权曲线 |
 | 9 | `estimate(code, asset_class, market)` | M5 | 估值（派生） |
-| 10 | `fx(base, quote)` | M3 | 汇率 |
+| 10 | `fx(base, quote)` | ✅ M3 | 汇率 |
+| 11 | `iter_instruments(asset_class, market, listed=None)` | ✅ M3.5 | 全市场列表 |
 
 ### 为什么没有独立的 minute 接口
 
@@ -222,7 +223,46 @@ GET  /v1/healthz
 
 **为什么还要 `error` 字段**：前端/Java 客户端用一个 `if (error != null)` 就能处理全部失败，不用同时判状态码和响应体。
 
-### 7.5 接口明细
+### 7.5 全市场列表
+
+列表不是"针对某个标的取数"，而是"给我一批标的"，因此单独一个入口：
+
+```python
+async for batch in client.iter_instruments(AssetClass.FUND, Market.CN, listed=False):
+    ...  # batch: list[InstrumentSummary]
+```
+
+| 参数 | 说明 |
+|---|---|
+| `listed` | 基金专用：`True` 场内 / `False` 场外 / `None` 两者都要 |
+| `page_size` | 每批条数 |
+| `tradable_only` | 跳过无价格标的（过滤美股权证、停牌） |
+
+`InstrumentSummary` 字段：
+
+| 字段 | 必有 | 说明 |
+|---|---|---|
+| `code` `name` `asset_class` `market` `currency` | ✅ | 基础标识 |
+| `listing_date` | ❌ | A股/美股有，基金/加密无 |
+| `board` | ❌ | 主板/创业板/科创板/北交所/NASDAQ |
+| `industry` | ❌ | 仅供参考，源会修订 |
+| `fund_type` | ❌ | 场外基金专有 |
+
+**列表不含行情字段**（价格、市值、市盈率），原因：
+
+1. 列表缓存 24 小时，价格 30 秒就过期，一个对象两种时间尺度
+2. 调用方看到 `price` 会误以为是最新的
+3. 要价格应该调 `quote_many`
+
+**库只提供数据流，不负责落库**。增量与退市判定由调用方做：
+
+| 判定 | 方法 |
+|---|---|
+| 新增 | 列表有、库里没有 |
+| 退市 | 库里有、列表没有 |
+| 改名 | code 相同、name 不同 |
+
+### 7.6 接口明细
 
 公共参数（除 `/healthz` 与 `/fx` 外，每个接口都有）：
 

@@ -15,6 +15,7 @@ from quotestack.models.instrument import Instrument
 from quotestack.models.nav import NavPoint
 from quotestack.models.quote import Quote
 from quotestack.models.result import QuoteResult
+from quotestack.models.summary import InstrumentSummary
 
 __all__ = [
     "Adjust",
@@ -24,6 +25,7 @@ __all__ = [
     "Confidence",
     "FxRate",
     "Instrument",
+    "InstrumentSummary",
     "Interval",
     "Market",
     "NavPoint",

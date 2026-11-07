@@ -46,6 +46,7 @@ class Capability(StrEnum):
     BENCHMARK = "BENCHMARK"
     ESTIMATE = "ESTIMATE"
     FX = "FX"
+    LIST = "LIST"
 
 
 class Interval(StrEnum):
