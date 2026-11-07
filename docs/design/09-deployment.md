@@ -9,8 +9,15 @@
 | 场景 | 方式 |
 |---|---|
 | 开发 | `uv run`（热重载） |
-| 交付 | `docker-compose`（postgres + quote-service） |
+| 交付 | `docker-compose`（仅 quote-service；本项目不需要数据库服务） |
 | **不做** | Java 拉起 Python 子进程 |
+
+**关于数据库**：quotestack 不依赖任何数据库服务。
+
+- 缓存用 `MemoryCache`（进程内）或 `SqliteCache`（单个文件，无需服务端）
+- 业务数据（持仓、交易、品种库）属于调用方，不在本库职责内
+
+PostgreSQL 是 AssetPilot 后端的选择，与本库无关。
 
 **Java 侧集成**
 
@@ -67,9 +74,9 @@ client = MarketData(
 | uv | ≥ 0.5 | Python 版本与依赖管理 | 始终 |
 | Python | 3.11 / 3.12 / 3.13 | 运行时（由 uv 安装） | 始终 |
 | sqlite3 | 任意 | 查看缓存内容 | 调试时 |
-| Docker | 任意 | PostgreSQL、集成测试 | 可选 |
-| JDK 21 | 21 | AssetPilot 后端 | 后端阶段 |
-| Maven | 3.9+ | AssetPilot 后端 | 后端阶段 |
+| Docker | 任意 | 跑 HTTP 服务、集成测试 | 可选 |
+
+> JDK 与 Maven **不在本库的开发需求内**——那是调用方（AssetPilot 后端）的事。
 
 ### 步骤 1：安装 uv
 
