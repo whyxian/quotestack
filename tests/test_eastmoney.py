@@ -8,7 +8,7 @@ import respx
 
 from quotestack.errors import EmptyResponseError, SchemaChangedError
 from quotestack.identity import resolve
-from quotestack.models import AssetClass, Market
+from quotestack.models import AssetClass, Interval, Market
 from quotestack.sources import EastMoneySource
 
 _HOST = "https://push2.eastmoney.com"
@@ -102,5 +102,92 @@ async def test_quote_raises_on_malformed_diff() -> None:
     try:
         with pytest.raises(SchemaChangedError):
             await source.quote([_STOCK])
+    finally:
+        await source.aclose()
+
+
+_KLINE_URL = "https://push2his.eastmoney.com"
+
+
+@respx.mock
+async def test_history_parses_ochl_order() -> None:
+    """Eastmoney rows are date, open, close, high, low -- not OHLC."""
+    respx.get(host="push2his.eastmoney.com").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "rc": 0,
+                "data": {
+                    "code": "600519",
+                    "klines": [
+                        "2026-11-05,1446.70,1452.00,1466.00,1430.00,46712,6752970915.00,2.49",
+                    ],
+                },
+            },
+        )
+    )
+    source = EastMoneySource()
+    try:
+        bars = await source.history(_STOCK)
+    finally:
+        await source.aclose()
+
+    bar = bars[0]
+    assert bar.open == "1446.70"
+    assert bar.close == "1452.00"
+    assert bar.high == "1466.00"
+    assert bar.low == "1430.00"
+    assert bar.volume == "46712"
+    assert bar.time is None
+
+
+@respx.mock
+async def test_history_keeps_clock_for_intraday_bars() -> None:
+    """Minute rows carry a time part that must not be dropped."""
+    respx.get(host="push2his.eastmoney.com").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "rc": 0,
+                "data": {
+                    "code": "600519",
+                    "klines": ["2026-11-06 09:35,1450.00,1451.00,1452.00,1449.00,120,0,0"],
+                },
+            },
+        )
+    )
+    source = EastMoneySource()
+    try:
+        bars = await source.history(_STOCK, interval=Interval.M5)
+    finally:
+        await source.aclose()
+
+    assert bars[0].time == "09:35"
+
+
+@respx.mock
+async def test_history_raises_on_empty_list() -> None:
+    """An empty bar list is missing data, not a schema change."""
+    respx.get(host="push2his.eastmoney.com").mock(
+        return_value=httpx.Response(200, json={"rc": 0, "data": {"klines": []}})
+    )
+    source = EastMoneySource()
+    try:
+        with pytest.raises(EmptyResponseError):
+            await source.history(_STOCK)
+    finally:
+        await source.aclose()
+
+
+@respx.mock
+async def test_history_raises_on_non_list_klines() -> None:
+    """A non-list 'klines' means the upstream schema changed."""
+    respx.get(host="push2his.eastmoney.com").mock(
+        return_value=httpx.Response(200, json={"rc": 0, "data": {"klines": "oops"}})
+    )
+    source = EastMoneySource()
+    try:
+        with pytest.raises(SchemaChangedError):
+            await source.history(_STOCK)
     finally:
         await source.aclose()

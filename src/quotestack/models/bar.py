@@ -24,6 +24,7 @@ class Bar:
         close: Closing price, decimal string.
         volume: Traded volume in the smallest unit.
         amount: Traded turnover, when the source provides it.
+        time: ``HH:MM`` for intraday bars; ``None`` for daily and above.
     """
 
     date: dt.date
@@ -33,3 +34,4 @@ class Bar:
     close: str
     volume: str
     amount: str | None = None
+    time: str | None = None

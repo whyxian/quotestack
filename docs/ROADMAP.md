@@ -10,9 +10,9 @@
 ## 当前进度
 
 ```
-阶段：M1 最小可用版本
-已完成：5 / 11（M0 已全部完成）
-下一项：M1-6 东财 K 线
+阶段：M1 完成 ✅ → 下一步 M2 基础能力补齐
+已完成：11 / 11（累计 19 / 70 项）
+下一项：M2-1 错误模型补齐
 ```
 
 ---
@@ -61,12 +61,12 @@ uv run mypy src          # 通过
 - [x] **M1-3** `identity/`：CN 代码前缀规则 → secid
 - [x] **M1-4** `sources/base.py`：`Resolver` / `Quoter` / `Historian` 三个 Protocol
 - [x] **M1-5** `sources/eastmoney.py`：实时报价（`ulist.np`）
-- [ ] **M1-6** `sources/eastmoney.py`：K 线（`kline/get`，支持 interval/adjust/limit）
-- [ ] **M1-7** `cache/memory.py`：带 TTL 的内存缓存
-- [ ] **M1-8** `client.py`：`resolve` / `quote` / `history` 三个入口
-- [ ] **M1-9** `cli.py`：`quote`、`history` 两个命令
-- [ ] **M1-10** 冒烟测试脚本
-- [ ] **M1-11** 生成 `docs/harness/ARCHITECTURE.md`（as-built，从真实代码提取），并更新 `AGENTS.md` 索引
+- [x] **M1-6** `sources/eastmoney.py`：K 线（`kline/get`，支持 interval/adjust/limit）
+- [x] **M1-7** `cache/memory.py`：带 TTL 的内存缓存
+- [x] **M1-8** `client.py`：`resolve` / `quote` / `history` 三个入口
+- [x] **M1-9** `cli.py`：`quote`、`history` 两个命令
+- [x] **M1-10** 冒烟测试脚本
+- [x] **M1-11** 生成 `docs/harness/ARCHITECTURE.md`（as-built，从真实代码提取），并更新 `AGENTS.md` 索引
 
 **完成标准**
 

@@ -81,7 +81,8 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["T20"]  # tests may print for debugging
+"tests/*" = ["T20"]              # tests may print for debugging
+"src/quotestack/cli.py" = ["T20"]  # a CLI exists to print
 
 [tool.mypy]
 python_version = "3.11"
@@ -94,4 +95,5 @@ files = ["src"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = ["live: hits real data sources, opt in with QUOTESTACK_LIVE=1"]
 addopts = "-q"

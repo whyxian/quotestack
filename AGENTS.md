@@ -13,7 +13,7 @@
 
 ## 2. 当前阶段
 
-**M0 环境与脚手架**（尚未开始编码）
+**M1 已完成**，下一步 M2 基础能力补齐。
 
 进度见 [docs/ROADMAP.md](docs/ROADMAP.md)，每完成一项会勾选。
 
@@ -61,7 +61,11 @@ quotestack quote 600519              # 冒烟：查实时价
 | 代码规范 | [15-code-style](docs/design/15-code-style.md) |
 | 术语表 | [16-glossary](docs/design/16-glossary.md) |
 
-**实现文档（代码长什么样）**：M1 完成后生成到 `docs/harness/`，目前为空。
+**实现文档（代码长什么样）**
+
+| 主题 | 文件 |
+|---|---|
+| 模块结构、依赖方向、数据流 | [ARCHITECTURE](docs/harness/ARCHITECTURE.md) |
 
 ---
 
