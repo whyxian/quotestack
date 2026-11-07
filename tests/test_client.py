@@ -62,7 +62,9 @@ def _stale_quote() -> Quote:
 async def test_failure_opens_cooldown_and_fails_fast() -> None:
     """The second call is rejected by the cooldown without hitting the source."""
     source = FailingSource()
-    async with MarketData(source=source) as client:  # type: ignore[arg-type]
+    async with MarketData(
+        sources={"fake": source}, source_priority={"QUOTE": ["fake"], "HISTORY": ["fake"]}
+    ) as client:  # type: ignore[arg-type]
         with pytest.raises(UpstreamError):
             await client.quote("600519")
 
@@ -81,7 +83,9 @@ async def test_stale_value_is_served_within_max_stale() -> None:
         source="fake",
     )
     source = FailingSource()
-    async with MarketData(cache=FixedCache(entry), source=source) as client:  # type: ignore[arg-type]
+    async with MarketData(
+        cache=FixedCache(entry), sources={"fake": source}, source_priority={"QUOTE": ["fake"]}
+    ) as client:  # type: ignore[arg-type]
         quote = await client.quote("600519")
 
     assert quote.stale is True
@@ -96,7 +100,9 @@ async def test_expired_value_is_not_served() -> None:
         source="fake",
     )
     source = FailingSource()
-    async with MarketData(cache=FixedCache(entry), source=source) as client:  # type: ignore[arg-type]
+    async with MarketData(
+        cache=FixedCache(entry), sources={"fake": source}, source_priority={"QUOTE": ["fake"]}
+    ) as client:  # type: ignore[arg-type]
         with pytest.raises(UnavailableError):
             await client.quote("600519")
 
