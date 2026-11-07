@@ -144,6 +144,7 @@ quotestack health          # 东财与腾讯都显示 ok
 - [x] **M3.5-3** 天天基金全量（28,305 只，带基金类型）
 - [x] **M3.5-4** Binance `exchangeInfo`（USDT + TRADING）
 - [x] **M3.5-5** `client.iter_instruments` + 路由
+- [x] **M3.5-6** `FundClass` 七分类 + `classify_fund_type`（FOF/REITS 暂标 unsupported）
 
 **完成标准**
 

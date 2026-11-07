@@ -10,7 +10,7 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 
-from quotestack.models.enums import AssetClass, Market
+from quotestack.models.enums import AssetClass, FundClass, Market
 
 __all__ = ["InstrumentSummary"]
 
@@ -31,7 +31,9 @@ class InstrumentSummary:
         listing_date: First trading day, when the source publishes it.
         board: Trading board, e.g. ``主板``, ``创业板``, ``NASDAQ``.
         industry: Sector label. Reference only; sources revise these.
-        fund_type: Fund classification, e.g. ``混合型-灵活``.
+        fund_type: Raw source label, e.g. ``混合型-灵活``.
+        fund_class: Normalised category derived from ``fund_type``. Logic
+            should branch on this, while display keeps the raw label.
     """
 
     code: str
@@ -43,3 +45,4 @@ class InstrumentSummary:
     board: str | None = None
     industry: str | None = None
     fund_type: str | None = None
+    fund_class: FundClass | None = None

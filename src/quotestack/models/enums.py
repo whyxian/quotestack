@@ -85,6 +85,31 @@ class Adjust(StrEnum):
     HFQ = "hfq"
 
 
+class FundClass(StrEnum):
+    """Normalised fund category, derived from a source's fund type label."""
+
+    EQUITY = "EQUITY"
+    """Mostly stocks; the index or holdings can drive an estimate."""
+
+    HYBRID = "HYBRID"
+    """Flexible allocation; the estimate needs the measured stock ratio."""
+
+    BOND = "BOND"
+    """Bond or fixed income; no meaningful equity estimate exists."""
+
+    MONEY = "MONEY"
+    """Money market fund; NAV is stable and there is nothing to estimate."""
+
+    FOF = "FOF"
+    """Fund of funds; the underlying allocation is not modelled yet."""
+
+    REITS = "REITS"
+    """Real estate investment trust; not a plain equity fund."""
+
+    OTHER = "OTHER"
+    """Unknown or unclassified."""
+
+
 class Confidence(StrEnum):
     """How much to trust a resolved identifier."""
 

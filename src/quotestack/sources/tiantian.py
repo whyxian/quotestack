@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
+from quotestack.funds import classify_fund_type
 from quotestack.models import (
     AssetClass,
     Capability,
@@ -155,6 +156,9 @@ class TiantianSource:
                     market=Market.CN,
                     currency="CNY",
                     fund_type=fund_type if isinstance(fund_type, str) else None,
+                    fund_class=classify_fund_type(
+                        fund_type if isinstance(fund_type, str) else None
+                    ),
                 )
             )
         return summaries
