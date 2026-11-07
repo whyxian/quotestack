@@ -2,7 +2,7 @@
 
 > quotestack 设计决议 · 第 12 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
-> **实现状态**：⬜ 未开始（M2 日志 / M6 metrics）
+> **实现状态**：🚧 库侧 4 个事件已实现；`/metrics` 与启动快照在 M6
 
 目标不是"日志别太吵"，而是**出事时一次给全**——日志的主要读者是排查问题的人和 AI。
 
@@ -25,18 +25,20 @@ HTTP 壳是应用，由它配置输出格式与级别。
 
 不要到处写自由文本，用固定事件名，便于 grep 与聚合。
 
-| 事件 | 级别 | 关键字段 |
-|---|---|---|
-| `startup` | INFO | `version`, `python`, `proxy`, `sources`, `cache`, `ttl` |
-| `resolve` | DEBUG | `code`, `confidence`, `candidates` |
-| `cache_lookup` | DEBUG | `key`, `state`（hit/miss/stale） |
-| `upstream_request` | DEBUG | `source`, `capability`, `instrument`, `elapsed_ms`, `status` |
-| `batch` | INFO | `capability`, `count`, `elapsed_ms`, `ok`, `failed` |
-| `fallback` | INFO | `from`, `to`, `reason` |
-| `stale_served` | WARNING | `capability`, `age_seconds`, `max_stale` |
-| `cooldown` | WARNING | `source`, `action`（mark/clear）, `duration` |
-| `schema_changed` | ERROR | `source`, `capability`, `assertion`, `sample`, `url` |
-| `all_sources_failed` | ERROR | `capability`, `instrument`, `attempts` |
+| 事件 | 级别 | 实际字段 | 状态 |
+|---|---|---|---|
+| `startup` | INFO | `version`, `python`, `proxy`, `sources`, `cache`, `ttl` | M6（服务启动时） |
+| `resolve` | DEBUG | `code`, `market`, `asset_class`, `instrument`, `confidence`, `aliases` | ✅ |
+| `cache_lookup` | DEBUG | `key`, `state`(`fresh`/`stale`/`expired`), `capability` | ✅ |
+| `stale_served` | WARNING | `capability`, `key`, `source`, `hint` | ✅ |
+| `cooldown` | WARNING | `source`, `action`, `duration`, `hint` | ✅ |
+| `upstream_request` | DEBUG | `source`, `capability`, `instrument`, `elapsed_ms`, `status` | M4 |
+| `batch` | INFO | `capability`, `count`, `elapsed_ms`, `ok`, `failed` | M4 |
+| `fallback` | INFO | `from`, `to`, `reason` | M4（源间降级埋点） |
+| `schema_changed` | ERROR | `source`, `capability`, `assertion`, `sample`, `url` | M6 |
+| `all_sources_failed` | ERROR | `capability`, `instrument`, `attempts` | M6 |
+
+**已实现的事件写在 `logging.EVENTS` 里**，拼错名字会直接抛 `ValueError`，防止事件名漂移。
 
 ### 级别取舍：为什么 `upstream_request` 是 DEBUG
 

@@ -223,3 +223,16 @@ def test_blocking_iteration_is_not_required() -> None:
 
 async def _close(gen: object) -> None:
     await gen.aclose()  # type: ignore[attr-defined]
+
+
+def test_mainland_selectors_cover_every_board() -> None:
+    """Beijing and LOF boards are easy to omit and silently shrink the universe."""
+    from quotestack.sources.eastmoney import _LIST_FILTERS
+
+    stocks = _LIST_FILTERS[(AssetClass.STOCK, Market.CN)]
+    funds = _LIST_FILTERS[(AssetClass.FUND, Market.CN)]
+
+    assert "m:0+t:81+s:2048" in stocks, "Beijing exchange is missing"
+    for board in ("MK0025", "MK0026", "MK0027", "MK0028"):
+        assert board in funds, f"{board} LOF board is missing"
+    assert "MK0020" not in funds, "MK0020 is FX, not a fund"

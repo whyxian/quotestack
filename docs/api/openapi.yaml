@@ -1,0 +1,1001 @@
+openapi: 3.1.0
+
+info:
+  title: quotestack API
+  version: 0.1.0
+  summary: 多源行情适配层
+  description: |
+    A股 / 美股 / 场外基金 / 加密 的统一数据接口。
+
+    ## 响应结构
+
+    成功与失败形状一致：
+
+    ```json
+    { "data": { ... }, "error": null }
+    { "data": null, "error": { "code": "NOT_FOUND", "message": "...", "detail": {} } }
+    ```
+
+    **HTTP 状态码仍然有效**：404 就是 404，不改成 200。监控、重试、网关限流都依赖它。
+
+    ## 数值格式
+
+    价格、金额、成交量、净值一律是**十进制字符串**，不是数字。
+    这样跨语言不丢精度，JavaScript 也能安全处理。
+
+    ## 标识
+
+    所有接口都用 `code + asset_class + market` 三元组定位标的，
+    调用方永远不需要持有内部 ID。
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: http://127.0.0.1:8000
+    description: 本地开发
+  - url: http://localhost:8000
+    description: Docker 单容器
+
+tags:
+  - name: instrument
+    description: 标识解析与市场列表
+  - name: market
+    description: 行情数据
+  - name: fund
+    description: 基金能力
+  - name: ops
+    description: 运维
+
+paths:
+  /v1/resolve:
+    get:
+      tags: [instrument]
+      operationId: resolve
+      summary: 解析代码
+      description: |
+        把代码解析成内部标识，并返回各数据源的映射。
+        纯规则解析，不发起网络请求。
+      parameters:
+        - $ref: '#/components/parameters/Code'
+        - $ref: '#/components/parameters/AssetClass'
+        - $ref: '#/components/parameters/Market'
+        - name: expected_name
+          in: query
+          required: false
+          description: 用于校验解析结果；名称差异过大则换候选。M4 实现。
+          schema: { type: string }
+      responses:
+        '200':
+          description: 解析成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstrumentResponse' }
+              example:
+                data:
+                  id: CN:STOCK:600519
+                  code: '600519'
+                  asset_class: STOCK
+                  market: CN
+                  currency: CNY
+                  source_name: null
+                  confidence: inferred
+                  aliases: { eastmoney: 1.600519, tencent: sh600519 }
+                  capabilities: [HISTORY, QUOTE]
+                error: null
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/quote:
+    get:
+      tags: [market]
+      operationId: quote
+      summary: 实时报价
+      description: |
+        返回单个标的的最新报价。
+
+        上游失败且缓存仍在 `max_stale` 窗口内时，返回旧值并把 `stale` 置为 `true`。
+      parameters:
+        - $ref: '#/components/parameters/Code'
+        - $ref: '#/components/parameters/AssetClass'
+        - $ref: '#/components/parameters/Market'
+        - $ref: '#/components/parameters/MaxAge'
+      responses:
+        '200':
+          description: 报价
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuoteResponse' }
+              example:
+                data:
+                  instrument_id: CN:STOCK:600519
+                  price: '1453.00'
+                  currency: CNY
+                  change: '1.00'
+                  change_pct: 0.07
+                  source: eastmoney
+                  ts: '2026-11-06T16:11:39+08:00'
+                  status: REALTIME
+                  stale: false
+                error: null
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '502': { $ref: '#/components/responses/BadGateway' }
+
+  /v1/quotes/batch:
+    post:
+      tags: [market]
+      operationId: quoteMany
+      summary: 批量报价
+      description: |
+        一次查询多个标的。
+
+        **返回列表与请求等长同序**，单条失败不影响其余：失败项带 `error`，成功项带 `quote`。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchQuoteRequest' }
+            example:
+              items:
+                - { code: '600519', asset_class: STOCK, market: CN }
+                - { code: AAPL, asset_class: STOCK, market: US }
+      responses:
+        '200':
+          description: 批量结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchQuoteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /v1/history:
+    get:
+      tags: [market]
+      operationId: history
+      summary: K 线与分钟线
+      description: |
+        场外基金没有 K 线，请求它们会返回 `UNSUPPORTED`，而不是空数组。
+      parameters:
+        - $ref: '#/components/parameters/Code'
+        - $ref: '#/components/parameters/AssetClass'
+        - $ref: '#/components/parameters/Market'
+        - name: interval
+          in: query
+          required: false
+          description: 周期
+          schema: { $ref: '#/components/schemas/Interval' }
+        - name: adjust
+          in: query
+          required: false
+          description: 复权方式
+          schema: { $ref: '#/components/schemas/Adjust' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/MaxAge'
+      responses:
+        '200':
+          description: K 线，按日期升序
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BarsResponse' }
+              example:
+                data:
+                  bars:
+                    - { date: '2026-11-05', time: null, open: '1446.70', high: '1466.00', low: '1430.00', close: '1452.00', volume: '31521', amount: null }
+                    - { date: '2026-11-06', time: null, open: '1450.00', high: '1457.72', low: '1436.00', close: '1453.00', volume: '42848', amount: null }
+                  interval: 1d
+                  adjust: qfq
+                  source: eastmoney
+                error: null
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '502': { $ref: '#/components/responses/BadGateway' }
+
+  /v1/nav:
+    get:
+      tags: [fund]
+      operationId: nav
+      summary: 基金净值
+      description: 场外基金只有每日净值，没有盘中报价。
+      parameters:
+        - $ref: '#/components/parameters/Code'
+        - $ref: '#/components/parameters/AssetClass'
+        - $ref: '#/components/parameters/Market'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/MaxAge'
+      responses:
+        '200':
+          description: 净值序列，按日期升序
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NavResponse' }
+              example:
+                data:
+                  points:
+                    - { date: '2026-11-05', nav: '1.0799' }
+                    - { date: '2026-11-06', nav: '1.0690' }
+                  latest: { date: '2026-11-06', nav: '1.0690' }
+                  source: tiantian
+                error: null
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /v1/profile:
+    get:
+      tags: [fund]
+      operationId: profile
+      summary: 基金画像
+      description: |
+        基金类型、跟踪标的、业绩基准、规模、经理。
+
+        **状态：M4 实现中。**
+      parameters:
+        - $ref: '#/components/parameters/Code'
+        - $ref: '#/components/parameters/AssetClass'
+        - $ref: '#/components/parameters/Market'
+      responses:
+        '200':
+          description: 画像
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileResponse' }
+              example:
+                data:
+                  fund_type: 混合型-偏股
+                  fund_class: EQUITY
+                  tracking_index: null
+                  benchmark:
+                    text: 中证800指数收益率*70%+上证国债指数收益率*25%+一年期定期存款基准利率*5%
+                    components:
+                      - { name: 中证800指数, weight: 70 }
+                      - { name: 上证国债指数, weight: 25 }
+                      - { name: 一年期定期存款基准利率, weight: 5 }
+                    coverage: 1.0
+                  manager: 周蔚文
+                  custodian: 中欧基金
+                  scale: '80.39亿'
+                  inception_date: '2008-07-25'
+                  as_of: '2026-09-30'
+                  partial: false
+                  missing: []
+                error: null
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '502': { $ref: '#/components/responses/BadGateway' }
+
+  /v1/holdings:
+    get:
+      tags: [fund]
+      operationId: holdings
+      summary: 季度持仓
+      description: |
+        按季度倒序返回前十大重仓股。
+
+        `limit` 是**季度数**，不是股票数。用 `before` 做排他游标翻页。
+      parameters:
+        - $ref: '#/components/parameters/Code'
+        - $ref: '#/components/parameters/AssetClass'
+        - $ref: '#/components/parameters/Market'
+        - name: before
+          in: query
+          required: false
+          description: 排他游标，只返回该季度之前的持仓，如 `2025Q4`
+          schema: { type: string, pattern: '^\d{4}Q[1-4]$' }
+        - name: limit
+          in: query
+          required: false
+          description: 返回几个季度
+          schema: { type: integer, minimum: 1, maximum: 40, default: 4 }
+      responses:
+        '200':
+          description: 季度持仓
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HoldingsResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /v1/benchmark:
+    get:
+      tags: [fund]
+      operationId: benchmark
+      summary: 基准加权曲线
+      description: |
+        把基金业绩比较基准里的每个成分指数按权重加权，生成一条基准曲线。
+
+        无法取到的成分（如中债系列）会被剔除，并在 `components_dropped` 中列出，
+        同时降低 `coverage`。
+      parameters:
+        - $ref: '#/components/parameters/Code'
+        - $ref: '#/components/parameters/AssetClass'
+        - $ref: '#/components/parameters/Market'
+        - name: start
+          in: query
+          required: false
+          description: 起始日，默认一年前
+          schema: { type: string, format: date }
+        - name: end
+          in: query
+          required: false
+          description: 结束日，默认今天
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: 加权基准曲线
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BenchmarkResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /v1/estimate:
+    get:
+      tags: [fund]
+      operationId: estimate
+      summary: 基金盘中估值
+      description: |
+        用持仓或跟踪指数推算当日涨跌。
+
+        **输入过期时返回 `basis: none` 而不是错误**（HTTP 200）——
+        估值不可得是正常状态，不是故障。
+      parameters:
+        - $ref: '#/components/parameters/Code'
+        - $ref: '#/components/parameters/AssetClass'
+        - $ref: '#/components/parameters/Market'
+      responses:
+        '200':
+          description: 估值
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstimateResponse' }
+              example:
+                data:
+                  change_pct: -1.24
+                  nav: '2.6813'
+                  basis: index
+                  coverage: 0.95
+                  as_of: '2026-11-06T15:00:00+08:00'
+                  explanation: 按中证800指数当日涨跌推算
+                  benchmark_assumption: { equity: 0.7, non_equity: 0.3, unclassified: 0.0 }
+                error: null
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /v1/fx:
+    get:
+      tags: [market]
+      operationId: fx
+      summary: 汇率
+      description: |
+        以 USD 为基准表做交叉换算。`derived` 标记该汇率是直接报价还是算出来的。
+      parameters:
+        - name: base
+          in: query
+          required: true
+          description: 源货币，ISO 代码
+          schema: { type: string, pattern: '^[A-Z]{3}$' }
+        - name: quote
+          in: query
+          required: true
+          description: 目标货币，ISO 代码
+          schema: { type: string, pattern: '^[A-Z]{3}$' }
+      responses:
+        '200':
+          description: 汇率
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FxResponse' }
+              example:
+                data:
+                  base: USD
+                  quote: CNY
+                  rate: '6.6738'
+                  source: eastmoney-fx
+                  as_of: '2026-11-08T00:30:00+08:00'
+                  derived: true
+                error: null
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /v1/instruments:
+    get:
+      tags: [instrument]
+      operationId: listInstruments
+      summary: 市场列表
+      description: |
+        枚举一个市场的全部标的，用于刷新本地品种库。
+
+        **列表只含静态元数据，不含行情**——价格请用 `/v1/quote`。
+        库不负责落库，增量与退市判定由调用方完成：
+
+        | 判定 | 方法 |
+        |---|---|
+        | 新增 | 列表有、库里没有 |
+        | 退市 | 库里有、列表没有 |
+      parameters:
+        - $ref: '#/components/parameters/AssetClass'
+        - $ref: '#/components/parameters/Market'
+        - name: listed
+          in: query
+          required: false
+          description: 基金专用：`true` 场内 / `false` 场外 / 不传两者都要
+          schema: { type: boolean }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: page_size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+        - name: tradable_only
+          in: query
+          required: false
+          description: 跳过无价格标的（美股权证、停牌）
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: 一页列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingResponse' }
+              example:
+                data:
+                  items:
+                    - { code: '600519', name: 贵州茅台, asset_class: STOCK, market: CN, currency: CNY, listing_date: '2001-08-27', board: 沪主板, industry: 酿酒行业, fund_type: null, fund_class: null }
+                  page: 1
+                  page_size: 100
+                  has_more: true
+                  next_page: 2
+                error: null
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /v1/healthz:
+    get:
+      tags: [ops]
+      operationId: healthz
+      summary: 运行状态
+      description: |
+        报告各源可用性、冷却状态、缓存占用，以及**当前生效的配置**——
+        改了 TTL 没生效时先看这里。
+      responses:
+        '200':
+          description: 状态
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthResponse' }
+              example:
+                data:
+                  status: ok
+                  config:
+                    ttl: { quote: 30, holdings: never }
+                    proxy: null
+                  sources:
+                    eastmoney: { state: ok, cooldown_remaining: 0, timeout: 5.0 }
+                    tencent: { state: ok, cooldown_remaining: 0, timeout: 3.0 }
+                  cache: { entries: 128 }
+                  recent_schema_changes: []
+                error: null
+
+components:
+  parameters:
+    Code:
+      name: code
+      in: query
+      required: true
+      description: 标的代码，如 `600519`、`AAPL`、`BTCUSDT`
+      schema: { type: string, minLength: 1, maxLength: 24 }
+    AssetClass:
+      name: asset_class
+      in: query
+      required: false
+      schema: { $ref: '#/components/schemas/AssetClass' }
+    Market:
+      name: market
+      in: query
+      required: false
+      schema: { $ref: '#/components/schemas/Market' }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: 最多返回多少条，从最新往前数
+      schema: { type: integer, minimum: 1, maximum: 5000, default: 250 }
+    MaxAge:
+      name: max_age
+      in: query
+      required: false
+      description: |
+        本次调用可接受的缓存年龄（秒）。覆盖配置里的 TTL；`0` 表示强制回源。
+      schema: { type: integer, minimum: 0 }
+
+  responses:
+    BadRequest:
+      description: 参数不合法
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            data: null
+            error:
+              code: INVALID_ARGUMENT
+              message: mainland codes must be six digits
+              detail: { code: 60051, market: CN }
+    NotFound:
+      description: 代码不存在或已退市
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: 代码有多个候选，需要指定 asset_class
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unprocessable:
+      description: 该标的不支持此能力
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            data: null
+            error:
+              code: UNSUPPORTED
+              message: 'CN:FUND:022430 has no quote data'
+              detail: { instrument: 'CN:FUND:022430', capability: QUOTE, available: [NAV, PROFILE] }
+    BadGateway:
+      description: 上游数据源失败
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            data: null
+            error:
+              code: UNAVAILABLE
+              message: all sources failed
+              detail:
+                attempts:
+                  - { source: eastmoney, reason: timeout }
+                  - { source: tencent, reason: cooldown, remaining: 21.4 }
+
+  schemas:
+    AssetClass:
+      type: string
+      enum: [STOCK, FUND, CRYPTO]
+      default: STOCK
+    Market:
+      type: string
+      enum: [CN, US, CRYPTO]
+      default: CN
+    Interval:
+      type: string
+      enum: [1m, 5m, 15m, 30m, 60m, 1d, 1w, 1M]
+      default: 1d
+    Adjust:
+      type: string
+      enum: [none, qfq, hfq]
+      default: qfq
+    Capability:
+      type: string
+      enum: [RESOLVE, QUOTE, HISTORY, NAV, PROFILE, HOLDINGS, BENCHMARK, ESTIMATE, FX, LIST]
+    Confidence:
+      type: string
+      enum: [exact, inferred, partial]
+    QuoteStatus:
+      type: string
+      enum: [REALTIME, HISTORICAL, UNAVAILABLE]
+    FundClass:
+      type: string
+      enum: [EQUITY, HYBRID, BOND, MONEY, FOF, REITS, OTHER]
+    EstimateBasis:
+      type: string
+      description: |
+        - `index`：用跟踪指数推算
+        - `holdings`：用重仓股推算
+        - `none`：无法估值（货币基金、输入过期、无持仓）
+      enum: [index, holdings, none]
+
+    ErrorBody:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: 稳定的错误码，跨语言可用
+          example: NOT_FOUND
+        message:
+          type: string
+          description: 人读描述
+        detail:
+          type: object
+          additionalProperties: true
+          description: 结构化上下文，如源名、重试次数、缺失字段
+          example: { source: eastmoney, attempts: 2 }
+
+    ErrorResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/ErrorBody' }
+
+    Instrument:
+      type: object
+      required: [id, code, asset_class, market, currency, confidence, aliases, capabilities]
+      properties:
+        id:
+          type: string
+          description: 内部标识，形如 `CN:STOCK:600519`
+          example: CN:STOCK:600519
+        code: { type: string, example: '600519' }
+        asset_class: { $ref: '#/components/schemas/AssetClass' }
+        market: { $ref: '#/components/schemas/Market' }
+        currency: { type: string, example: CNY }
+        source_name:
+          type: [string, 'null']
+          description: 源返回的名称，非权威
+        confidence:
+          allOf:
+            - $ref: '#/components/schemas/Confidence'
+            - description: |
+                `partial` 表示能力是按代码前缀推断的，可能不准。
+                例如基金代码前缀无法证明它是否场内。
+        aliases:
+          type: object
+          additionalProperties: { type: string }
+          description: 各数据源的标识
+          example: { eastmoney: '1.600519', tencent: sh600519 }
+        capabilities:
+          type: array
+          items: { $ref: '#/components/schemas/Capability' }
+
+    InstrumentResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data: { $ref: '#/components/schemas/Instrument' }
+        error: { type: 'null' }
+
+    Quote:
+      type: object
+      required: [instrument_id, price, currency, source, ts, status, stale]
+      properties:
+        instrument_id: { type: string }
+        price:
+          type: string
+          description: 十进制字符串，不是数字
+          example: '1453.00'
+        currency: { type: string, example: CNY }
+        change:
+          type: [string, 'null']
+          description: 涨跌额
+          example: '1.00'
+        change_pct:
+          type: [number, 'null']
+          description: 涨跌幅百分数值，`-1.76` 表示 -1.76%
+          example: 0.07
+        source: { type: string, example: eastmoney }
+        ts:
+          type: string
+          format: date-time
+          description: 带时区偏移的观测时刻
+        status: { $ref: '#/components/schemas/QuoteStatus' }
+        stale:
+          type: boolean
+          description: 是否来自过期缓存
+
+    QuoteResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data: { $ref: '#/components/schemas/Quote' }
+        error: { type: 'null' }
+
+    BatchQuoteRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            required: [code]
+            properties:
+              code: { type: string }
+              asset_class: { $ref: '#/components/schemas/AssetClass' }
+              market: { $ref: '#/components/schemas/Market' }
+
+    QuoteResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        instrument:
+          oneOf:
+            - $ref: '#/components/schemas/Instrument'
+            - { type: 'null' }
+        quote:
+          oneOf:
+            - $ref: '#/components/schemas/Quote'
+            - { type: 'null' }
+        error:
+          type: [string, 'null']
+          description: '失败原因，形如 `UNSUPPORTED: ...`'
+
+    BatchQuoteResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              description: 与请求**等长同序**
+              items: { $ref: '#/components/schemas/QuoteResult' }
+            fetched_at: { type: string, format: date-time }
+        error: { type: 'null' }
+
+    Bar:
+      type: object
+      required: [date, open, high, low, close, volume]
+      properties:
+        date:
+          type: string
+          format: date
+          description: 交易日，无时区
+        time:
+          type: [string, 'null']
+          description: 分钟线的时刻 `HH:MM`；日线为 `null`
+          example: '14:55'
+        open: { type: string, example: '1450.00' }
+        high: { type: string, example: '1457.72' }
+        low: { type: string, example: '1436.00' }
+        close: { type: string, example: '1453.00' }
+        volume: { type: string, example: '42848' }
+        amount: { type: [string, 'null'] }
+
+    BarsResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          required: [bars]
+          properties:
+            bars:
+              type: array
+              items: { $ref: '#/components/schemas/Bar' }
+            interval: { $ref: '#/components/schemas/Interval' }
+            adjust: { $ref: '#/components/schemas/Adjust' }
+            source: { type: string }
+            fetched_at: { type: string, format: date-time }
+        error: { type: 'null' }
+
+    NavPoint:
+      type: object
+      required: [date, nav]
+      properties:
+        date: { type: string, format: date }
+        nav:
+          type: string
+          description: 单位净值，十进制字符串
+          example: '1.0690'
+
+    NavResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          required: [points]
+          properties:
+            points:
+              type: array
+              items: { $ref: '#/components/schemas/NavPoint' }
+            latest: { $ref: '#/components/schemas/NavPoint' }
+            source: { type: string }
+            fetched_at: { type: string, format: date-time }
+        error: { type: 'null' }
+
+    BenchmarkComponent:
+      type: object
+      required: [name, weight]
+      properties:
+        name: { type: string, example: 中证800指数 }
+        weight:
+          type: number
+          description: 权重百分数，`70` 表示 70%
+          example: 70
+
+    Benchmark:
+      type: object
+      required: [text, components, coverage]
+      properties:
+        text:
+          type: string
+          description: 原始基准字符串
+          example: 中证800指数收益率*70%+上证国债指数收益率*25%
+        components:
+          type: array
+          items: { $ref: '#/components/schemas/BenchmarkComponent' }
+        coverage:
+          type: number
+          description: 权重合计 / 100，用于判断解析是否完整
+          example: 1.0
+
+    ProfileResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          properties:
+            fund_type: { type: [string, 'null'], example: 混合型-偏股 }
+            fund_class:
+              oneOf:
+                - $ref: '#/components/schemas/FundClass'
+                - { type: 'null' }
+            tracking_index: { type: [string, 'null'] }
+            benchmark: { $ref: '#/components/schemas/Benchmark' }
+            manager: { type: [string, 'null'] }
+            custodian: { type: [string, 'null'] }
+            scale: { type: [string, 'null'], example: '80.39亿' }
+            inception_date: { type: [string, 'null'], format: date }
+            as_of: { type: [string, 'null'], format: date }
+            partial:
+              type: boolean
+              description: 部分字段缺失时为 true，缺失项见 `missing`
+            missing:
+              type: array
+              items: { type: string }
+        error: { type: 'null' }
+
+    Holding:
+      type: object
+      required: [code, name, weight]
+      properties:
+        code: { type: string, example: '600519' }
+        name: { type: string, example: 贵州茅台 }
+        weight: { type: number, example: 8.42 }
+
+    QuarterHoldings:
+      type: object
+      required: [quarter, as_of, holdings]
+      properties:
+        quarter: { type: string, example: 2026Q3 }
+        as_of: { type: string, format: date }
+        holdings:
+          type: array
+          items: { $ref: '#/components/schemas/Holding' }
+
+    HoldingsResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          required: [quarters]
+          properties:
+            quarters:
+              type: array
+              items: { $ref: '#/components/schemas/QuarterHoldings' }
+            has_more: { type: boolean }
+            next_before: { type: [string, 'null'], example: 2025Q2 }
+        error: { type: 'null' }
+
+    BenchmarkResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          properties:
+            effective_start: { type: string, format: date }
+            components_used:
+              type: array
+              items: { $ref: '#/components/schemas/BenchmarkComponent' }
+            components_dropped:
+              type: array
+              description: 取不到数据的成分，如中债系列
+              items: { type: string }
+            coverage: { type: number }
+            series:
+              type: array
+              items:
+                type: object
+                properties:
+                  date: { type: string, format: date }
+                  value: { type: string }
+        error: { type: 'null' }
+
+    EstimateResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          properties:
+            change_pct: { type: [number, 'null'] }
+            nav: { type: [string, 'null'] }
+            basis: { $ref: '#/components/schemas/EstimateBasis' }
+            coverage: { type: [number, 'null'] }
+            as_of: { type: [string, 'null'], format: date-time }
+            explanation: { type: string }
+            benchmark_assumption:
+              type: object
+              properties:
+                equity: { type: number }
+                non_equity: { type: number }
+                unclassified: { type: number }
+        error: { type: 'null' }
+
+    FxResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          required: [base, quote, rate, source, as_of, derived]
+          properties:
+            base: { type: string, example: USD }
+            quote: { type: string, example: CNY }
+            rate: { type: string, example: '6.6738' }
+            source: { type: string }
+            as_of: { type: string, format: date-time }
+            derived:
+              type: boolean
+              description: 是否由交叉换算得到
+        error: { type: 'null' }
+
+    InstrumentSummary:
+      type: object
+      required: [code, name, asset_class, market, currency]
+      properties:
+        code: { type: string, example: '600519' }
+        name: { type: string, example: 贵州茅台 }
+        asset_class: { $ref: '#/components/schemas/AssetClass' }
+        market: { $ref: '#/components/schemas/Market' }
+        currency: { type: string }
+        listing_date: { type: [string, 'null'], format: date }
+        board:
+          type: [string, 'null']
+          description: 主板 / 创业板 / 科创板 / 北交所 / NASDAQ / NYSE / AMEX
+        industry:
+          type: [string, 'null']
+          description: 源提供的行业标签，仅供参考
+        fund_type: { type: [string, 'null'] }
+        fund_class:
+          oneOf:
+            - $ref: '#/components/schemas/FundClass'
+            - { type: 'null' }
+
+    ListingResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/InstrumentSummary' }
+            page: { type: integer }
+            page_size: { type: integer }
+            has_more: { type: boolean }
+            next_page: { type: [integer, 'null'] }
+        error: { type: 'null' }
+
+    HealthResponse:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          type: object
+          properties:
+            status: { type: string, enum: [ok, degraded] }
+            config: { type: object, additionalProperties: true }
+            sources: { type: object, additionalProperties: true }
+            cache: { type: object, additionalProperties: true }
+            recent_schema_changes:
+              type: array
+              items: { type: string }
+        error: { type: 'null' }

@@ -45,8 +45,12 @@ _LIST_URL = "https://push2.eastmoney.com/api/qt/clist/get"
 
 # Board selectors for the listing endpoint.
 _LIST_FILTERS: dict[tuple[AssetClass, Market], str] = {
-    (AssetClass.STOCK, Market.CN): "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23",
-    (AssetClass.FUND, Market.CN): "b:MK0021,b:MK0022,b:MK0023,b:MK0024",
+    # Shenzhen main board, ChiNext, Shanghai main board, STAR, Beijing.
+    (AssetClass.STOCK, Market.CN): "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048",
+    # Exchange traded funds and LOFs across five boards. MK0020 is FX, not a fund.
+    (AssetClass.FUND, Market.CN): (
+        "b:MK0021,b:MK0022,b:MK0023,b:MK0024,b:MK0025,b:MK0026,b:MK0027,b:MK0028"
+    ),
     (AssetClass.STOCK, Market.US): "m:105,m:106,m:107",
 }
 _LIST_FIELDS = "f2,f12,f13,f14,f26,f100"
