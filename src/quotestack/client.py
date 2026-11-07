@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import replace
 from types import TracebackType
@@ -131,6 +132,8 @@ class MarketData:
         code: str,
         asset_class: AssetClass = AssetClass.STOCK,
         market: Market = Market.CN,
+        *,
+        max_age: float | None = None,
     ) -> Quote:
         """Fetch the latest quote for one instrument.
 
@@ -138,6 +141,8 @@ class MarketData:
             code: Raw code.
             asset_class: Business classification.
             market: Trading venue.
+            max_age: Accept cached data up to this many seconds old. Overrides
+                the configured TTL for this call only; ``0`` forces a fetch.
 
         Returns:
             The current quote. When the upstream fails and a cached value is
@@ -158,6 +163,7 @@ class MarketData:
             fetch=lambda: self._fetch_quote(instrument),
             is_expected=lambda item: isinstance(item, Quote),
             mark_stale=self._mark_quote_stale,
+            max_age=max_age,
         )
         return cast("Quote", value)
 
@@ -170,6 +176,7 @@ class MarketData:
         interval: Interval = Interval.D1,
         adjust: Adjust = Adjust.QFQ,
         limit: int = 250,
+        max_age: float | None = None,
     ) -> list[Bar]:
         """Fetch historical bars for one instrument.
 
@@ -180,6 +187,7 @@ class MarketData:
             interval: Bar interval.
             adjust: Price adjustment mode.
             limit: Maximum number of bars, counted from the newest bar.
+            max_age: Accept cached data up to this many seconds old.
 
         Returns:
             Bars in ascending date order.
@@ -202,6 +210,7 @@ class MarketData:
             Capability.HISTORY,
             fetch=lambda: self._fetch_history(instrument, interval, adjust, limit),
             is_expected=lambda item: isinstance(item, list),
+            max_age=max_age,
         )
         return cast("list[Bar]", bars)[-limit:]
 
@@ -213,9 +222,11 @@ class MarketData:
         fetch: Callable[[], Awaitable[object]],
         is_expected: Callable[[object], bool],
         mark_stale: Callable[[object], object] | None = None,
+        max_age: float | None = None,
     ) -> object:
         entry = self._cache.get(key)
-        state = classify(entry, self._ttl[capability], self._max_stale[capability])
+        ttl = self._ttl[capability] if max_age is None else max_age
+        state = classify(entry, ttl, self._max_stale[capability])
         event(
             _log,
             logging.DEBUG,
@@ -346,6 +357,30 @@ class MarketData:
     def cache_stats(self) -> dict[str, int]:
         """Return a snapshot of cache occupancy."""
         return {"entries": len(self._cache)}
+
+    def health(self) -> dict[str, object]:
+        """Return the current runtime state.
+
+        Mirrors the shape of the HTTP ``/healthz`` payload so the CLI and the
+        service report the same information.
+        """
+        source = self._source.meta
+        name = source.name
+        return {
+            "status": "degraded" if self._cooldown.is_cooling(name) else "ok",
+            "proxy": os.environ.get("QUOTESTACK_PROXY_URL")
+            or os.environ.get("HTTPS_PROXY")
+            or None,
+            "sources": {
+                name: {
+                    "state": "cooling" if self._cooldown.is_cooling(name) else "ok",
+                    "cooldown_remaining": round(self._cooldown.remaining(name), 1),
+                    "timeout": source.timeout,
+                    "capabilities": sorted(c.value for c in source.capabilities),
+                }
+            },
+            "cache": self.cache_stats(),
+        }
 
     async def _fetch_quote(self, instrument: Instrument) -> object:
         quotes = await self._source.quote([instrument])

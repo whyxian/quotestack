@@ -10,9 +10,9 @@
 ## 当前进度
 
 ```
-阶段：M1 完成 ✅ → 下一步 M2 基础能力补齐
-已完成：11 / 11（累计 27 / 74 项）
-下一项：M2-9 CLI（resolve + health）
+阶段：M2 完成 ✅ → 下一步 M3 多源与批量
+已完成：11 / 11（累计 30 / 74 项）
+下一项：M3-1 腾讯适配器
 ```
 
 ---
@@ -94,9 +94,9 @@ quotestack history 600519 --limit 5
 - [x] **M2-6** 上游限流（令牌桶 5 req/s）
 - [x] **M2-7** 结构化日志 + `hint` 硬约束
 - [x] **M2-8** 缓存键按规范实现（`v1|capability|...`）
-- [ ] **M2-9** 补全 CLI：`resolve` 与 `health` 两个命令
-- [ ] **M2-10** 同步包装 `quotestack.sync.SyncMarketData`（后台线程常驻事件循环）
-- [ ] **M2-11** `max_age` 单次调用覆盖 TTL
+- [x] **M2-9** 补全 CLI：`resolve` 与 `health` 两个命令
+- [x] **M2-10** 同步包装 `quotestack.sync.SyncMarketData`（后台线程常驻事件循环）
+- [x] **M2-11** `max_age` 单次调用覆盖 TTL
 
 **完成标准**
 

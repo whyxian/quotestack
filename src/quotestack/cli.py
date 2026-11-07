@@ -13,7 +13,7 @@ from typing import Any
 
 from quotestack.client import MarketData
 from quotestack.errors import MarketDataError
-from quotestack.models import Adjust, AssetClass, Bar, Interval, Market, Quote
+from quotestack.models import Adjust, AssetClass, Bar, Instrument, Interval, Market, Quote
 
 __all__ = ["main"]
 
@@ -50,6 +50,12 @@ def _build_parser() -> argparse.ArgumentParser:
     quote = sub.add_parser("quote", help="show the latest price")
     _add_instrument_args(quote)
 
+    resolve_cmd = sub.add_parser("resolve", help="resolve a code to source identifiers")
+    _add_instrument_args(resolve_cmd)
+
+    health = sub.add_parser("health", help="show source and cache state")
+    health.add_argument("--json", action="store_true", dest="as_json")
+
     history = sub.add_parser("history", help="show historical bars")
     _add_instrument_args(history)
     history.add_argument(
@@ -78,7 +84,21 @@ def _add_instrument_args(parser: argparse.ArgumentParser) -> None:
 
 
 async def _dispatch(args: argparse.Namespace) -> int:
+    if args.command == "health":
+        async with MarketData() as client:
+            _emit_health(client.health(), as_json=getattr(args, "as_json", False))
+        return 0
+
     async with MarketData() as client:
+        if args.command == "resolve":
+            instrument = client.resolve(
+                args.code,
+                AssetClass(args.asset_class),
+                Market(args.market),
+            )
+            _emit_instrument(instrument, as_json=args.as_json)
+            return 0
+
         if args.command == "quote":
             quote = await client.quote(
                 args.code,
@@ -98,6 +118,56 @@ async def _dispatch(args: argparse.Namespace) -> int:
         )
         _emit_history(bars, args.code, as_json=args.as_json)
         return 0
+
+
+def _emit_instrument(instrument: Instrument, *, as_json: bool) -> None:
+    if as_json:
+        _write_json(
+            {
+                "id": instrument.id,
+                "code": instrument.code,
+                "asset_class": instrument.asset_class.value,
+                "market": instrument.market.value,
+                "currency": instrument.currency,
+                "source_name": instrument.source_name,
+                "confidence": instrument.confidence.value,
+                "aliases": dict(instrument.aliases),
+                "capabilities": sorted(c.value for c in instrument.capabilities),
+            }
+        )
+        return
+
+    aliases = ", ".join(f"{k}={v}" for k, v in instrument.aliases.items()) or "-"
+    caps = ", ".join(sorted(c.value for c in instrument.capabilities)) or "-"
+    print(instrument.id)
+    print(_SEPARATOR)
+    print(f"  code        {instrument.code}")
+    print(f"  class       {instrument.asset_class.value}")
+    print(f"  market      {instrument.market.value}")
+    print(f"  currency    {instrument.currency}")
+    print(f"  confidence  {instrument.confidence.value}")
+    print(f"  aliases     {aliases}")
+    print(f"  abilities   {caps}")
+
+
+def _emit_health(payload: dict[str, object], *, as_json: bool) -> None:
+    if as_json:
+        _write_json(payload)
+        return
+
+    print(f"status   {payload.get('status')}")
+    print(f"proxy    {payload.get('proxy') or 'none'}")
+    print(_SEPARATOR)
+
+    sources = payload.get("sources")
+    if isinstance(sources, dict):
+        for name, info in sources.items():
+            state = info.get("state") if isinstance(info, dict) else info
+            print(f"source   {name}  {state}")
+
+    cache = payload.get("cache")
+    entries = cache.get("entries", 0) if isinstance(cache, dict) else 0
+    print(f"cache    {entries} entries")
 
 
 def _emit_quote(quote: Quote, *, as_json: bool) -> None:
