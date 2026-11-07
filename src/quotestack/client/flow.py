@@ -6,27 +6,19 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
-from quotestack.cache import Cache, CacheEntry, CacheState, classify, is_fresh
-from quotestack.client.core import CoreMixin
+from quotestack.cache import CacheEntry, CacheState, classify, is_fresh
+from quotestack.client.state import ClientState
 from quotestack.errors import UnavailableError, UpstreamError
 from quotestack.logging import event, get_logger
 from quotestack.models import Capability, Instrument
-from quotestack.resilience import Cooldown, TokenBucket
+from quotestack.sources.routing import candidates
 
 __all__ = ["FlowMixin"]
 
 _log = get_logger("client")
 
 
-class FlowMixin(CoreMixin):
-    _cache: Cache
-    _ttl: dict[Capability, float]
-    _max_stale: dict[Capability, float]
-    _sources: dict[str, object]
-    _priority: dict[str, list[str]]
-    _cooldown: Cooldown
-    _bucket: TokenBucket
-    _inflight: dict[str, asyncio.Task[object]]
+class FlowMixin(ClientState):
 
     async def _cached(
         self,
@@ -94,7 +86,12 @@ class FlowMixin(CoreMixin):
         mark_stale: Callable[[object], object] | None,
     ) -> object:
         attempts: list[dict[str, object]] = []
-        for name in self._candidates(instrument, capability):
+        for name in candidates(
+            instrument.asset_class,
+            instrument.market,
+            capability,
+            self._priority,
+        ):
             source = self._sources.get(name)
             if source is None:
                 continue

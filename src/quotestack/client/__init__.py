@@ -11,7 +11,6 @@ Composed from small mixins so no single module grows past the size limit:
 from __future__ import annotations
 
 from quotestack.client.core import CoreMixin
-from quotestack.client.flow import FlowMixin
 from quotestack.client.listing import ListingMixin
 from quotestack.client.quotes import QuotesMixin
 from quotestack.client.series import SeriesMixin
@@ -19,7 +18,7 @@ from quotestack.client.series import SeriesMixin
 __all__ = ["MarketData"]
 
 
-class MarketData(QuotesMixin, SeriesMixin, ListingMixin, FlowMixin, CoreMixin):
+class MarketData(QuotesMixin, SeriesMixin, ListingMixin, CoreMixin):
     """Entry point for every quotestack call.
 
     Args:

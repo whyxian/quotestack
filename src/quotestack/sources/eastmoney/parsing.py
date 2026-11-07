@@ -1,5 +1,8 @@
 """Parsing helpers shared across the Eastmoney endpoints.
 
+Names are prefixed with an underscore because they are internal to this
+package; only :class:`EastMoneySource` is public.
+
 Every one of these exists because the raw payload does something surprising:
 prices are scaled integers, percentages use a fixed divisor, and the kline
 columns are ordered O-C-H-L rather than OHLC.
@@ -11,17 +14,6 @@ from datetime import date, datetime, timedelta, timezone
 
 from quotestack.errors import SchemaChangedError
 from quotestack.models import Bar, Instrument, Market
-
-__all__ = [
-    "_as_date",
-    "_as_float",
-    "_as_int",
-    "_as_timestamp",
-    "_board_of",
-    "_has_price",
-    "_scaled",
-    "_to_bar",
-]
 
 # Percentages are always hundredths of a percent, regardless of price scale.
 PCT_DIVISOR = 100

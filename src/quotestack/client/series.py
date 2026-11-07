@@ -5,14 +5,13 @@ from __future__ import annotations
 from typing import cast
 
 from quotestack.cache import make_key
+from quotestack.client.core import CoreMixin
 from quotestack.client.flow import FlowMixin
-from quotestack.errors import UnsupportedError
 from quotestack.models import (
     Adjust,
     AssetClass,
     Bar,
     Capability,
-    FxRate,
     Instrument,
     Interval,
     Market,
@@ -22,8 +21,7 @@ from quotestack.models import (
 __all__ = ["SeriesMixin"]
 
 
-class SeriesMixin(FlowMixin):
-    _sources: dict[str, object]
+class SeriesMixin(FlowMixin, CoreMixin):
 
     async def history(
         self,
@@ -112,25 +110,6 @@ class SeriesMixin(FlowMixin):
         )
         return cast("list[NavPoint]", points)[-limit:]
 
-    async def fx(self, base: str, quote: str) -> FxRate:
-        """Convert between two currencies.
-
-        Args:
-            base: Source currency, e.g. ``USD``.
-            quote: Target currency, e.g. ``CNY``.
-
-        Returns:
-            The rate. ``derived`` marks a cross calculation.
-
-        Raises:
-            UnsupportedError: No rate is available for the pair.
-            UpstreamError: The source failed.
-        """
-        source = self._sources.get("fx")
-        if source is None:
-            raise UnsupportedError("no FX source configured", base=base, quote=quote)
-        rate: FxRate = await source.fx(base, quote)  # type: ignore[attr-defined]
-        return rate
 
     async def _fetch_history(
         self,

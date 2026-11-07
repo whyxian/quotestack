@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
 from quotestack.models import Adjust, Bar, Instrument, Interval
-from quotestack.sources.eastmoney.base import SOURCE_META, BaseMixin
+from quotestack.sources.eastmoney.core import SOURCE_META, CoreMixin
 from quotestack.sources.eastmoney.parsing import _to_bar
 
 __all__ = ["HISTORY_FIELDS1", "HISTORY_FIELDS2", "HISTORY_URL", "KlinesMixin"]
@@ -33,7 +33,7 @@ FQT: dict[Adjust, str] = {
 }
 
 
-class KlinesMixin(BaseMixin):
+class KlinesMixin(CoreMixin):
     """Kline endpoint."""
 
     meta = SOURCE_META

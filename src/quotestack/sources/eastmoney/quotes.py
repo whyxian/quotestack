@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
 from quotestack.models import Instrument, Quote
-from quotestack.sources.eastmoney.base import SOURCE_META, BaseMixin
+from quotestack.sources.eastmoney.core import SOURCE_META, CoreMixin
 from quotestack.sources.eastmoney.parsing import (
     PCT_DIVISOR,
     _as_float,
@@ -22,7 +22,7 @@ QUOTE_FIELDS = "f1,f2,f3,f4,f12,f13,f14,f124"
 MAX_BATCH = 50
 
 
-class QuotesMixin(BaseMixin):
+class QuotesMixin(CoreMixin):
     """Quote endpoint."""
 
     meta = SOURCE_META

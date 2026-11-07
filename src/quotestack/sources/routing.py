@@ -10,9 +10,11 @@ order via ``MarketData(source_priority=...)``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+
 from quotestack.models import AssetClass, Capability, Market
 
-__all__ = ["ROUTES", "route"]
+__all__ = ["ROUTES", "candidates", "route"]
 
 _ROUTES: dict[tuple[AssetClass, Market, Capability], tuple[str, ...]] = {
     # Mainland stocks and listed funds: Eastmoney first, Tencent as backup.
@@ -46,3 +48,31 @@ def route(asset_class: AssetClass, market: Market, capability: Capability) -> tu
 
 # Exposed for inspection and tests; treat as read-only.
 ROUTES = _ROUTES
+
+
+def candidates(
+    asset_class: AssetClass,
+    market: Market,
+    capability: Capability,
+    priority: Mapping[str, Sequence[str]] | None = None,
+) -> list[str]:
+    """Ordered source names to try for one request.
+
+    A source that cannot handle the instrument raises ``UpstreamError``, which
+    simply moves the attempt to the next one. Filtering by alias here would
+    silently skip custom sources that use their own naming.
+
+    Args:
+        asset_class: Business classification.
+        market: Trading venue.
+        capability: What the caller needs.
+        priority: Optional per-capability override keyed by capability value.
+
+    Returns:
+        Source names in the order they should be attempted.
+    """
+    if priority:
+        override = priority.get(capability.value)
+        if override:
+            return list(override)
+    return list(route(asset_class, market, capability))

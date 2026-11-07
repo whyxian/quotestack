@@ -6,19 +6,20 @@ from collections.abc import Sequence
 from dataclasses import replace
 from typing import cast
 
-from quotestack.cache import Cache, make_key
+from quotestack.cache import make_key
+from quotestack.client.core import CoreMixin
 from quotestack.client.flow import FlowMixin
-from quotestack.errors import MarketDataError, UpstreamError
+from quotestack.errors import MarketDataError, UnsupportedError, UpstreamError
 from quotestack.logging import get_logger
 from quotestack.models import (
     AssetClass,
     Capability,
+    FxRate,
     Instrument,
     Market,
     Quote,
     QuoteResult,
 )
-from quotestack.resilience import Cooldown, TokenBucket
 from quotestack.sources.routing import route
 
 __all__ = ["QuotesMixin"]
@@ -26,14 +27,7 @@ __all__ = ["QuotesMixin"]
 _log = get_logger("client")
 
 
-class QuotesMixin(FlowMixin):
-    _cache: Cache
-    _ttl: dict[Capability, float]
-    _max_stale: dict[Capability, float]
-    _sources: dict[str, object]
-    _priority: dict[str, list[str]]
-    _cooldown: Cooldown
-    _bucket: TokenBucket
+class QuotesMixin(FlowMixin, CoreMixin):
 
     async def quote(
         self,
@@ -174,3 +168,23 @@ class QuotesMixin(FlowMixin):
         if isinstance(value, Quote):
             return replace(value, stale=True)
         return value
+
+    async def fx(self, base: str, quote: str) -> FxRate:
+        """Convert between two currencies.
+
+        Args:
+            base: Source currency, e.g. ``USD``.
+            quote: Target currency, e.g. ``CNY``.
+
+        Returns:
+            The rate. ``derived`` marks a cross calculation.
+
+        Raises:
+            UnsupportedError: No rate is available for the pair.
+            UpstreamError: The source failed.
+        """
+        source = self._sources.get("fx")
+        if source is None:
+            raise UnsupportedError("no FX source configured", base=base, quote=quote)
+        rate: FxRate = await source.fx(base, quote)  # type: ignore[attr-defined]
+        return rate

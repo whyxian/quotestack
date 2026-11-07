@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 
 from quotestack.errors import SchemaChangedError, UnsupportedError, UpstreamError
 from quotestack.models import AssetClass, InstrumentSummary, Market
-from quotestack.sources.eastmoney.base import SOURCE_META, BaseMixin
+from quotestack.sources.eastmoney.core import SOURCE_META, CoreMixin
 from quotestack.sources.eastmoney.parsing import _as_date, _board_of, _has_price
 
 __all__ = ["LIST_FIELDS", "LIST_FILTERS", "LIST_URL", "MAX_PAGE", "ListingsMixin"]
@@ -26,7 +26,7 @@ LIST_FILTERS: dict[tuple[AssetClass, Market], str] = {
 }
 
 
-class ListingsMixin(BaseMixin):
+class ListingsMixin(CoreMixin):
     """Listing endpoint."""
 
     meta = SOURCE_META

@@ -6,7 +6,7 @@ klines and listings each have their own payload quirks and parsing rules.
 
 from __future__ import annotations
 
-from quotestack.sources.eastmoney.base import SOURCE_META
+from quotestack.sources.eastmoney.core import SOURCE_META
 from quotestack.sources.eastmoney.klines import KlinesMixin
 from quotestack.sources.eastmoney.listings import ListingsMixin
 from quotestack.sources.eastmoney.quotes import QuotesMixin

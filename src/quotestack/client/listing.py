@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from quotestack.client.core import CoreMixin
+from quotestack.client.state import ClientState
 from quotestack.errors import UnsupportedError
 from quotestack.models import AssetClass, InstrumentSummary, Market
 
@@ -21,8 +21,7 @@ _LISTING_PLAN: dict[tuple[AssetClass, Market, bool | None], tuple[str, ...]] = {
 }
 
 
-class ListingMixin(CoreMixin):
-    _sources: dict[str, object]
+class ListingMixin(ClientState):
 
     async def iter_instruments(
         self,

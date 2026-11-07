@@ -1,4 +1,4 @@
-"""Eastmoney adapter: shared state and secid resolution."""
+"""Eastmoney adapter: shared state, lifecycle and secid resolution."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from quotestack.errors import (
 from quotestack.models import AssetClass, Capability, Instrument, Market
 from quotestack.sources.base import SourceMeta
 
-__all__ = ["SEARCH_TOKEN", "SEARCH_URL", "SOURCE_META", "BaseMixin"]
+__all__ = ["SEARCH_TOKEN", "SEARCH_URL", "SOURCE_META", "CoreMixin"]
 
 SEARCH_URL = "https://searchapi.eastmoney.com/api/suggest/get"
 SEARCH_TOKEN = "D43BF722C8E33BDC906FB84D85E326E8"
@@ -32,7 +32,7 @@ SOURCE_META = SourceMeta(
 )
 
 
-class BaseMixin:
+class CoreMixin:
     """Owns the HTTP client, its lifetime and secid resolution."""
 
     meta = SOURCE_META

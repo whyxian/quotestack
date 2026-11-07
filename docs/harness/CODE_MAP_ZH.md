@@ -82,13 +82,14 @@ _fallback()        有 stale 值就返回，否则抛 Unavailable
 
 **拆成 5 个 mixin**：
 
-| 文件 | 职责 |
-|---|---|
-| `core.py` | 状态、生命周期、`resolve`、`health` |
-| `flow.py` | 缓存三态、单飞、降级 |
-| `quotes.py` | `quote` / `quote_many` |
-| `series.py` | `history` / `nav` / `fx` |
-| `listing.py` | `iter_instruments` |
+| 文件 | 职责 | 依赖 |
+|---|---|---|
+| `state.py` | 只声明 8 个共享属性 | — |
+| `core.py` | 生命周期、`resolve`、`health` | state |
+| `flow.py` | 缓存三态、单飞、降级 | state、routing |
+| `quotes.py` | `quote` / `quote_many` / `fx` | flow、core |
+| `series.py` | `history` / `nav` | flow、core |
+| `listing.py` | `iter_instruments` | state |
 
 `MarketData` 在 `__init__.py` 里组合它们，对外仍是同一个类。
 
