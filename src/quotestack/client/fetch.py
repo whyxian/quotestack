@@ -1,4 +1,14 @@
-"""Cache lookup, single-flight and fallback orchestration."""
+"""Fetch orchestration: cache state, single-flight and source fallback.
+
+This is a mechanism, not a part of the public API, so it lives in its own
+object. :class:`MarketData` owns one instance and asks it for values.
+
+The three cache states come from ``cache.classify``:
+
+- ``FRESH``: serve immediately, no network
+- ``STALE``: try the network, but serve this value if every source fails
+- ``EXPIRED``: try the network, and raise if every source fails
+"""
 
 from __future__ import annotations
 
@@ -6,21 +16,58 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
-from quotestack.cache import CacheEntry, CacheState, classify, is_fresh
-from quotestack.client.state import ClientState
+from quotestack.cache import Cache, CacheEntry, CacheState, classify, is_fresh
 from quotestack.errors import UnavailableError, UpstreamError
 from quotestack.logging import event, get_logger
 from quotestack.models import Capability, Instrument
+from quotestack.resilience import Cooldown, TokenBucket
 from quotestack.sources.routing import candidates
 
-__all__ = ["FlowMixin"]
+__all__ = ["FetchPolicy"]
 
 _log = get_logger("client")
 
 
-class FlowMixin(ClientState):
+class FetchPolicy:
+    """Coordinates cache, single-flight, rate limiting and fallback.
 
-    async def _cached(
+    Args:
+        cache: Storage backend.
+        ttl: Freshness window per capability, in seconds.
+        max_stale: How long past the TTL a value may still be served.
+        sources: Source registry keyed by name.
+        priority: Optional per-capability source order override.
+        cooldown: Per-source cooldown policy.
+        bucket: Outbound rate limiter.
+    """
+
+    def __init__(
+        self,
+        *,
+        cache: Cache,
+        ttl: dict[Capability, float],
+        max_stale: dict[Capability, float],
+        sources: dict[str, object],
+        priority: dict[str, list[str]],
+        cooldown: Cooldown,
+        bucket: TokenBucket,
+    ) -> None:
+        self._cache = cache
+        self._ttl = ttl
+        self._max_stale = max_stale
+        self._sources = sources
+        self._priority = priority
+        self._cooldown = cooldown
+        self._bucket = bucket
+        self._inflight: dict[str, asyncio.Task[object]] = {}
+
+    def cancel_inflight(self) -> None:
+        """Cancel every in-flight fetch."""
+        for task in self._inflight.values():
+            task.cancel()
+        self._inflight.clear()
+
+    async def get(
         self,
         key: str,
         capability: Capability,
@@ -162,7 +209,7 @@ class FlowMixin(ClientState):
             return stale_value
         raise UnavailableError(reason, attempts=attempts or [])
 
-    def _fresh_entry(self, key: str, capability: Capability) -> CacheEntry | None:
+    def fresh_entry(self, key: str, capability: Capability) -> CacheEntry | None:
         entry = self._cache.get(key)
         if entry is None or not is_fresh(entry, self._ttl[capability]):
             return None

@@ -2,7 +2,7 @@
 
 > 代码注释是英文的（面向开源社区），这份文档负责让你**不用读注释也能看懂代码**。
 > 每个文件一张表：职责 + 关键成员 + 容易踩的点。
-> 更新于 2026-11-08，对应 M3.6 完成状态（41 个文件 / 4,311 行）。
+> 更新于 2026-11-08，对应 M3.6 完成状态（37 个文件 / 4,292 行）。
 
 ---
 
@@ -44,7 +44,7 @@ models ← errors ← identity ← cache
 
 ---
 
-## `client/` — 主入口（5 个文件）
+## `client/` — 主入口（2 个文件）
 
 **职责**：把解析、缓存、单飞、降级、限流、路由串成一次调用。
 
@@ -80,16 +80,12 @@ _fallback()        有 stale 值就返回，否则抛 Unavailable
 - `resolve` 是**同步**的，不要 `await`
 - 构造参数用 `is not None` 判断，不能用 `or`（`MemoryCache` 有 `__len__`，空缓存是 falsy）
 
-**拆成 5 个 mixin**：
+**两个文件**：
 
-| 文件 | 职责 | 依赖 |
-|---|---|---|
-| `state.py` | 只声明 8 个共享属性 | — |
-| `core.py` | 生命周期、`resolve`、`health` | state |
-| `flow.py` | 缓存三态、单飞、降级 | state、routing |
-| `quotes.py` | `quote` / `quote_many` / `fx` | flow、core |
-| `series.py` | `history` / `nav` | flow、core |
-| `listing.py` | `iter_instruments` | state |
+| 文件 | 职责 |
+|---|---|
+| `__init__.py` | `MarketData`：全部公开方法 |
+| `fetch.py` | `FetchPolicy`：缓存三态、单飞、降级、限流、冷却 |
 
 `MarketData` 在 `__init__.py` 里组合它们，对外仍是同一个类。
 
@@ -340,5 +336,6 @@ A：列表缓存 24 小时、价格 30 秒过期，一个对象两种时间尺�
 **Q：为什么基金都要给 NAV 能力？**
 A：代码前缀不能证明是否场内（`166002` 就是反例）。宁可多给能力，失败时明确报错。
 
-**Q：为什么拆成 mixin 而不是独立类？**
-A：对外必须是**一个** `MarketData`，调用方不该知道内部怎么分。mixin 保持 `self` 语义不变，方法签名也不用动。
+**Q：为什么不把 `MarketData` 拆成几个类？**
+A：试过。用 mixin 拆成 5 个文件后有 7 层继承链，读一次 `quote` 要跳 4 个文件。
+后来组装回一个类，只把「取数策略」抽成 `FetchPolicy`——它能独立测试，这才是拆的理由。

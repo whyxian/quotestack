@@ -208,7 +208,7 @@ async def test_binance_keeps_only_trading_usdt_pairs() -> None:
 
 def test_listing_plan_covers_crypto() -> None:
     """Crypto listing is routed to Binance."""
-    from quotestack.client.listing import _LISTING_PLAN
+    from quotestack.client import _LISTING_PLAN
 
     assert _LISTING_PLAN[(AssetClass.CRYPTO, Market.CRYPTO, None)] == ("binance",)
 
