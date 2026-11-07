@@ -197,7 +197,163 @@ GET  /v1/healthz
 | 分页 | `before` 游标（如 `2025Q4`）+ `limit`，响应带 `has_more` / `next_before` |
 | `adjust` | `none` / `qfq` / `hfq`，默认 `qfq` |
 | 健康检查 | `/healthz` 返回源状态、代理档位、近期 `schema_changes` |
-| 错误体 | `{ code, message, detail }`，HTTP 状态码按第 9 节映射 |
+| 错误体 | 包在 `error` 字段内：`{ data: null, error: { code, message, detail } }` |
+
+### 7.4 统一响应结构
+
+成功与失败**形状一致**，调用方只需一条解析路径：
+
+```json
+// 成功（HTTP 200）
+{ "data": { ... }, "error": null }
+
+// 失败（HTTP 4xx / 5xx）
+{
+  "data": null,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "instrument not found",
+    "detail": { "code": "999999", "market": "CN" }
+  }
+}
+```
+
+**为什么保留 HTTP 状态码**：监控、重试、网关限流都依赖它。全部返回 200 会让这些能力失效——旧项目踩过这个坑。
+
+**为什么还要 `error` 字段**：前端/Java 客户端用一个 `if (error != null)` 就能处理全部失败，不用同时判状态码和响应体。
+
+### 7.5 接口明细
+
+公共参数（除 `/healthz` 与 `/fx` 外，每个接口都有）：
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `code` | string | ✅ | 标的代码 |
+| `asset_class` | enum | ❌ | `STOCK` / `FUND` / `CRYPTO`，默认 `STOCK` |
+| `market` | enum | ❌ | `CN` / `US` / `CRYPTO`，默认 `CN` |
+
+#### `GET /v1/resolve`
+
+| 额外参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `expected_name` | string | ❌ | 传入后用于校验解析结果，名称差异过大则换候选 |
+
+| `data` 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | string | `CN:STOCK:600519` |
+| `code` | string | 规范化的代码 |
+| `asset_class` / `market` | enum | |
+| `currency` | string | 计价货币 |
+| `source_name` | string \| null | 源返回的名称，**非权威** |
+| `confidence` | enum | `exact` / `inferred` / `partial` |
+| `aliases` | object | 各源标识，如 `{"eastmoney":"1.600519"}` |
+| `capabilities` | string[] | 该标的可用的能力 |
+
+错误：`INVALID_ARGUMENT`(400)、`AMBIGUOUS`(409)、`NOT_FOUND`(404)
+
+#### `GET /v1/quote`
+
+| `data` 字段 | 类型 | 说明 |
+|---|---|---|
+| `instrument_id` | string | |
+| `price` | string | 十进制字符串 |
+| `currency` | string | |
+| `change` | string \| null | 涨跌额 |
+| `change_pct` | number \| null | 百分数，`-1.76` 表示 -1.76% |
+| `source` | string | 实际提供数据的源 |
+| `ts` | string | RFC3339 带偏移 |
+| `status` | enum | `REALTIME` / `HISTORICAL` / `UNAVAILABLE` |
+| `stale` | boolean | 是否来自过期缓存 |
+
+错误：`UNSUPPORTED`(422)、`NOT_FOUND`(404)、`UPSTREAM_*`(502/504)
+
+#### `POST /v1/quotes/batch`
+
+请求体：`{"items": [{"code","asset_class","market"}, ...]}`，上限 200。
+
+| `data` 字段 | 类型 | 说明 |
+|---|---|---|
+| `results` | array | **等长同序**，每项 `{ok, instrument, quote?, error?}` |
+| `fetched_at` | string | 整批的抓取时刻 |
+
+单条失败不影响其余，`ok:false` 的项带 `error`。
+
+#### `GET /v1/history`
+
+| 额外参数 | 类型 | 必填 | 默认 | 说明 |
+|---|---|---|---|---|
+| `interval` | enum | ❌ | `1d` | `1m`–`60m` / `1d` / `1w` / `1M` |
+| `adjust` | enum | ❌ | `qfq` | `none` / `qfq` / `hfq` |
+| `limit` | int | ❌ | 250 | 从最新往前数 |
+
+| `data` 字段 | 类型 | 说明 |
+|---|---|---|
+| `bars` | array | 按日期升序 |
+| `interval` / `adjust` | enum | 回显实际使用的参数 |
+| `source` / `fetched_at` | string | |
+
+每根 `Bar`：`date`(string)、`time`(string\|null，分钟线才有)、`open`/`high`/`low`/`close`/`volume`(string)、`amount`(string\|null)
+
+错误：`UNSUPPORTED`(422，场外基金无 K 线)、`EMPTY_RESPONSE`(404)
+
+#### `GET /v1/nav`
+
+| 额外参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `limit` | int | ❌ | 返回点数，默认 250 |
+
+`data`：`points`（`[{date, nav}]`）、`latest`（最新一点）、`source`、`fetched_at`
+
+错误：`UNSUPPORTED`(422，非基金标的)
+
+#### `GET /v1/profile`
+
+`data` 字段：`fund_type`、`tracking_index`、`benchmark{text,components,coverage}`、`stock/bond/cash_position`、`manager`、`custodian`、`scale`、`inception_date`、`as_of`、`partial`、`missing[]`
+
+错误：`UNSUPPORTED`(422)
+
+#### `GET /v1/holdings`
+
+| 额外参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `before` | string | ❌ | 排他游标，如 `2025Q4` |
+| `limit` | int | ❌ | **季度数**，默认 4 |
+
+`data`：`quarters[{quarter, as_of, holdings[{code,name,weight}]}]`、`has_more`、`next_before`
+
+错误：`UNSUPPORTED`(422)
+
+#### `GET /v1/benchmark`
+
+| 额外参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `start` / `end` | string | ❌ | `YYYY-MM-DD`，默认近一年 |
+
+`data`：`effective_start`、`components_used[]`、`components_dropped[]`、`coverage`、`series[{date,value}]`
+
+错误：`UNSUPPORTED`(422)、`NOT_FOUND`(404)
+
+#### `GET /v1/estimate`
+
+`data`：`change_pct`、`nav`、`basis`(`index`/`holdings`/`none`)、`coverage`、`as_of`、`explanation`、`benchmark_assumption{equity,non_equity,unclassified}`
+
+**输入过期时返回 `basis:"none"` 而非错误**（HTTP 200）。
+
+#### `GET /v1/fx`
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `base` / `quote` | string | ✅ | ISO 货币码 |
+
+`data`：`base`、`quote`、`rate`(string)、`source`、`as_of`、`derived`、`stale`
+
+错误：`UNSUPPORTED`(422，不支持的币种)
+
+#### `GET /v1/healthz`
+
+`data`：`status`(`ok`/`degraded`)、`proxy`、`sources{name→状态}`、`cache{能力→条目数}`、`recent_schema_changes[]`
+
+**不做**：逐接口的完整 JSON 示例。完整 schema 在 M6 由 FastAPI 生成到 `docs/api/openapi.yaml`，避免 Markdown 与代码各写一份、彼此漂移。
 
 ---
 

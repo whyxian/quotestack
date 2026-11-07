@@ -34,6 +34,28 @@ MarketDataError
 
 **`EmptyResponse` 与 `Unavailable` 必须分开**：东财对 `560000` 返回 `{"rc":0,"data":null}`——HTTP 200、结构正常、就是没这只票。当 `Unavailable` 重试是白等。
 
+### HTTP 响应形状
+
+错误统一包在 `error` 字段里，与成功响应同形（详见 [05-api](05-api.md#74-统一响应结构)）：
+
+```json
+HTTP 404
+{
+  "data": null,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "instrument not found",
+    "detail": { "code": "999999", "market": "CN" }
+  }
+}
+```
+
+- `code`：稳定字符串，跨语言可用
+- `message`：人读描述
+- `detail`：结构化上下文（哪个源、第几次尝试、缺失哪些字段）
+
+**HTTP 状态码仍按上表设置**，不改成 200——监控与网关依赖它。
+
 ### `EmptyResponse` vs `SchemaChanged`
 
 ```
