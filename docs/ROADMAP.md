@@ -11,7 +11,7 @@
 
 ```
 阶段：M3.5 完成 ✅ → 下一步 M4 基金能力
-已完成：11 / 11（累计 43 / 79 项）
+已完成：11 / 11（累计 43 / 81 项）
 下一项：M4-1 基金画像
 ```
 
@@ -132,6 +132,27 @@ quotestack health          # 东财与腾讯都显示 ok
 手动禁用东财后，报价自动走腾讯。
 
 **规模**：M（1–2 天）
+
+---
+
+## M3.5 全市场列表
+
+> 目标：让调用方能自己刷新品种库，不依赖人工维护。
+
+- [x] **M3.5-1** `Capability.LIST` + `InstrumentSummary`
+- [x] **M3.5-2** 东财列表（A股 / 场内基金 / 美股，分页）
+- [x] **M3.5-3** 天天基金全量（28,305 只，带基金类型）
+- [x] **M3.5-4** Binance `exchangeInfo`（USDT + TRADING）
+- [x] **M3.5-5** `client.iter_instruments` + 路由
+
+**完成标准**
+
+```python
+async for batch in client.iter_instruments(AssetClass.STOCK, Market.CN):
+    ...
+```
+
+**规模**：S
 
 ---
 
