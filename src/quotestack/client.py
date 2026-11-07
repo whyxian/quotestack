@@ -23,7 +23,7 @@ from quotestack.cache import (
     make_key,
     merge_ttl,
 )
-from quotestack.errors import UnsupportedError, UpstreamError
+from quotestack.errors import UnavailableError, UnsupportedError, UpstreamError
 from quotestack.identity import resolve as resolve_rules
 from quotestack.logging import event, get_logger
 from quotestack.models import (
@@ -36,6 +36,7 @@ from quotestack.models import (
     Market,
     Quote,
 )
+from quotestack.resilience import Cooldown, TokenBucket
 from quotestack.sources import EastMoneySource
 
 __all__ = ["MarketData"]
@@ -60,12 +61,16 @@ class MarketData:
         ttl: Mapping[Capability, float] | None = None,
         max_stale: Mapping[Capability, float] | None = None,
         source: EastMoneySource | None = None,
+        cooldown: Cooldown | None = None,
+        bucket: TokenBucket | None = None,
     ) -> None:
         """Create a client."""
-        self._cache = cache or MemoryCache()
+        self._cache = cache if cache is not None else MemoryCache()
         self._ttl = merge_ttl(ttl)
         self._max_stale = {**default_max_stale(), **(max_stale or {})}
-        self._source = source or EastMoneySource()
+        self._source = source if source is not None else EastMoneySource()
+        self._cooldown = cooldown if cooldown is not None else Cooldown()
+        self._bucket = bucket if bucket is not None else TokenBucket()
         self._inflight: dict[str, asyncio.Task[object]] = {}
 
     async def __aenter__(self) -> MarketData:
@@ -259,25 +264,69 @@ class MarketData:
         fetch: Callable[[], Awaitable[object]],
         mark_stale: Callable[[object], object] | None,
     ) -> object:
+        source = self._source.meta.name
+
+        if self._cooldown.is_cooling(source):
+            remaining = self._cooldown.remaining(source)
+            return self._fallback(
+                key,
+                capability,
+                state,
+                entry,
+                mark_stale,
+                reason=f"{source} is cooling down for another {remaining:.0f}s",
+            )
+
+        await self._bucket.acquire()
         try:
             value = await fetch()
         except UpstreamError as exc:
-            if state is CacheState.STALE and entry is not None:
-                stale_value = mark_stale(entry.value) if mark_stale else entry.value
+            if self._cooldown.mark_failed(source):
                 event(
                     _log,
                     logging.WARNING,
-                    "stale_served",
-                    capability=capability.value,
-                    key=key,
-                    source=entry.source,
-                    hint=f"upstream failed ({exc.code}), serving cached value",
+                    "cooldown",
+                    source=source,
+                    action="mark",
+                    duration=self._cooldown.duration,
+                    hint=f"{source} failed with {exc.code}; skipping it briefly",
                 )
-                return stale_value
-            raise
+            return self._fallback(
+                key,
+                capability,
+                state,
+                entry,
+                mark_stale,
+                reason=f"{source} failed with {exc.code}",
+            )
 
-        self._cache.set(key, value, self._source.meta.name)
+        self._cooldown.mark_ok(source)
+        self._cache.set(key, value, source)
         return value
+
+    def _fallback(
+        self,
+        key: str,
+        capability: Capability,
+        state: CacheState,
+        entry: CacheEntry | None,
+        mark_stale: Callable[[object], object] | None,
+        *,
+        reason: str,
+    ) -> object:
+        if state is CacheState.STALE and entry is not None:
+            stale_value = mark_stale(entry.value) if mark_stale else entry.value
+            event(
+                _log,
+                logging.WARNING,
+                "stale_served",
+                capability=capability.value,
+                key=key,
+                source=entry.source,
+                hint=f"serving cached value because {reason}",
+            )
+            return stale_value
+        raise UnavailableError(reason, source=self._source.meta.name)
 
     def _fresh_entry(self, key: str, capability: Capability) -> CacheEntry | None:
         entry = self._cache.get(key)

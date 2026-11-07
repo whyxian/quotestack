@@ -13,13 +13,16 @@ from typing import Any
 __all__ = [
     "AmbiguousError",
     "ClientBrokenError",
+    "DelistedError",
     "EmptyResponseError",
     "InvalidArgumentError",
     "MarketDataError",
     "NotFoundError",
+    "RateLimitedError",
     "SchemaChangedError",
     "TimeoutError",
     "UnauthorizedError",
+    "UnavailableError",
     "UnsupportedError",
     "UpstreamError",
 ]
@@ -131,6 +134,25 @@ class UnauthorizedError(UpstreamError):
 
     code = "UNAUTHORIZED"
     retryable = False
+
+
+class DelistedError(MarketDataError):
+    """The instrument was delisted or liquidated."""
+
+    code = "DELISTED"
+
+
+class RateLimitedError(UpstreamError):
+    """Too many requests; back off before retrying."""
+
+    code = "RATE_LIMITED"
+    retryable = False
+
+
+class UnavailableError(UpstreamError):
+    """The source is temporarily unavailable (down or cooling down)."""
+
+    code = "UNAVAILABLE"
 
 
 class ClientBrokenError(MarketDataError):
