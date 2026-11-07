@@ -2,6 +2,7 @@
 
 > quotestack 设计决议 · 第 0 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
+> **实现状态**：📄 概念文档，无实现
 
 开源项目必须回答一个问题：**已经有 akshare、tushare、yfinance 了，为什么还要你？**
 

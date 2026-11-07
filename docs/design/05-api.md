@@ -2,6 +2,7 @@
 
 > quotestack 设计决议 · 第 5 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
+> **实现状态**：🚧 3/10 方法可用（resolve / quote / history）
 
 
 ## 接口清单（10 个）
