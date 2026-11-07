@@ -11,8 +11,8 @@
 
 ```
 阶段：M1 最小可用版本
-已完成：3 / 11（M0 已全部完成）
-下一项：M1-4 Protocol 定义
+已完成：5 / 11（M0 已全部完成）
+下一项：M1-6 东财 K 线
 ```
 
 ---
@@ -59,8 +59,8 @@ uv run mypy src          # 通过
 - [x] **M1-1** `errors.py`：先做 4 种（`InvalidArgument` / `NotFound` / `Unsupported` / `UpstreamError`）
 - [x] **M1-2** `models/`：`Instrument`、`Quote`、`Bar`（价格用 `str`）
 - [x] **M1-3** `identity/`：CN 代码前缀规则 → secid
-- [ ] **M1-4** `sources/base.py`：`Resolver` / `Quoter` / `Historian` 三个 Protocol
-- [ ] **M1-5** `sources/eastmoney.py`：实时报价（`ulist.np`）
+- [x] **M1-4** `sources/base.py`：`Resolver` / `Quoter` / `Historian` 三个 Protocol
+- [x] **M1-5** `sources/eastmoney.py`：实时报价（`ulist.np`）
 - [ ] **M1-6** `sources/eastmoney.py`：K 线（`kline/get`，支持 interval/adjust/limit）
 - [ ] **M1-7** `cache/memory.py`：带 TTL 的内存缓存
 - [ ] **M1-8** `client.py`：`resolve` / `quote` / `history` 三个入口
