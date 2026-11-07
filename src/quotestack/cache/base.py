@@ -10,11 +10,20 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Protocol
 
 from quotestack.models import Capability
 
-__all__ = ["CacheEntry", "CacheKey", "default_ttl", "make_key"]
+__all__ = [
+    "CacheEntry",
+    "CacheKey",
+    "CacheState",
+    "classify",
+    "default_max_stale",
+    "default_ttl",
+    "make_key",
+]
 
 CACHE_VERSION = "v1"
 
@@ -30,6 +39,34 @@ _DEFAULT_TTL: dict[Capability, float] = {
     Capability.ESTIMATE: 30.0,
     Capability.FX: 3600.0,
 }
+
+
+# How long an expired entry may still be served when the upstream fails.
+# ``inf`` means "never expires" (historical data does not change).
+_DEFAULT_MAX_STALE: dict[Capability, float] = {
+    Capability.RESOLVE: 30 * 24 * 3600,
+    Capability.QUOTE: 24 * 3600,  # never show a quote older than a day
+    Capability.HISTORY: float("inf"),
+    Capability.NAV: 7 * 24 * 3600,
+    Capability.PROFILE: 7 * 24 * 3600,
+    Capability.HOLDINGS: float("inf"),
+    Capability.BENCHMARK: 7 * 24 * 3600,
+    Capability.ESTIMATE: 300,  # estimates go stale fast
+    Capability.FX: 7 * 24 * 3600,
+}
+
+
+class CacheState(StrEnum):
+    """Freshness of a cached entry."""
+
+    FRESH = "fresh"
+    """Within TTL — serve directly."""
+
+    STALE = "stale"
+    """Past TTL but within max_stale — serve only if the upstream fails."""
+
+    EXPIRED = "expired"
+    """Past max_stale — never serve, even as a fallback."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +140,38 @@ def age_seconds(entry: CacheEntry, now: datetime | None = None) -> float:
     """Return how old an entry is, in seconds."""
     reference = now or datetime.now(UTC)
     return (reference - entry.fetched_at).total_seconds()
+
+
+def classify(
+    entry: CacheEntry | None,
+    ttl: float,
+    max_stale: float,
+    now: datetime | None = None,
+) -> CacheState:
+    """Classify a cache entry.
+
+    Args:
+        entry: The cached entry, or ``None`` when absent.
+        ttl: Freshness window in seconds.
+        max_stale: How long past the TTL the value may still be served.
+        now: Reference instant, defaults to the current UTC time.
+
+    Returns:
+        :class:`CacheState`. A missing entry is always ``EXPIRED``.
+    """
+    if entry is None:
+        return CacheState.EXPIRED
+    age = age_seconds(entry, now)
+    if age < ttl:
+        return CacheState.FRESH
+    if age < max_stale:
+        return CacheState.STALE
+    return CacheState.EXPIRED
+
+
+def default_max_stale() -> dict[Capability, float]:
+    """Return a mutable copy of the built-in max-stale table."""
+    return dict(_DEFAULT_MAX_STALE)
 
 
 def merge_ttl(overrides: Mapping[Capability, float] | None) -> dict[Capability, float]:

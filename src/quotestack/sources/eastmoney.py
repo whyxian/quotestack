@@ -184,6 +184,7 @@ class EastMoneySource:
                 assertion="payload contains 'data'",
                 sample=response.text[:500],
                 url=str(response.url),
+                hint="eastmoney may have changed its response shape; compare with tests/fixtures/eastmoney",
             )
         if data is None:
             raise EmptyResponseError(
@@ -201,6 +202,7 @@ class EastMoneySource:
                 assertion="data.klines is a list",
                 sample=response.text[:500],
                 url=str(response.url),
+                hint="eastmoney may have changed its response shape; compare with tests/fixtures/eastmoney",
             )
         if not klines:
             # Structure is intact, there is simply no data for this range.
@@ -240,6 +242,7 @@ class EastMoneySource:
                 assertion="payload contains 'data'",
                 sample=response.text[:500],
                 url=str(response.url),
+                hint="eastmoney may have changed its response shape; compare with tests/fixtures/eastmoney",
             )
 
         data = payload["data"]
@@ -252,6 +255,7 @@ class EastMoneySource:
                 assertion="data.diff is a list",
                 sample=response.text[:500],
                 url=str(response.url),
+                hint="eastmoney may have changed its response shape; compare with tests/fixtures/eastmoney",
             )
         return [row for row in data["diff"] if isinstance(row, dict)]
 
