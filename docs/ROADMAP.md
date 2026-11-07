@@ -11,8 +11,8 @@
 
 ```
 阶段：M2 完成 ✅ → 下一步 M3 多源与批量
-已完成：11 / 11（累计 33 / 74 项）
-下一项：M3-2 天天基金净值
+已完成：11 / 11（累计 34 / 74 项）
+下一项：M3-5 美股 secid
 ```
 
 ---
@@ -115,7 +115,7 @@ QUOTESTACK_LOG_LEVEL=DEBUG quotestack quote 600519   # 日志含 cache_lookup / 
 > 目标：一个源挂了不影响使用。
 
 - [x] **M3-1** `sources/tencent.py`：实时报价（A股 + 美股）
-- [ ] **M3-2** `sources/tiantian.py`：场外基金净值
+- [x] **M3-2** `sources/tiantian.py`：场外基金净值
 - [x] **M3-3** 路由表 + 降级链
 - [x] **M3-4** `quote_many`（等长同序、单条失败不拖垮整批）
 - [ ] **M3-5** 美股 secid 解析（东财搜索 `QuoteID`）

@@ -6,7 +6,7 @@ import pytest
 
 from quotestack.errors import InvalidArgumentError
 from quotestack.identity import resolve
-from quotestack.models import AssetClass, Capability, Market
+from quotestack.models import AssetClass, Capability, Confidence, Market
 
 
 @pytest.mark.parametrize(
@@ -17,8 +17,18 @@ from quotestack.models import AssetClass, Capability, Market
         ("000001", AssetClass.STOCK, Market.CN, {"eastmoney": "0.000001", "tencent": "sz000001"}),
         ("300001", AssetClass.STOCK, Market.CN, {"eastmoney": "0.300001", "tencent": "sz300001"}),
         ("920000", AssetClass.STOCK, Market.CN, {"eastmoney": "0.920000", "tencent": "bj920000"}),
-        ("510010", AssetClass.FUND, Market.CN, {"eastmoney": "1.510010", "tencent": "sh510010"}),
-        ("160105", AssetClass.FUND, Market.CN, {"eastmoney": "0.160105", "tencent": "sz160105"}),
+        (
+            "510010",
+            AssetClass.FUND,
+            Market.CN,
+            {"tiantian": "510010", "eastmoney": "1.510010", "tencent": "sh510010"},
+        ),
+        (
+            "160105",
+            AssetClass.FUND,
+            Market.CN,
+            {"tiantian": "160105", "eastmoney": "0.160105", "tencent": "sz160105"},
+        ),
         ("022430", AssetClass.FUND, Market.CN, {"tiantian": "022430"}),
         ("000001", AssetClass.FUND, Market.CN, {"tiantian": "000001"}),
     ],
@@ -43,6 +53,15 @@ def test_resolve_offexchange_fund_has_no_exchange_alias() -> None:
     assert "eastmoney" not in instrument.aliases
     assert Capability.NAV in instrument.capabilities
     assert Capability.HISTORY not in instrument.capabilities
+
+
+def test_listed_fund_keeps_nav_capability() -> None:
+    """A listed fund also has a NAV series, and its prefix is not proof of listing."""
+    instrument = resolve("166002", AssetClass.FUND, Market.CN)
+
+    assert Capability.NAV in instrument.capabilities
+    assert Capability.QUOTE in instrument.capabilities
+    assert instrument.confidence is Confidence.PARTIAL
 
 
 def test_resolve_listed_capabilities() -> None:

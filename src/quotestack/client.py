@@ -40,11 +40,12 @@ from quotestack.models import (
     Instrument,
     Interval,
     Market,
+    NavPoint,
     Quote,
     QuoteResult,
 )
 from quotestack.resilience import Cooldown, TokenBucket
-from quotestack.sources import EastMoneySource, TencentSource
+from quotestack.sources import EastMoneySource, TencentSource, TiantianSource
 from quotestack.sources.routing import route
 
 __all__ = ["MarketData"]
@@ -57,6 +58,7 @@ def _default_sources() -> dict[str, object]:
     return {
         "eastmoney": EastMoneySource(),
         "tencent": TencentSource(),
+        "tiantian": TiantianSource(),
     }
 
 
@@ -237,6 +239,45 @@ class MarketData:
             max_age=max_age,
         )
         return cast("list[Bar]", bars)[-limit:]
+
+    async def nav(
+        self,
+        code: str,
+        asset_class: AssetClass = AssetClass.FUND,
+        market: Market = Market.CN,
+        *,
+        limit: int = 250,
+        max_age: float | None = None,
+    ) -> list[NavPoint]:
+        """Fetch the NAV series of an open-end fund.
+
+        Args:
+            code: Fund code, e.g. ``022430``.
+            asset_class: Defaults to ``FUND``.
+            market: Defaults to ``CN``.
+            limit: Maximum number of points, counted from the newest.
+            max_age: Accept cached data up to this many seconds old.
+
+        Returns:
+            NAV points in ascending date order.
+
+        Raises:
+            UnsupportedError: The instrument is not an open-end fund.
+            UpstreamError: The source failed and no usable cache exists.
+        """
+        instrument = self.resolve(code, asset_class, market)
+        self._require(instrument, Capability.NAV)
+        key = make_key(Capability.NAV, instrument.id)
+
+        points = await self._cached(
+            key,
+            Capability.NAV,
+            instrument,
+            fetch=lambda src: self._fetch_nav(src, instrument),
+            is_expected=lambda item: isinstance(item, list),
+            max_age=max_age,
+        )
+        return cast("list[NavPoint]", points)[-limit:]
 
     async def _cached(
         self,
@@ -544,3 +585,6 @@ class MarketData:
         if isinstance(value, Quote):
             return replace(value, stale=True)
         return value
+
+    async def _fetch_nav(self, source: object, instrument: Instrument) -> object:
+        return await source.nav(instrument)  # type: ignore[attr-defined]

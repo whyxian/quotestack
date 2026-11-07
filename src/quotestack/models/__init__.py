@@ -11,6 +11,7 @@ from quotestack.models.enums import (
     QuoteStatus,
 )
 from quotestack.models.instrument import Instrument
+from quotestack.models.nav import NavPoint
 from quotestack.models.quote import Quote
 from quotestack.models.result import QuoteResult
 
@@ -23,6 +24,7 @@ __all__ = [
     "Instrument",
     "Interval",
     "Market",
+    "NavPoint",
     "Quote",
     "QuoteResult",
     "QuoteStatus",

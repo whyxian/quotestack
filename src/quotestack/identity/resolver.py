@@ -66,29 +66,33 @@ def _resolve_cn(code: str, asset_class: AssetClass) -> Instrument:
 
 
 def _resolve_cn_fund(code: str) -> Instrument:
-    venue = classify_cn_fund(code)
-    if venue == _CN_OFFEXCHANGE:
-        return Instrument(
-            id=Instrument.make_id(code, AssetClass.FUND, Market.CN),
-            code=code,
-            asset_class=AssetClass.FUND,
-            market=Market.CN,
-            currency="CNY",
-            confidence=Confidence.EXACT,
-            aliases={"tiantian": code},
-            capabilities=_CAPABILITIES_OFFEXCHANGE_FUND,
-        )
+    """Resolve a mainland fund.
 
-    aliases = _exchange_aliases(code, venue)
+    Fund code prefixes are not a reliable listing indicator: ``166002`` is an
+    open-end fund despite the ``16`` prefix that usually means a Shenzhen LOF.
+    So every fund gets a Tiantian alias and the NAV capability, and listed
+    venues additionally get the exchange aliases plus quote/history.
+    """
+    venue = classify_cn_fund(code)
+    aliases: dict[str, str] = {"tiantian": code}
+    capabilities = set(_CAPABILITIES_OFFEXCHANGE_FUND)
+    confidence = Confidence.EXACT
+
+    if venue != _CN_OFFEXCHANGE:
+        aliases.update(_exchange_aliases(code, venue))
+        capabilities |= _CAPABILITIES_LISTED
+        # Prefix alone cannot prove the fund is listed.
+        confidence = Confidence.PARTIAL
+
     return Instrument(
         id=Instrument.make_id(code, AssetClass.FUND, Market.CN),
         code=code,
         asset_class=AssetClass.FUND,
         market=Market.CN,
         currency="CNY",
-        confidence=Confidence.EXACT,
+        confidence=confidence,
         aliases=aliases,
-        capabilities=_CAPABILITIES_LISTED,
+        capabilities=frozenset(capabilities),
     )
 
 

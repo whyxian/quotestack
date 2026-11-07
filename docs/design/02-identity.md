@@ -50,6 +50,27 @@ searchapi.eastmoney.com/api/suggest/get?input=000001&type=14
 
 美股更简单：搜索结果直接给出 `QuoteID`（`105.AAPL` / `107.SPY`）。
 
+### 基金代码前缀不可靠（实测修正）
+
+最初按前缀判断场内/场外：
+
+```
+50/51/52/56/58 → 沪  15/16/18 → 深  其余 → 场外
+```
+
+实测发现 **`166002`（中欧新蓝筹混合A）是场外基金，但前缀是 `16`**——按规则会被误判成深市 LOF，导致 `nav` 报 `Unsupported`。
+
+**修正后的规则**：
+
+| 情况 | aliases | capabilities | confidence |
+|---|---|---|---|
+| 所有基金 | `tiantian` | `NAV` `PROFILE` | `exact` |
+| 前缀像场内 | 再加 `eastmoney` `tencent` | 再加 `QUOTE` `HISTORY` | `partial` |
+
+`partial` 的意思是：**前缀只是线索，不是证据**。调用方看到 `partial` 就知道该标的能力是"可能可用"，失败属正常。
+
+如果后续某只基金实际不场内，`QUOTE` 会返回 `EmptyResponse`，路由自动降级，最终得到 `Unavailable`——不会静默给出错误数据。
+
 ### 关键决议
 
 - **不内置品种目录**——目录归应用层（`asset_varieties` 45,970 条）
