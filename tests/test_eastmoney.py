@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import httpx
 import pytest
 import respx
@@ -191,3 +193,34 @@ async def test_history_raises_on_non_list_klines() -> None:
             await source.history(_STOCK)
     finally:
         await source.aclose()
+
+
+@respx.mock
+async def test_percentage_is_always_hundredths() -> None:
+    """f3 is percent x 100 regardless of the price decimal count.
+
+    US quotes carry three decimals (f1=3) while their percentage still uses
+    hundredths, so dividing by 10**f1 would be ten times too small.
+    """
+    respx.get(host="push2.eastmoney.com").mock(
+        return_value=httpx.Response(
+            200,
+            json=_payload(
+                {"f1": 3, "f2": 342370, "f3": -52, "f4": -1800, "f12": "AAPL", "f124": 0},
+            ),
+        )
+    )
+    # Pre-resolved secid: this test targets parsing, not search.
+    us = replace(
+        resolve("AAPL", AssetClass.STOCK, Market.US),
+        aliases={"eastmoney": "105.AAPL"},
+    )
+    source = EastMoneySource()
+    try:
+        quotes = await source.quote([us])
+    finally:
+        await source.aclose()
+
+    assert quotes[0].price == "342.370"
+    assert quotes[0].change == "-1.800"
+    assert quotes[0].change_pct == pytest.approx(-0.52)

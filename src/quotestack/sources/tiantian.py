@@ -42,15 +42,24 @@ class TiantianSource:
         timeout=8.0,  # the payload can reach several hundred kilobytes
     )
 
-    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient | None = None,
+        *,
+        proxy: str | None = None,
+    ) -> None:
         """Create the adapter.
 
         Args:
             client: Optional shared HTTP client. When omitted the adapter owns
                 one and closes it in :meth:`aclose`.
+            proxy: Outbound proxy applied when the adapter owns the client.
         """
         self._owns_client = client is None
-        self._client = client or httpx.AsyncClient(timeout=self.meta.timeout)
+        self._client = client or httpx.AsyncClient(
+            timeout=self.meta.timeout,
+            proxy=proxy,
+        )
 
     async def aclose(self) -> None:
         """Close the owned HTTP client."""

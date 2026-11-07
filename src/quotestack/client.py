@@ -37,6 +37,7 @@ from quotestack.models import (
     AssetClass,
     Bar,
     Capability,
+    FxRate,
     Instrument,
     Interval,
     Market,
@@ -45,7 +46,12 @@ from quotestack.models import (
     QuoteResult,
 )
 from quotestack.resilience import Cooldown, TokenBucket
-from quotestack.sources import EastMoneySource, TencentSource, TiantianSource
+from quotestack.sources import (
+    EastMoneySource,
+    FxSource,
+    TencentSource,
+    TiantianSource,
+)
 from quotestack.sources.routing import route
 
 __all__ = ["MarketData"]
@@ -53,12 +59,13 @@ __all__ = ["MarketData"]
 _log = get_logger("client")
 
 
-def _default_sources() -> dict[str, object]:
+def _default_sources(proxy: str | None = None) -> dict[str, object]:
     """Build the built-in source registry."""
     return {
-        "eastmoney": EastMoneySource(),
-        "tencent": TencentSource(),
-        "tiantian": TiantianSource(),
+        "eastmoney": EastMoneySource(proxy=proxy),
+        "tencent": TencentSource(proxy=proxy),
+        "tiantian": TiantianSource(proxy=proxy),
+        "fx": FxSource(proxy=proxy),
     }
 
 
@@ -79,6 +86,7 @@ class MarketData:
         ttl: Mapping[Capability, float] | None = None,
         max_stale: Mapping[Capability, float] | None = None,
         sources: Mapping[str, object] | None = None,
+        proxy: str | None = None,
         source_priority: Mapping[str, Sequence[str]] | None = None,
         cooldown: Cooldown | None = None,
         bucket: TokenBucket | None = None,
@@ -88,7 +96,7 @@ class MarketData:
         self._ttl = merge_ttl(ttl)
         self._max_stale = {**default_max_stale(), **(max_stale or {})}
         self._sources: dict[str, object] = (
-            dict(sources) if sources is not None else _default_sources()
+            dict(sources) if sources is not None else _default_sources(proxy)
         )
         self._priority = dict(source_priority or {})
         self._cooldown = cooldown if cooldown is not None else Cooldown()
@@ -239,6 +247,26 @@ class MarketData:
             max_age=max_age,
         )
         return cast("list[Bar]", bars)[-limit:]
+
+    async def fx(self, base: str, quote: str) -> FxRate:
+        """Convert between two currencies.
+
+        Args:
+            base: Source currency, e.g. ``USD``.
+            quote: Target currency, e.g. ``CNY``.
+
+        Returns:
+            The rate. ``derived`` marks a cross calculation.
+
+        Raises:
+            UnsupportedError: No rate is available for the pair.
+            UpstreamError: The source failed.
+        """
+        source = self._sources.get("fx")
+        if source is None:
+            raise UnsupportedError("no FX source configured", base=base, quote=quote)
+        rate: FxRate = await source.fx(base, quote)  # type: ignore[attr-defined]
+        return rate
 
     async def nav(
         self,

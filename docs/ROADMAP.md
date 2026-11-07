@@ -10,9 +10,9 @@
 ## 当前进度
 
 ```
-阶段：M2 完成 ✅ → 下一步 M3 多源与批量
-已完成：11 / 11（累计 34 / 74 项）
-下一项：M3-5 美股 secid
+阶段：M3 完成 ✅ → 下一步 M4 基金能力
+已完成：11 / 11（累计 38 / 74 项）
+下一项：M4-1 基金画像
 ```
 
 ---
@@ -118,10 +118,10 @@ QUOTESTACK_LOG_LEVEL=DEBUG quotestack quote 600519   # 日志含 cache_lookup / 
 - [x] **M3-2** `sources/tiantian.py`：场外基金净值
 - [x] **M3-3** 路由表 + 降级链
 - [x] **M3-4** `quote_many`（等长同序、单条失败不拖垮整批）
-- [ ] **M3-5** 美股 secid 解析（东财搜索 `QuoteID`）
-- [ ] **M3-6** `resolve` 的 `Ambiguous` 分支 + `candidates` + `expected_name` 校验
-- [ ] **M3-7** `fx` 汇率（USD 基准 + 交叉换算）
-- [ ] **M3-8** 代理支持（`proxy` / `proxy_bypass`，让 OKX 与 CoinGecko 可达）
+- [x] **M3-5** 美股 secid 解析（东财搜索 `QuoteID`）
+- [x] **M3-6** `resolve` 的 `Ambiguous` 分支 + `candidates`（`expected_name` 挪到 M6 的 HTTP 参数）
+- [x] **M3-7** `fx` 汇率（USD 基准 + 交叉换算）
+- [x] **M3-8** 代理支持（`proxy` / `proxy_bypass`，让 OKX 与 CoinGecko 可达）
 
 **完成标准**
 

@@ -15,6 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 
 from quotestack.errors import (
+    AmbiguousError,
     EmptyResponseError,
     SchemaChangedError,
     UpstreamError,
@@ -36,9 +37,13 @@ __all__ = ["EastMoneySource"]
 _QUOTE_URL = "https://push2.eastmoney.com/api/qt/ulist.np/get"
 _QUOTE_FIELDS = "f1,f2,f3,f4,f12,f13,f14,f124"
 _HISTORY_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+_SEARCH_URL = "https://searchapi.eastmoney.com/api/suggest/get"
+_SEARCH_TOKEN = "D43BF722C8E33BDC906FB84D85E326E8"
 _HISTORY_FIELDS1 = "f1,f2,f3"
 _HISTORY_FIELDS2 = "f51,f52,f53,f54,f55,f56,f57,f58"
 _MAX_BATCH = 50
+# Eastmoney always expresses percentages in hundredths of a percent.
+_PCT_DIVISOR = 100
 _CN_TZ = timezone(timedelta(hours=8))
 
 # Eastmoney encodes the bar interval as an integer.
@@ -77,15 +82,25 @@ class EastMoneySource:
         timeout=5.0,
     )
 
-    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient | None = None,
+        *,
+        proxy: str | None = None,
+    ) -> None:
         """Create the adapter.
 
         Args:
             client: Optional shared HTTP client. When omitted the adapter owns
                 one and closes it in :meth:`aclose`.
+            proxy: Outbound proxy applied when the adapter owns the client.
         """
         self._owns_client = client is None
-        self._client = client or httpx.AsyncClient(timeout=self.meta.timeout)
+        self._client = client or httpx.AsyncClient(
+            timeout=self.meta.timeout,
+            proxy=proxy,
+        )
+        self._secids: dict[str, str] = {}
 
     async def aclose(self) -> None:
         """Close the owned HTTP client."""
@@ -106,7 +121,7 @@ class EastMoneySource:
             SchemaChangedError: The payload no longer has the expected shape.
             UpstreamError: The request failed.
         """
-        secids = [self._secid_of(instrument) for instrument in instruments]
+        secids = [await self._secid_for(instrument) for instrument in instruments]
         rows = await self._fetch_rows(secids)
 
         by_code = {str(row.get("f12")): row for row in rows}
@@ -157,7 +172,7 @@ class EastMoneySource:
         response = await self._client.get(
             _HISTORY_URL,
             params={
-                "secid": self._secid_of(instrument),
+                "secid": await self._secid_for(instrument),
                 "fields1": _HISTORY_FIELDS1,
                 "fields2": _HISTORY_FIELDS2,
                 "klt": _KLT[interval],
@@ -259,14 +274,96 @@ class EastMoneySource:
             )
         return [row for row in data["diff"] if isinstance(row, dict)]
 
-    @staticmethod
-    def _secid_of(instrument: Instrument) -> str:
+    async def _secid_for(self, instrument: Instrument) -> str:
+        """Return the Eastmoney secid, looking US tickers up when needed.
+
+        Mainland codes carry their secid in ``aliases``. US tickers need an
+        exchange suffix (``105.AAPL`` for NASDAQ, ``107.SPY`` for NYSE Arca)
+        that only the search endpoint can supply, so it is resolved lazily and
+        memoised for the lifetime of the adapter.
+        """
         secid = instrument.aliases.get("eastmoney")
-        if secid is None:
+        if secid is not None:
+            return secid
+
+        cached = self._secids.get(instrument.code)
+        if cached is not None:
+            return cached
+
+        if instrument.market is not Market.US:
             raise UpstreamError(
                 "instrument has no eastmoney alias",
-                source="eastmoney",
+                source=self.meta.name,
                 instrument=instrument.id,
+            )
+
+        resolved = await self._search_us(instrument)
+        self._secids[instrument.code] = resolved
+        return resolved
+
+    async def _search_us(self, instrument: Instrument) -> str:
+        """Resolve a US ticker to a secid via the search endpoint."""
+        response = await self._client.get(
+            _SEARCH_URL,
+            params={
+                "input": instrument.code,
+                "type": "14",
+                "token": _SEARCH_TOKEN,
+                "count": "10",
+            },
+        )
+        if response.status_code >= 400:
+            raise UpstreamError(
+                f"eastmoney search responded with {response.status_code}",
+                source=self.meta.name,
+                status_code=response.status_code,
+            )
+
+        payload = response.json()
+        table = payload.get("QuotationCodeTable") if isinstance(payload, dict) else None
+        rows = table.get("Data") if isinstance(table, dict) else None
+        if not isinstance(rows, list):
+            raise SchemaChangedError(
+                "eastmoney search response has no data",
+                source=self.meta.name,
+                capability="resolve",
+                assertion="QuotationCodeTable.Data is a list",
+                sample=response.text[:500],
+                url=str(response.url),
+                hint="the search endpoint changed shape; check tests/fixtures/eastmoney",
+            )
+
+        candidates = [
+            row
+            for row in rows
+            if isinstance(row, dict)
+            and row.get("Code") == instrument.code
+            and row.get("SecurityTypeName") == "美股"
+        ]
+        if not candidates:
+            raise EmptyResponseError(
+                "eastmoney search found no US match",
+                source=self.meta.name,
+                instrument=instrument.id,
+            )
+        if len(candidates) > 1:
+            raise AmbiguousError(
+                "eastmoney search returned several US matches",
+                instrument=instrument.id,
+                candidates=[row.get("QuoteID") for row in candidates],
+                hint="pass expected_name to disambiguate",
+            )
+
+        secid = candidates[0].get("QuoteID")
+        if not isinstance(secid, str) or not secid:
+            raise SchemaChangedError(
+                "eastmoney search row has no QuoteID",
+                source=self.meta.name,
+                capability="resolve",
+                assertion="candidate has a QuoteID",
+                sample=str(candidates[0])[:300],
+                url=str(response.url),
+                hint="QuoteID is the secid format; check the search payload",
             )
         return secid
 
@@ -282,6 +379,8 @@ class EastMoneySource:
                 instrument=instrument.id,
             )
 
+        # f4 is scaled like the price; f3 is always percent x 100 regardless
+        # of how many decimals the price carries (US quotes use 3).
         return Quote(
             instrument_id=instrument.id,
             price=price,
@@ -289,7 +388,7 @@ class EastMoneySource:
             source="eastmoney",
             ts=_as_timestamp(row.get("f124")),
             change=_scaled(row.get("f4"), scale),
-            change_pct=_as_float(row.get("f3"), scale),
+            change_pct=_as_float(row.get("f3"), _PCT_DIVISOR),
         )
 
 
