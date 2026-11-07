@@ -10,9 +10,9 @@
 ## 当前进度
 
 ```
-阶段：M0 环境与脚手架
-已完成：0 / 8
-下一项：安装 uv
+阶段：M1 最小可用版本
+已完成：2 / 11（M0 已全部完成）
+下一项：M1-3 标识解析（CN 前缀规则）
 ```
 
 ---
@@ -21,9 +21,9 @@
 
 > 目标：能跑通 `import quotestack`，工程骨架就位。
 
-- [ ] **M0-1** 安装 uv（`brew install uv`；若 PyPI 不可达先配镜像）
-- [ ] **M0-2** 安装 Python 3.11（`uv python install 3.11`）
-- [ ] **M0-3** 建立目录结构
+- [x] **M0-1** 安装 uv（`brew install uv`；若 PyPI 不可达先配镜像）
+- [x] **M0-2** 安装 Python 3.11（`uv python install 3.11`）
+- [x] **M0-3** 建立目录结构
   ```
   quotestack/
   ├── src/quotestack/
@@ -32,11 +32,11 @@
   ├── docs/
   └── pyproject.toml
   ```
-- [ ] **M0-4** 写 `pyproject.toml`（hatchling、依赖、ruff、mypy、scripts）
-- [ ] **M0-5** 加 `.gitignore`、`LICENSE`（MIT）、`py.typed`
-- [ ] **M0-6** `git init` + 首次提交
-- [ ] **M0-7** 配 pre-commit（ruff + ruff-format + mypy）
-- [ ] **M0-8** 建虚拟环境并验证
+- [x] **M0-4** 写 `pyproject.toml`（hatchling、依赖、ruff、mypy、scripts）
+- [x] **M0-5** 加 `.gitignore`、`LICENSE`（MIT）、`py.typed`
+- [x] **M0-6** `git init` + 首次提交
+- [x] **M0-7** 配 pre-commit（ruff + ruff-format + mypy）
+- [x] **M0-8** 建虚拟环境并验证
 
 **完成标准**
 
@@ -56,8 +56,8 @@ uv run mypy src          # 通过
 
 只做东财一个源，只做三个方法。
 
-- [ ] **M1-1** `errors.py`：先做 4 种（`InvalidArgument` / `NotFound` / `Unsupported` / `UpstreamError`）
-- [ ] **M1-2** `models/`：`Instrument`、`Quote`、`Bar`（价格用 `str`）
+- [x] **M1-1** `errors.py`：先做 4 种（`InvalidArgument` / `NotFound` / `Unsupported` / `UpstreamError`）
+- [x] **M1-2** `models/`：`Instrument`、`Quote`、`Bar`（价格用 `str`）
 - [ ] **M1-3** `identity/`：CN 代码前缀规则 → secid
 - [ ] **M1-4** `sources/base.py`：`Resolver` / `Quoter` / `Historian` 三个 Protocol
 - [ ] **M1-5** `sources/eastmoney.py`：实时报价（`ulist.np`）
