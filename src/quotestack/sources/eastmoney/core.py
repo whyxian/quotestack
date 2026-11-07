@@ -10,6 +10,7 @@ from quotestack.errors import (
     SchemaChangedError,
     UpstreamError,
 )
+from quotestack.indexes import KNOWN_INDEXES, normalize_index_name
 from quotestack.models import AssetClass, Capability, Instrument, Market
 from quotestack.sources.base import SourceMeta
 
@@ -65,6 +66,50 @@ class CoreMixin:
         """Close the owned HTTP client."""
         if self._owns_client:
             await self._client.aclose()
+
+    async def resolve_index(self, name: str) -> str | None:
+        """Resolve an index name from a fund benchmark to a secid.
+
+        Args:
+            name: Component text such as ``中证800指数收益率``.
+
+        Returns:
+            The secid, or ``None`` when the name cannot be resolved.
+
+        Raises:
+            UpstreamError: The search request failed.
+        """
+        cleaned = normalize_index_name(name)
+        known = KNOWN_INDEXES.get(cleaned)
+        if known is not None:
+            return known
+
+        response = await self._client.get(
+            SEARCH_URL,
+            params={"input": cleaned, "type": "14", "token": SEARCH_TOKEN, "count": "10"},
+        )
+        if response.status_code >= 400:
+            raise UpstreamError(
+                f"eastmoney search responded with {response.status_code}",
+                source=self.meta.name,
+                status_code=response.status_code,
+            )
+
+        payload = response.json()
+        table = payload.get("QuotationCodeTable") if isinstance(payload, dict) else None
+        rows = table.get("Data") if isinstance(table, dict) else None
+        if not isinstance(rows, list):
+            return None
+
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            if row.get("SecurityTypeName") != "指数":
+                continue
+            secid = row.get("QuoteID")
+            if isinstance(secid, str) and secid:
+                return secid
+        return None
 
     async def _secid_for(self, instrument: Instrument) -> str:
         """Return the Eastmoney secid, looking US tickers up when needed.

@@ -913,7 +913,12 @@ components:
         data:
           type: object
           properties:
-            change_pct: { type: [number, 'null'] }
+            change_pct:
+              type: [number, 'null']
+              description: |
+                涨跌幅百分数值。`basis: none` 时为 `null`——「算不出来」和
+                「没涨没跌」是两件事，填 0 会让调用方显示成持平。
+                货币基金例外：净值恒为 1.0，返回真实的 `0`。
             nav: { type: [string, 'null'] }
             basis: { $ref: '#/components/schemas/EstimateBasis' }
             coverage: { type: [number, 'null'] }

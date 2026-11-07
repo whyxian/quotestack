@@ -1,6 +1,7 @@
 """Data models shared across the package."""
 
 from quotestack.models.bar import Bar
+from quotestack.models.curve import BenchmarkCurve, BenchmarkPoint
 from quotestack.models.enums import (
     Adjust,
     AssetClass,
@@ -24,6 +25,8 @@ __all__ = [
     "Adjust",
     "AssetClass",
     "Bar",
+    "BenchmarkCurve",
+    "BenchmarkPoint",
     "Capability",
     "Confidence",
     "FundClass",

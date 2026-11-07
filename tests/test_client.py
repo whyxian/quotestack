@@ -169,3 +169,115 @@ async def test_holdings_rejects_a_bad_cursor() -> None:
     async with MarketData() as client:
         with pytest.raises(InvalidArgumentError):
             await client.holdings("166002", before="2026-Q1")
+
+
+async def test_benchmark_curve_is_weighted_and_rebased() -> None:
+    """Two components are normalised to 1 then combined by weight."""
+    from datetime import date, timedelta
+
+    from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
+    from quotestack.models import Bar, Profile
+
+    day1 = date(2026, 1, 2)
+    day2 = day1 + timedelta(days=1)
+
+    class _Source:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.HISTORY, Capability.PROFILE}),
+            markets=frozenset({(AssetClass.FUND, Market.CN)}),
+        )
+
+        async def profile(self, instrument: object) -> Profile:
+            return Profile(
+                fund_type="混合型-偏股",
+                benchmark=Benchmark(
+                    text="A*50%+B*50%",
+                    components=[
+                        BenchmarkComponent(name="A", weight=50.0, kind=ComponentKind.EQUITY),
+                        BenchmarkComponent(name="B", weight=50.0, kind=ComponentKind.EQUITY),
+                    ],
+                    coverage=1.0,
+                ),
+            )
+
+        async def resolve_index(self, name: str) -> str | None:
+            return {"A": "1.A", "B": "1.B"}.get(name)
+
+        async def history_by_secid(self, secid: str, start: date, end: date) -> list[Bar]:
+            close = "110" if secid == "1.A" else "90"
+            return [
+                Bar(date=day1, open="100", high="100", low="100", close="100", volume="0"),
+                Bar(date=day2, open=close, high=close, low=close, close=close, volume="0"),
+            ]
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(
+        sources={"eastmoney": _Source()},
+        source_priority={"PROFILE": ["eastmoney"]},
+    )
+    try:
+        curve = await client.benchmark("166002", start=day1, end=day2)
+    finally:
+        await client.aclose()
+
+    assert curve.coverage == pytest.approx(1.0)
+    assert [p.date for p in curve.series] == [day1, day2]
+    assert curve.series[0].value == pytest.approx(1.0)
+    # (+10% x 50%) + (-10% x 50%) = 0, so the curve ends where it started.
+    assert curve.series[1].value == pytest.approx(1.0)
+
+
+async def test_benchmark_drops_unresolvable_components() -> None:
+    """A component with no history is reported instead of silently ignored."""
+    from datetime import date, timedelta
+
+    from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
+    from quotestack.models import Bar, Profile
+
+    day1 = date(2026, 1, 2)
+
+    class _Source:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.HISTORY, Capability.PROFILE}),
+            markets=frozenset({(AssetClass.FUND, Market.CN)}),
+        )
+
+        async def profile(self, instrument: object) -> Profile:
+            return Profile(
+                benchmark=Benchmark(
+                    text="A*60%+中债总指数*40%",
+                    components=[
+                        BenchmarkComponent(name="A", weight=60.0, kind=ComponentKind.EQUITY),
+                        BenchmarkComponent(
+                            name="中债总指数", weight=40.0, kind=ComponentKind.NON_EQUITY
+                        ),
+                    ],
+                    coverage=1.0,
+                )
+            )
+
+        async def resolve_index(self, name: str) -> str | None:
+            return "1.A" if name == "A" else None
+
+        async def history_by_secid(self, secid: str, start: date, end: date) -> list[Bar]:
+            return [Bar(date=day1, open="1", high="1", low="1", close="1", volume="0")]
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(
+        sources={"eastmoney": _Source()},
+        source_priority={"PROFILE": ["eastmoney"]},
+    )
+    try:
+        curve = await client.benchmark("166002", start=day1, end=day1 + timedelta(days=1))
+    finally:
+        await client.aclose()
+
+    assert curve.components_dropped == ["中债总指数"]
+    assert curve.coverage == pytest.approx(0.6)
+    assert curve.series[0].value == pytest.approx(1.0)

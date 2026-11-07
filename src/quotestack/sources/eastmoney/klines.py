@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import datetime as dt
+
 from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
-from quotestack.models import Adjust, Bar, Instrument, Interval
+from quotestack.models import Adjust, AssetClass, Bar, Capability, Instrument, Interval, Market
 from quotestack.sources.eastmoney.core import SOURCE_META, CoreMixin
 from quotestack.sources.eastmoney.parsing import _to_bar
 
@@ -125,3 +127,78 @@ class KlinesMixin(CoreMixin):
             )
 
         return [_to_bar(str(row), instrument) for row in klines]
+
+    async def history_by_secid(
+        self,
+        secid: str,
+        start: dt.date,
+        end: dt.date,
+        limit: int = 5000,
+    ) -> list[Bar]:
+        """Fetch daily bars for a raw secid, used for index curves.
+
+        Args:
+            secid: Eastmoney identifier such as ``1.000906``.
+            start: First day to include.
+            end: Last day to include.
+            limit: Safety cap on returned bars.
+
+        Returns:
+            Bars in ascending date order.
+
+        Raises:
+            UpstreamError: The request failed.
+            SchemaChangedError: The payload lost its shape.
+        """
+        response = await self._client.get(
+            HISTORY_URL,
+            params={
+                "secid": secid,
+                "fields1": HISTORY_FIELDS1,
+                "fields2": HISTORY_FIELDS2,
+                "klt": KLT[Interval.D1],
+                "fqt": FQT[Adjust.NONE],
+                "beg": start.strftime("%Y%m%d"),
+                "end": end.strftime("%Y%m%d"),
+                "lmt": str(limit),
+            },
+        )
+        if response.status_code >= 400:
+            raise UpstreamError(
+                f"eastmoney responded with {response.status_code}",
+                source=self.meta.name,
+                status_code=response.status_code,
+            )
+
+        payload = response.json()
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(data, dict):
+            return []
+        klines = data.get("klines")
+        if not isinstance(klines, list):
+            raise SchemaChangedError(
+                "eastmoney kline payload has no klines array",
+                source=self.meta.name,
+                capability="history",
+                assertion="data.klines is a list",
+                sample=response.text[:400],
+                url=str(response.url),
+                hint="the kline endpoint changed shape; check tests/fixtures/eastmoney",
+            )
+
+        instrument = Instrument(
+            id=f"INDEX:{secid}",
+            code=secid,
+            asset_class=AssetClass.STOCK,
+            market=Market.CN,
+            currency="CNY",
+            aliases={"eastmoney": secid},
+            capabilities=frozenset({Capability.HISTORY}),
+        )
+        bars: list[Bar] = []
+        for row in klines:
+            if isinstance(row, str):
+                parsed = _to_bar(row, instrument)
+                if parsed is not None:
+                    bars.append(parsed)
+        return bars

@@ -14,16 +14,18 @@ independently testable.
 
 from __future__ import annotations
 
+import datetime as dt
 import logging
 import os
 import re
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 from types import TracebackType
 from typing import Self, cast
 
+from quotestack.benchmark import BenchmarkComponent
 from quotestack.cache import MemoryCache, default_max_stale, make_key, merge_ttl
 from quotestack.client.fetch import FetchPolicy
 from quotestack.errors import (
@@ -39,6 +41,8 @@ from quotestack.models import (
     Adjust,
     AssetClass,
     Bar,
+    BenchmarkCurve,
+    BenchmarkPoint,
     Capability,
     FxRate,
     Instrument,
@@ -330,6 +334,123 @@ class MarketData:
             max_age=max_age,
         )
         return cast("list[Bar]", bars)[-limit:]
+
+    async def benchmark(
+        self,
+        code: str,
+        asset_class: AssetClass = AssetClass.FUND,
+        market: Market = Market.CN,
+        *,
+        start: dt.date | None = None,
+        end: dt.date | None = None,
+    ) -> BenchmarkCurve:
+        """Build a weighted curve from the fund's performance benchmark.
+
+        Components whose history cannot be fetched, such as the China bond
+        indexes, are dropped and reported; the remaining weights are re-based
+        so the curve stays comparable.
+
+        Args:
+            code: Fund code.
+            asset_class: Defaults to ``FUND``.
+            market: Defaults to ``CN``.
+            start: First day, defaults to one year before ``end``.
+            end: Last day, defaults to today.
+
+        Returns:
+            The curve with its coverage and dropped components.
+
+        Raises:
+            UnsupportedError: The fund publishes no benchmark.
+            UpstreamError: A required request failed.
+        """
+        profile = await self.profile(code, asset_class, market)
+        parsed = profile.benchmark
+        if parsed is None or not parsed.components:
+            raise UnsupportedError(
+                "fund has no published benchmark",
+                instrument=Instrument.make_id(code, asset_class, market),
+            )
+
+        last_day = end or dt.date.today()
+        first_day = start or last_day - timedelta(days=365)
+
+        used: list[BenchmarkComponent] = []
+        dropped: list[str] = []
+        series_by_component: list[tuple[BenchmarkComponent, dict[dt.date, str]]] = []
+
+        for component in parsed.components:
+            secid = await self._resolve_index(component.name)
+            if secid is None:
+                dropped.append(component.name)
+                continue
+            bars = await self._index_history(secid, first_day, last_day)
+            if not bars:
+                dropped.append(component.name)
+                continue
+            used.append(component)
+            series_by_component.append((component, {bar.date: bar.close for bar in bars}))
+
+        if not series_by_component:
+            return BenchmarkCurve(
+                effective_start=None,
+                components_used=[],
+                components_dropped=dropped,
+                coverage=0.0,
+                series=[],
+            )
+
+        common = set.intersection(*(set(values) for _, values in series_by_component))
+        if not common:
+            return BenchmarkCurve(
+                effective_start=None,
+                components_used=used,
+                components_dropped=dropped,
+                coverage=0.0,
+                series=[],
+            )
+
+        dates = sorted(common)
+        weight_total = sum(component.weight for component in used) / 100
+        points: list[BenchmarkPoint] = []
+        for day in dates:
+            value = 0.0
+            for component, values in series_by_component:
+                base = values[dates[0]]
+                if float(base) == 0:
+                    continue
+                value += (component.weight / 100) * (float(values[day]) / float(base))
+            # Re-base so a partial benchmark still starts at 1.
+            points.append(
+                BenchmarkPoint(date=day, value=value / weight_total if weight_total else 0.0)
+            )
+
+        return BenchmarkCurve(
+            effective_start=dates[0],
+            components_used=used,
+            components_dropped=dropped,
+            coverage=round(weight_total, 4),
+            series=points,
+        )
+
+    async def _resolve_index(self, name: str) -> str | None:
+        source = self._sources.get("eastmoney")
+        if source is None:
+            return None
+        secid: str | None = await source.resolve_index(name)  # type: ignore[attr-defined]
+        return secid
+
+    async def _index_history(
+        self,
+        secid: str,
+        start: dt.date,
+        end: dt.date,
+    ) -> list[Bar]:
+        source = self._sources.get("eastmoney")
+        if source is None:
+            return []
+        bars: list[Bar] = await source.history_by_secid(secid, start, end)  # type: ignore[attr-defined]
+        return bars
 
     async def profile(
         self,
