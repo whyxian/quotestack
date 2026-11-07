@@ -12,7 +12,7 @@
 ```
 src/quotestack/
 ├── __init__.py            对外导出 21 个符号
-├── client.py              ★ 主入口 MarketData（708 行，已超标）
+├── client/                ★ 主入口（5 个 mixin）
 ├── cli.py                 命令行 4 个命令
 ├── sync.py                同步包装
 ├── errors.py              14 个错误类
@@ -151,17 +151,14 @@ v1|nav|CN:FUND:166002
 
 | 文件 | 行数 | 状态 |
 |---|---|---|
-| `client.py` | 708 | ❌ 超 400 行红线 |
-| `sources/eastmoney.py` | 642 | ❌ 超 400 行红线 |
-| `sources/tiantian.py` | 245 | ✅ |
+| `sources/tiantian.py` | 245 | ✅ 最大单文件 |
 | `cli.py` | 242 | ✅ |
 | `sources/tencent.py` | 214 | ✅ |
-| `sources/fx.py` | 185 | ✅ |
-| 其余 25 个文件 | < 200 | ✅ |
+| `client/core.py` | 186 | ✅ |
+| `cache/base.py` | 186 | ✅ |
+| 其余 36 个文件 | < 190 | ✅ |
 
-**总规模**：4,101 行 / 31 文件。
-
-两个超标文件需要拆分（见 ROADMAP M3.6）。
+**总规模**：4,311 行 / 41 文件。**全部低于 400 行红线。**
 
 ---
 

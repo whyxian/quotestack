@@ -2,7 +2,7 @@
 
 > 代码注释是英文的（面向开源社区），这份文档负责让你**不用读注释也能看懂代码**。
 > 每个文件一张表：职责 + 关键成员 + 容易踩的点。
-> 更新于 2026-11-08，对应 M3.5 完成状态（31 个文件 / 4,101 行）。
+> 更新于 2026-11-08，对应 M3.6 完成状态（41 个文件 / 4,311 行）。
 
 ---
 
@@ -19,7 +19,7 @@
 
 ```
 src/quotestack/
-├── client.py          ★ 主入口 MarketData
+├── client/            ★ 主入口 MarketData（5 个 mixin）
 ├── cli.py             命令行
 ├── sync.py            同步包装
 ├── errors.py          14 个错误类
@@ -44,7 +44,7 @@ models ← errors ← identity ← cache
 
 ---
 
-## `client.py` — 主入口（708 行，⚠️ 超标）
+## `client/` — 主入口（5 个文件）
 
 **职责**：把解析、缓存、单飞、降级、限流、路由串成一次调用。
 
@@ -80,11 +80,21 @@ _fallback()        有 stale 值就返回，否则抛 Unavailable
 - `resolve` 是**同步**的，不要 `await`
 - 构造参数用 `is not None` 判断，不能用 `or`（`MemoryCache` 有 `__len__`，空缓存是 falsy）
 
-**待拆分**：708 行超过红线，建议拆成 `client/` 包（quote / history / nav / listing / admin）。
+**拆成 5 个 mixin**：
+
+| 文件 | 职责 |
+|---|---|
+| `core.py` | 状态、生命周期、`resolve`、`health` |
+| `flow.py` | 缓存三态、单飞、降级 |
+| `quotes.py` | `quote` / `quote_many` |
+| `series.py` | `history` / `nav` / `fx` |
+| `listing.py` | `iter_instruments` |
+
+`MarketData` 在 `__init__.py` 里组合它们，对外仍是同一个类。
 
 ---
 
-## `sources/eastmoney.py` — 东财（642 行，⚠️ 超标）
+## `sources/eastmoney/` — 东财（5 个文件）
 
 **职责**：主数据源，行情 + K 线 + 全市场列表 + 美股 secid 解析。
 
@@ -329,5 +339,5 @@ A：列表缓存 24 小时、价格 30 秒过期，一个对象两种时间尺�
 **Q：为什么基金都要给 NAV 能力？**
 A：代码前缀不能证明是否场内（`166002` 就是反例）。宁可多给能力，失败时明确报错。
 
-**Q：为什么 `client.py` 和 `eastmoney.py` 超出 400 行？**
-A：功能堆得快，还没重构。已列入 ROADMAP M3.6。
+**Q：为什么拆成 mixin 而不是独立类？**
+A：对外必须是**一个** `MarketData`，调用方不该知道内部怎么分。mixin 保持 `self` 语义不变，方法签名也不用动。

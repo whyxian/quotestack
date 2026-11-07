@@ -99,6 +99,10 @@ class Cache(Protocol):
         """Store a value under ``key``."""
         ...
 
+    def __len__(self) -> int:
+        """Number of stored entries."""
+        ...
+
 
 def default_ttl() -> dict[Capability, float]:
     """Return a mutable copy of the built-in TTL table."""

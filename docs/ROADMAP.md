@@ -10,8 +10,8 @@
 ## 当前进度
 
 ```
-阶段：M3.5 完成 ✅ → 下一步 M4 基金能力
-已完成：11 / 11（累计 44 / 84 项）
+阶段：M3.6 完成 ✅ → 下一步 M4 基金链路
+已完成：11 / 11（累计 47 / 84 项）
 下一项：M4-1 基金画像
 ```
 
@@ -161,9 +161,9 @@ async for batch in client.iter_instruments(AssetClass.STOCK, Market.CN):
 
 > 目标：把超出规模红线的文件拆开。M3.5 结束时 `client.py` 708 行、`eastmoney.py` 642 行，都超过 400 行红线。
 
-- [ ] **M3.6-1** 拆分 `client.py` → `client/` 包（quote / history / fund / listing / admin）
-- [ ] **M3.6-2** 拆分 `eastmoney.py` → 行情、列表、搜索三个模块
-- [ ] **M3.6-3** 补齐 `upstream_request` 与 `batch` 事件埋点
+- [x] **M3.6-1** 拆分 `client.py` → `client/` 包（quote / history / fund / listing / admin）
+- [x] **M3.6-2** 拆分 `eastmoney.py` → 行情、列表、搜索三个模块
+- [x] **M3.6-3** 补齐 `upstream_request` 与 `batch` 事件埋点
 
 **完成标准**
 

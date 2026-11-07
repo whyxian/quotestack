@@ -208,7 +208,7 @@ async def test_binance_keeps_only_trading_usdt_pairs() -> None:
 
 def test_listing_plan_covers_crypto() -> None:
     """Crypto listing is routed to Binance."""
-    from quotestack.client import _LISTING_PLAN
+    from quotestack.client.listing import _LISTING_PLAN
 
     assert _LISTING_PLAN[(AssetClass.CRYPTO, Market.CRYPTO, None)] == ("binance",)
 
@@ -227,10 +227,10 @@ async def _close(gen: object) -> None:
 
 def test_mainland_selectors_cover_every_board() -> None:
     """Beijing and LOF boards are easy to omit and silently shrink the universe."""
-    from quotestack.sources.eastmoney import _LIST_FILTERS
+    from quotestack.sources.eastmoney.listings import LIST_FILTERS
 
-    stocks = _LIST_FILTERS[(AssetClass.STOCK, Market.CN)]
-    funds = _LIST_FILTERS[(AssetClass.FUND, Market.CN)]
+    stocks = LIST_FILTERS[(AssetClass.STOCK, Market.CN)]
+    funds = LIST_FILTERS[(AssetClass.FUND, Market.CN)]
 
     assert "m:0+t:81+s:2048" in stocks, "Beijing exchange is missing"
     for board in ("MK0025", "MK0026", "MK0027", "MK0028"):
