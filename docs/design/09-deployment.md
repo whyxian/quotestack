@@ -6,24 +6,158 @@
 
 ## 部署
 
-| 场景 | 方式 |
+quotestack 有两种交付形态：**作为库被导入**，或**作为 HTTP 服务运行**。
+
+| 形态 | 适用场景 | 交付物 |
+|---|---|---|
+| 库 | Python 项目直接调用 | PyPI 包 |
+| 服务 | 非 Python 调用方（如 Java 后端） | 单进程 / Docker 镜像 |
+
+---
+
+### 形态一：作为库
+
+```bash
+pip install quotestack
+```
+
+```python
+from quotestack import AssetClass, Market, MarketData
+
+async with MarketData() as client:
+    quote = await client.quote("600519", AssetClass.STOCK, Market.CN)
+```
+
+这是最轻的形态——没有服务、没有端口、没有额外进程。
+
+---
+
+### 形态二：本地进程
+
+```bash
+uv run quotestack-server --host 127.0.0.1 --port 8000
+```
+
+适合本机开发和调试。进程退出即停止，不安装任何系统服务。
+
+---
+
+### 形态三：Docker
+
+服务端无外部依赖（无数据库、无消息队列），因此**单个容器即可完整运行**。
+
+#### Dockerfile
+
+```dockerfile
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    QUOTESTACK_CACHE_DIR=/data \
+    QUOTESTACK_PORT=8000
+
+WORKDIR /app
+
+# 先装依赖，利用层缓存：改代码不必重装依赖
+COPY pyproject.toml README.md ./
+COPY src ./src
+RUN pip install --no-cache-dir ".[server,cache]"
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"
+
+CMD ["quotestack-server", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+#### 构建
+
+```bash
+docker build -t quotestack:0.1.0 .
+```
+
+#### 运行
+
+```bash
+docker run -d \
+  --name quotestack \
+  -p 8000:8000 \
+  -v quotestack-cache:/data \
+  --restart unless-stopped \
+  quotestack:0.1.0
+```
+
+| 参数 | 作用 |
 |---|---|
-| 库 | `pip install quotestack`，无需容器 |
-| 开发 | `uv run`（热重载） |
-| 服务交付 | 单进程（`uvicorn`），可选 Docker **单容器** |
-| **不做** | `docker-compose`（只有一个服务，没有编排价值） |
-| **不做** | Java 拉起 Python 子进程 |
+| `-p 8000:8000` | 暴露 HTTP 端口 |
+| `-v quotestack-cache:/data` | 缓存持久化，容器重建不丢 |
+| `--restart unless-stopped` | 宿主重启后自动拉起 |
 
-**为什么不用 docker-compose**：compose 解决的是「多个容器怎么编排」。本服务是**单进程、零外部依赖**（无数据库、无消息队列、无缓存服务），用 compose 属于多余抽象。
+#### 联网与代理
 
-如果调用方想把它和自己的后端编排在一起，那是调用方的事——他们可以写自己的 compose 文件引用本镜像。
+容器**不继承宿主机的 VPN 路由**。若需要访问境外源（OKX、CoinGecko），必须显式配置：
 
-**关于数据库**：quotestack 不依赖任何数据库服务。
+```bash
+docker run -d \
+  -e HTTPS_PROXY=http://host.docker.internal:7890 \
+  -e HTTP_PROXY=http://host.docker.internal:7890 \
+  ...
+```
 
-- 缓存用 `MemoryCache`（进程内）或 `SqliteCache`（单个文件，无需服务端）
-- 业务数据（持仓、交易、品种库）属于调用方，不在本库职责内
+`host.docker.internal` 在 Docker Desktop 上指向宿主机；Linux 需改用 `--add-host=host.docker.internal:host-gateway`。
 
-PostgreSQL 是 AssetPilot 后端的选择，与本库无关。
+#### 验证
+
+```bash
+curl "http://localhost:8000/v1/quote?code=600519&asset_class=STOCK&market=CN"
+curl "http://localhost:8000/healthz"
+```
+
+`/healthz` 会报告每个源的可用状态，以及当前是否配置了代理。
+
+#### 日志
+
+```bash
+docker logs -f quotestack
+```
+
+服务端输出结构化 JSON，事件名可直接 grep：
+
+```bash
+docker logs quotestack 2>&1 | grep '"event":"schema_changed"'
+```
+
+#### 升级
+
+```bash
+docker build -t quotestack:0.2.0 .
+docker rm -f quotestack
+docker run -d --name quotestack -p 8000:8000 -v quotestack-cache:/data quotestack:0.2.0
+```
+
+缓存在命名卷里，升级不丢。回滚同理，用旧 tag 重跑即可。
+
+---
+
+### 运行参数（环境变量）
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `QUOTESTACK_PORT` | `8000` | 监听端口 |
+| `QUOTESTACK_CACHE_DIR` | `~/.cache/quotestack` | 缓存文件目录 |
+| `QUOTESTACK_LOG_LEVEL` | `INFO` | `DEBUG` 时输出完整排查信息 |
+| `QUOTESTACK_PROXY` | 空 | 出站代理，如 `http://127.0.0.1:7890` |
+| `HTTPS_PROXY` / `HTTP_PROXY` | 空 | 标准代理变量，优先级低于 `QUOTESTACK_PROXY` |
+
+---
+
+### 为什么不用 docker-compose
+
+compose 解决的是「多个容器怎么编排」。本服务是**单进程、零外部依赖**，只有一个容器就没有编排可做，写一份 compose 只是给单条 `docker run` 包一层。
+
+如果调用方要把它和自己的后端一起编排（比如 Spring Boot + quotestack + Postgres），那应该在调用方的仓库里写 compose，引用本镜像即可——本仓库不替他们做这个决定。
+
+---
 
 **Java 侧集成**
 
@@ -41,6 +175,8 @@ Java 启动时探测 `/healthz`，**不通也照常启动**；行情调用失败
 ---
 
 ## 代理配置
+
+**库调用时**通过构造参数传入；容器部署的代理设置见上文「形态三：Docker → 联网与代理」。
 
 ```python
 client = MarketData(
