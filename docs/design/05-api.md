@@ -13,7 +13,7 @@
 
 | # | 入口 | 状态 | 说明 |
 |---|---|---|---|
-| 1 | `resolve(code, asset_class, market)` | ✅ M1 | 身份解析（同步方法） |
+| 1 | `resolve(code, asset_class, market)` | 🚧 M1 | 规则解析可用；`expected_name` 校验在 M3 |
 | 2 | `quote(code, asset_class, market)` | ✅ M1 | 实时价 |
 | 3 | `quote_many(items)` | M3 | 批量报价 |
 | 4 | `history(code, asset_class, market, interval, adjust, limit)` | ✅ M1 | K 线 + 分钟线 |
@@ -236,7 +236,7 @@ GET  /v1/healthz
 
 | 额外参数 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `expected_name` | string | ❌ | 传入后用于校验解析结果，名称差异过大则换候选 |
+| `expected_name` | string | ❌ | 传入后用于校验解析结果，名称差异过大则换候选。**M3 实现** |
 
 | `data` 字段 | 类型 | 说明 |
 |---|---|---|

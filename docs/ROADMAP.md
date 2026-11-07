@@ -119,7 +119,7 @@ QUOTESTACK_LOG_LEVEL=DEBUG quotestack quote 600519   # 日志含 cache_lookup / 
 - [ ] **M3-3** 路由表 + 降级链
 - [ ] **M3-4** `quote_many`（等长同序、单条失败不拖垮整批）
 - [ ] **M3-5** 美股 secid 解析（东财搜索 `QuoteID`）
-- [ ] **M3-6** `resolve` 的 `Ambiguous` 分支 + `candidates`
+- [ ] **M3-6** `resolve` 的 `Ambiguous` 分支 + `candidates` + `expected_name` 校验
 - [ ] **M3-7** `fx` 汇率（USD 基准 + 交叉换算）
 - [ ] **M3-8** 代理支持（`proxy` / `proxy_bypass`，让 OKX 与 CoinGecko 可达）
 
