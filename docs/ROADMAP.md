@@ -94,7 +94,9 @@ quotestack history 600519 --limit 5
 - [ ] **M2-6** 上游限流（令牌桶 5 req/s）
 - [ ] **M2-7** 结构化日志 + `hint` 硬约束
 - [ ] **M2-8** 缓存键按规范实现（`v1|capability|...`）
-- [ ] **M2-9** `health` 命令
+- [ ] **M2-9** 补全 CLI：`resolve` 与 `health` 两个命令
+- [ ] **M2-10** 同步包装 `quotestack.sync.SyncMarketData`（后台线程常驻事件循环）
+- [ ] **M2-11** `max_age` 单次调用覆盖 TTL
 
 **完成标准**
 
@@ -118,6 +120,8 @@ QUOTESTACK_LOG_LEVEL=DEBUG quotestack quote 600519   # 日志含 cache_lookup / 
 - [ ] **M3-4** `quote_many`（等长同序、单条失败不拖垮整批）
 - [ ] **M3-5** 美股 secid 解析（东财搜索 `QuoteID`）
 - [ ] **M3-6** `resolve` 的 `Ambiguous` 分支 + `candidates`
+- [ ] **M3-7** `fx` 汇率（USD 基准 + 交叉换算）
+- [ ] **M3-8** 代理支持（`proxy` / `proxy_bypass`，让 OKX 与 CoinGecko 可达）
 
 **完成标准**
 

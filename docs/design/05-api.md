@@ -8,18 +8,20 @@
 
 > 以下方法均为 `async def`，调用需 `await`。同步场景用 `quotestack.sync.SyncMarketData`，详见 [运行时模型](13-runtime-model.md)。
 
-| # | 入口 | 说明 |
-|---|---|---|
-| 1 | `resolve(code, asset_class, market)` | 身份解析 |
-| 2 | `quote(instrument)` | 实时价；基金返回 nav + estimated |
-| 3 | `quote_many(items)` | 批量报价 |
-| 4 | `history(instrument, interval, adjust, limit)` | K 线 + 分钟线 |
-| 5 | `nav(instrument, limit)` | 净值序列 |
-| 6 | `profile(instrument)` | 静态画像 + 基准结构 |
-| 7 | `holdings(instrument, before, limit)` | 季度持仓分页 |
-| 8 | `benchmark(instrument, start, end)` | 基准加权曲线 |
-| 9 | `estimate(instrument)` | 估值（派生） |
-| 10 | `fx(base, quote)` | 汇率 |
+所有方法的第一参数都是 `code`，配合 `asset_class` 与 `market`——调用方**永远不持有 instrument**（见 7.3 一跳原则）。
+
+| # | 入口 | 状态 | 说明 |
+|---|---|---|---|
+| 1 | `resolve(code, asset_class, market)` | ✅ M1 | 身份解析（同步方法） |
+| 2 | `quote(code, asset_class, market)` | ✅ M1 | 实时价 |
+| 3 | `quote_many(items)` | M3 | 批量报价 |
+| 4 | `history(code, asset_class, market, interval, adjust, limit)` | ✅ M1 | K 线 + 分钟线 |
+| 5 | `nav(code, asset_class, market, limit)` | M4 | 净值序列 |
+| 6 | `profile(code, asset_class, market)` | M4 | 静态画像 + 基准结构 |
+| 7 | `holdings(code, asset_class, market, before, limit)` | M4 | 季度持仓分页 |
+| 8 | `benchmark(code, asset_class, market, start, end)` | M4 | 基准加权曲线 |
+| 9 | `estimate(code, asset_class, market)` | M5 | 估值（派生） |
+| 10 | `fx(base, quote)` | M3 | 汇率 |
 
 ### 为什么没有独立的 minute 接口
 
@@ -249,12 +251,12 @@ GET  /v1/healthz
 
 ### 命令集（4 个）
 
-| 命令 | 作用 | 示例 |
-|---|---|---|
-| `quote` | 查实时价 | `quotestack quote 600519` |
-| `history` | 查 K 线 / 分钟线 | `quotestack history 600519 --interval 1d --limit 20` |
-| `resolve` | 调试标识解析 | `quotestack resolve 000001 --asset-class FUND` |
-| `health` | 查看源状态 | `quotestack health` |
+| 命令 | 状态 | 作用 | 示例 |
+|---|---|---|---|
+| `quote` | ✅ M1 | 查实时价 | `quotestack quote 600519` |
+| `history` | ✅ M1 | 查 K 线 / 分钟线 | `quotestack history 600519 --limit 20` |
+| `resolve` | M2 | 调试标识解析 | `quotestack resolve 000001 --asset-class FUND` |
+| `health` | M2 | 查看源状态 | `quotestack health` |
 
 **不做** `profile` / `holdings` / `benchmark` / `estimate` / `fx`——它们没有清晰的终端呈现方式（结构复杂、需要分页、需要画图）。
 

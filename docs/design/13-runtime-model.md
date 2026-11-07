@@ -27,7 +27,7 @@ async with MarketData() as client:
 - `quote_many` 的并发扇出天然适合 `asyncio.gather`
 - 服务端（FastAPI）本身就是异步的
 
-### 1.2 提供同步包装
+### 1.2 提供同步包装（计划 M2）
 
 同步用户不该被迫理解 `asyncio`：
 
@@ -37,6 +37,8 @@ from quotestack.sync import SyncMarketData
 with SyncMarketData() as client:
     quote = client.quote("600519", "STOCK", "CN")
 ```
+
+> 状态：**尚未实现**，排在 M2-10。当前只有异步 API。
 
 **实现方式很关键**：不能用 `asyncio.run()` 逐次包装——那样每次调用都会新建并销毁事件循环，内存缓存全部丢失，单飞也失效。
 
