@@ -8,9 +8,15 @@
 
 | 场景 | 方式 |
 |---|---|
+| 库 | `pip install quotestack`，无需容器 |
 | 开发 | `uv run`（热重载） |
-| 交付 | `docker-compose`（仅 quote-service；本项目不需要数据库服务） |
+| 服务交付 | 单进程（`uvicorn`），可选 Docker **单容器** |
+| **不做** | `docker-compose`（只有一个服务，没有编排价值） |
 | **不做** | Java 拉起 Python 子进程 |
+
+**为什么不用 docker-compose**：compose 解决的是「多个容器怎么编排」。本服务是**单进程、零外部依赖**（无数据库、无消息队列、无缓存服务），用 compose 属于多余抽象。
+
+如果调用方想把它和自己的后端编排在一起，那是调用方的事——他们可以写自己的 compose 文件引用本镜像。
 
 **关于数据库**：quotestack 不依赖任何数据库服务。
 

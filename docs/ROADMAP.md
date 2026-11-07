@@ -189,13 +189,13 @@ quotestack estimate 022430
 - [ ] **M6-3** 统一错误响应 + HTTP 状态码映射
 - [ ] **M6-4** `/healthz`
 - [ ] **M6-5** `/metrics`（`prometheus_client`，放 `[server]` extra）
-- [ ] **M6-6** `Dockerfile` + `docker-compose.yml`
+- [ ] **M6-6** `Dockerfile`（单容器，不写 compose）
 - [ ] **M6-7** 事件钩子（库零依赖，server 接 metrics）
 
 **完成标准**
 
 ```bash
-docker compose up
+docker build -t quotestack . && docker run -p 8000:8000 quotestack
 curl localhost:8000/v1/quote?code=600519&asset_class=STOCK&market=CN
 curl localhost:8000/healthz
 curl localhost:8000/metrics
