@@ -59,6 +59,29 @@ async def test_eastmoney_maps_board_and_listing_date() -> None:
 
 
 @respx.mock
+async def test_eastmoney_clamps_oversized_pages() -> None:
+    """The server caps rows per page, so a short page must not end the walk."""
+    calls: list[str] = []
+
+    def responder(request: httpx.Request) -> httpx.Response:
+        page = request.url.params["pn"]
+        calls.append(page)
+        rows = [_row(f"60000{page}", f"股票{page}")]
+        # Ask for 500 but only ever get one row back, with a total of 2.
+        return httpx.Response(200, json=_clist(rows, total=2))
+
+    respx.get(host="push2.eastmoney.com").mock(side_effect=responder)
+    source = EastMoneySource()
+    try:
+        items = await _collect(source, AssetClass.STOCK, Market.CN, page_size=500)
+    finally:
+        await source.aclose()
+
+    assert len(items) == 2
+    assert calls == ["1", "2"]
+
+
+@respx.mock
 async def test_eastmoney_stops_on_short_page() -> None:
     """A page smaller than the requested size ends the walk."""
     respx.get(host="push2.eastmoney.com").mock(
@@ -82,7 +105,8 @@ async def test_eastmoney_can_skip_zero_price() -> None:
             json=_clist(
                 [
                     _row("AAPL", "苹果", f13=105, f2=342.37),
-                    _row("XYZWW", "Some Wt", f13=105, f2=0),
+                    _row("XYZWW", "Some Wt", f13=105, f2="-"),
+                    _row("ZEROW", "Zero", f13=105, f2=0),
                 ],
                 total=2,
             ),
@@ -100,6 +124,7 @@ async def test_eastmoney_can_skip_zero_price() -> None:
     finally:
         await source.aclose()
 
+    # Both "-" and 0 mean the row has no price.
     assert [item.code for item in items] == ["AAPL"]
     assert items[0].board == "NASDAQ"
 

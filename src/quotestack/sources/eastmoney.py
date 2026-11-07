@@ -50,6 +50,8 @@ _LIST_FILTERS: dict[tuple[AssetClass, Market], str] = {
     (AssetClass.STOCK, Market.US): "m:105,m:106,m:107",
 }
 _LIST_FIELDS = "f2,f12,f13,f14,f26,f100"
+# The server caps rows per page regardless of what we ask for.
+_MAX_PAGE = 100
 _HISTORY_FIELDS1 = "f1,f2,f3"
 _HISTORY_FIELDS2 = "f51,f52,f53,f54,f55,f56,f57,f58"
 _MAX_BATCH = 50
@@ -318,20 +320,25 @@ class EastMoneySource:
                 market=market.value,
             )
 
+        size = max(1, min(page_size, _MAX_PAGE))
+        seen = 0
         page = 1
         while True:
-            rows = await self._list_page(selector, page, page_size)
+            rows, total = await self._list_page(selector, page, size)
             if not rows:
                 return
             batch = [
                 summary
                 for row in rows
                 if (summary := self._to_summary(row, asset_class, market)) is not None
-                and not (skip_zero_price and not row.get("f2"))
+                and not (skip_zero_price and not _has_price(row.get("f2")))
             ]
             if batch:
                 yield batch
-            if len(rows) < page_size:
+            seen += len(rows)
+            # Terminate on the reported total, not on a short page: the server
+            # caps rows per page, so a short page is not proof of the last one.
+            if total is not None and seen >= total:
                 return
             page += 1
 
@@ -340,7 +347,7 @@ class EastMoneySource:
         selector: str,
         page: int,
         page_size: int,
-    ) -> list[dict[str, object]]:
+    ) -> tuple[list[dict[str, object]], int | None]:
         response = await self._client.get(
             _LIST_URL,
             params={
@@ -365,8 +372,9 @@ class EastMoneySource:
         payload = response.json()
         data = payload.get("data") if isinstance(payload, dict) else None
         rows = data.get("diff") if isinstance(data, dict) else None
+        total = data.get("total") if isinstance(data, dict) else None
         if rows is None:
-            return []
+            return [], None if not isinstance(total, int) else total
         if not isinstance(rows, list):
             raise SchemaChangedError(
                 "eastmoney listing has an unexpected shape",
@@ -377,7 +385,10 @@ class EastMoneySource:
                 url=str(response.url),
                 hint="the listing endpoint changed shape; check tests/fixtures/eastmoney",
             )
-        return [row for row in rows if isinstance(row, dict)]
+        return (
+            [row for row in rows if isinstance(row, dict)],
+            total if isinstance(total, int) else None,
+        )
 
     @staticmethod
     def _to_summary(
@@ -569,6 +580,15 @@ def _as_int(value: object, *, default: int) -> int:
     if isinstance(value, float):
         return int(value)
     return default
+
+
+def _has_price(raw: object) -> bool:
+    """Whether a listing row carries a usable price.
+
+    Eastmoney emits ``"-"`` rather than zero for warrants and suspended
+    tickers, so a truthiness check is not enough.
+    """
+    return isinstance(raw, (int, float)) and raw > 0
 
 
 def _as_date(raw: object) -> date | None:
