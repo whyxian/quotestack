@@ -27,10 +27,11 @@ def test_cooldown_starts_inactive() -> None:
 
 
 def test_cooldown_marks_and_expires() -> None:
-    """A failure starts a cooldown that expires after the configured duration."""
+    """Two consecutive failures start a cooldown that later expires."""
     clock = _Clock()
     cooldown = Cooldown(duration=30.0, _clock=clock)
 
+    assert cooldown.mark_failed("eastmoney") is False
     assert cooldown.mark_failed("eastmoney") is True
     assert cooldown.is_cooling("eastmoney")
     assert cooldown.remaining("eastmoney") == pytest.approx(30.0)
@@ -39,6 +40,15 @@ def test_cooldown_marks_and_expires() -> None:
     assert cooldown.is_cooling("eastmoney")
 
     clock.advance(0.2)
+    assert not cooldown.is_cooling("eastmoney")
+
+
+def test_single_failure_does_not_cool_the_source() -> None:
+    """A blip must not take the source down for everyone else."""
+    clock = _Clock()
+    cooldown = Cooldown(_clock=clock)
+
+    assert cooldown.mark_failed("eastmoney") is False
     assert not cooldown.is_cooling("eastmoney")
 
 
@@ -59,11 +69,13 @@ def test_cooldown_success_clears_state() -> None:
     clock = _Clock()
     cooldown = Cooldown(duration=30.0, _clock=clock)
     cooldown.mark_failed("eastmoney")
+    cooldown.mark_failed("eastmoney")
 
     cooldown.mark_ok("eastmoney")
 
     assert not cooldown.is_cooling("eastmoney")
-    assert cooldown.mark_failed("eastmoney") is True
+    # The counter was cleared, so one more failure is not enough.
+    assert cooldown.mark_failed("eastmoney") is False
 
 
 async def test_bucket_allows_initial_burst() -> None:

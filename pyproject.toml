@@ -78,6 +78,12 @@ select = [
 ]
 ignore = [
   "E501",  # line length handled by formatter
+  # This project parses Chinese financial data, so full-width punctuation and
+  # the multiplication sign appear in literals on purpose. These rules exist to
+  # catch Latin/Cyrillic lookalikes, which do not occur here.
+  "RUF001",
+  "RUF002",
+  "RUF003",
 ]
 
 [tool.ruff.lint.per-file-ignores]

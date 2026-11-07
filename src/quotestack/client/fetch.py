@@ -156,7 +156,9 @@ class FetchPolicy:
             try:
                 value = await fetch(source)
             except UpstreamError as exc:
-                if self._cooldown.mark_failed(name):
+                # Cooling a whole source because one instrument is missing
+                # would take the other instruments down with it.
+                if exc.retryable and self._cooldown.mark_failed(name):
                     event(
                         _log,
                         logging.WARNING,

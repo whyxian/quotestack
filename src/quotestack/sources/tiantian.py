@@ -21,7 +21,14 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
+from quotestack.benchmark import parse_benchmark
+from quotestack.errors import (
+    EmptyResponseError,
+    NotFoundError,
+    RateLimitedError,
+    SchemaChangedError,
+    UpstreamError,
+)
 from quotestack.funds import classify_fund_type
 from quotestack.models import (
     AssetClass,
@@ -31,6 +38,7 @@ from quotestack.models import (
     InstrumentSummary,
     Market,
     NavPoint,
+    Profile,
     QuarterHoldings,
 )
 from quotestack.sources.base import SourceMeta
@@ -40,6 +48,7 @@ __all__ = ["TiantianSource"]
 _URL = "https://fund.eastmoney.com/pingzhongdata/{code}.js"
 _LIST_URL = "https://fund.eastmoney.com/js/fundcode_search.js"
 _HOLDINGS_URL = "https://fundf10.eastmoney.com/FundArchivesDatas.aspx"
+_PROFILE_URL = "https://fundf10.eastmoney.com/jbgk_{code}.html"
 _NAME_RE = re.compile(r'var fS_name\s*=\s*"([^"]*)"')
 _NAV_RE = re.compile(r"var Data_netWorthTrend\s*=\s*(\[.*?\]);", re.S)
 _LIST_RE = re.compile(r"var\s+r\s*=\s*(\[.*\]);", re.S)
@@ -47,8 +56,13 @@ _QUARTER_RE = re.compile(r"(\d{4})年(\d)季度")
 _ROW_RE = re.compile(r"<tr[^>]*>(.*?)</tr>", re.S)
 _CELL_RE = re.compile(r"<td[^>]*>(.*?)</td>", re.S)
 _TAG_RE = re.compile(r"<[^>]+>")
+_PAIR_RE = re.compile(r"<th[^>]*>(.*?)</th>\s*<td[^>]*>(.*?)</td>", re.S)
+_DATE_RE = re.compile(r"(\d{4})年(\d{1,2})月(\d{1,2})日")
 
 _CN_TZ = ZoneInfo("Asia/Shanghai")
+
+# Eastmoney's anti-scraping status: not a standard HTTP code.
+_BLOCKED_STATUS = 514
 
 
 class TiantianSource:
@@ -56,7 +70,9 @@ class TiantianSource:
 
     meta = SourceMeta(
         name="tiantian",
-        capabilities=frozenset({Capability.NAV, Capability.LIST, Capability.HOLDINGS}),
+        capabilities=frozenset(
+            {Capability.NAV, Capability.LIST, Capability.HOLDINGS, Capability.PROFILE}
+        ),
         markets=frozenset({(AssetClass.FUND, Market.CN)}),
         timeout=8.0,  # the payload can reach several hundred kilobytes
     )
@@ -84,6 +100,98 @@ class TiantianSource:
         """Close the owned HTTP client."""
         if self._owns_client:
             await self._client.aclose()
+
+    async def profile(self, instrument: Instrument) -> Profile:
+        """Fetch the fund's static profile page.
+
+        Args:
+            instrument: Fund with a ``tiantian`` alias.
+
+        Returns:
+            The profile; fields the page omits are listed in ``missing``.
+
+        Raises:
+            UpstreamError: The request failed.
+        """
+        code = instrument.aliases.get("tiantian")
+        if code is None:
+            raise UpstreamError(
+                "instrument has no tiantian alias",
+                source=self.meta.name,
+                instrument=instrument.id,
+            )
+
+        response = await self._client.get(
+            _PROFILE_URL.format(code=code),
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Referer": f"https://fundf10.eastmoney.com/ccmx_{code}.html",
+            },
+        )
+        if response.status_code == 404:
+            raise NotFoundError(
+                "tiantian has no profile page for this fund",
+                instrument=instrument.id,
+            )
+        if response.status_code == _BLOCKED_STATUS:
+            raise RateLimitedError(
+                "tiantian answered 514, which is its anti-scraping throttle",
+                source=self.meta.name,
+                instrument=instrument.id,
+                hint="slow the request rate down; the source blocks bursts",
+            )
+        if response.status_code >= 400:
+            raise UpstreamError(
+                f"tiantian profile responded with {response.status_code}",
+                source=self.meta.name,
+                status_code=response.status_code,
+                instrument=instrument.id,
+            )
+        return self._parse_profile(response.text)
+
+    def _parse_profile(self, html: str) -> Profile:
+        # The page omits the closing tag of the fund-code cell, so a naive
+        # <th>..</th><td>..</td> match swallows the following pair. Closing it
+        # before parsing keeps the label/value pairing intact.
+        html = re.sub(r"(<td\b[^>]*>[^<]*)<th\b", r"\1</td><th", html)
+
+        labels = {
+            _TAG_RE.sub("", key).strip(): _TAG_RE.sub("", value).strip()
+            for key, value in _PAIR_RE.findall(html)
+        }
+
+        fund_type = labels.get("基金类型") or None
+        benchmark_text = labels.get("业绩比较基准")
+        tracking = labels.get("跟踪标的")
+        scale, as_of = _split_scale(labels.get("净资产规模", ""))
+        inception, _ = _split_date(labels.get("成立日期/规模", ""))
+
+        missing = tuple(
+            field
+            for field, value in (
+                ("fund_type", fund_type),
+                ("benchmark", benchmark_text),
+                ("manager", labels.get("基金经理人")),
+                ("custodian", labels.get("基金托管人")),
+                ("scale", scale),
+                ("inception_date", inception),
+            )
+            if not value
+        )
+
+        return Profile(
+            fund_type=fund_type,
+            fund_class=classify_fund_type(fund_type),
+            tracking_index=tracking if tracking and "无" not in tracking else None,
+            benchmark=parse_benchmark(benchmark_text) if benchmark_text else None,
+            company=labels.get("基金管理人") or None,
+            manager=labels.get("基金经理人") or None,
+            custodian=labels.get("基金托管人") or None,
+            scale=scale,
+            inception_date=inception,
+            as_of=as_of,
+            missing=missing,
+        )
 
     async def holdings(self, instrument: Instrument, year: int) -> list[QuarterHoldings]:
         """Fetch every quarterly report published for one year.
@@ -118,6 +226,13 @@ class TiantianSource:
                 "Referer": f"https://fundf10.eastmoney.com/ccmx_{code}.html",
             },
         )
+        if response.status_code == _BLOCKED_STATUS:
+            raise RateLimitedError(
+                "tiantian answered 514, which is its anti-scraping throttle",
+                source=self.meta.name,
+                instrument=instrument.id,
+                hint="slow the request rate down; the source blocks bursts",
+            )
         if response.status_code >= 400:
             raise UpstreamError(
                 f"tiantian holdings responded with {response.status_code}",
@@ -367,3 +482,27 @@ def _quarter_end(year: str, quarter: str) -> dt.date:
     month = int(quarter) * 3
     day = 31 if month in (3, 12) else 30
     return dt.date(int(year), month, day)
+
+
+def _split_date(raw: str) -> tuple[dt.date | None, str | None]:
+    """Split ``2008年07月25日 / 3.252亿份`` into a date and the rest."""
+    match = _DATE_RE.search(raw)
+    if match is None:
+        return None, raw or None
+    year, month, day = (int(part) for part in match.groups())
+    try:
+        found = dt.date(year, month, day)
+    except ValueError:
+        return None, raw or None
+    rest = raw[match.end() :].lstrip(" /").strip()
+    return found, rest or None
+
+
+def _split_scale(raw: str) -> tuple[str | None, dt.date | None]:
+    """Split ``80.39亿元（截止至：2026年09月30日）`` into a scale and a date."""
+    if not raw:
+        return None, None
+    scale = raw.split("（")[0].strip() or None
+    _, _, as_of_text = raw.partition("截止至：")
+    as_of, _ = _split_date(as_of_text) if as_of_text else (None, None)
+    return scale, as_of

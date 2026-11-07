@@ -60,19 +60,26 @@ def _stale_quote() -> Quote:
 
 
 async def test_failure_opens_cooldown_and_fails_fast() -> None:
-    """The second call is rejected by the cooldown without hitting the source."""
+    """After two consecutive failures the source is skipped entirely."""
     source = FailingSource()
-    async with MarketData(
-        sources={"fake": source}, source_priority={"QUOTE": ["fake"], "HISTORY": ["fake"]}
-    ) as client:  # type: ignore[arg-type]
-        with pytest.raises(UpstreamError):
-            await client.quote("600519")
+    client = MarketData(
+        sources={"fake": source},
+        source_priority={"QUOTE": ["fake"]},
+    )
+    try:
+        # Two failures reach the source: a single blip must not cool it.
+        for _ in range(2):
+            with pytest.raises(UnavailableError):
+                await client.quote("600519")
 
-        # Cooldown is now active: no second upstream attempt.
-        with pytest.raises(UnavailableError):
+        # Cooldown is now active, so the third call never reaches the source.
+        with pytest.raises(UnavailableError) as excinfo:
             await client.quote("600519")
+    finally:
+        await client.aclose()
 
-    assert source.calls == 1
+    assert source.calls == 2
+    assert excinfo.value.context["attempts"][0]["reason"] == "cooldown"
 
 
 async def test_stale_value_is_served_within_max_stale() -> None:

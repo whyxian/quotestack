@@ -6,9 +6,9 @@ import httpx
 import pytest
 import respx
 
-from quotestack.errors import EmptyResponseError, SchemaChangedError
+from quotestack.errors import EmptyResponseError, RateLimitedError, SchemaChangedError
 from quotestack.identity import resolve
-from quotestack.models import AssetClass, Market
+from quotestack.models import AssetClass, FundClass, Market
 from quotestack.sources import TiantianSource
 
 _FUND = resolve("022430", AssetClass.FUND, Market.CN)
@@ -153,3 +153,58 @@ async def test_holdings_empty_envelope_is_not_a_schema_change() -> None:
         assert await source.holdings(_FUND, 2026) == []
     finally:
         await source.aclose()
+
+
+_PROFILE_HTML = """
+<table><tbody>
+<tr><th>基金全称</th><td>中欧新蓝筹灵活配置混合型证券投资基金</td><th>基金简称</th><td>中欧新蓝筹混合A</td></tr>
+<tr><th>基金代码</th><td>166002（前端）<th>基金类型</th><td>混合型-偏股</td></tr>
+<tr><th>成立日期/规模</th><td>2008年07月25日 / 3.252亿份</td><th>净资产规模</th><td>80.39亿元（截止至：2026年09月30日）</td></tr>
+<tr><th>基金管理人</th><td>中欧基金</td><th>基金托管人</th><td>建设银行</td></tr>
+<tr><th>基金经理人</th><td>周蔚文、冯炉丹</td><th>业绩比较基准</th><td>中证800指数收益率*70%+上证国债指数收益率*25%+一年期定期存款基准利率*5%</td></tr>
+<tr><th>跟踪标的</th><td>该基金无跟踪标的</td><td></td><td></td></tr>
+</tbody></table>
+"""
+
+
+@respx.mock
+async def test_profile_parses_the_label_table() -> None:
+    """The page omits a closing tag, which must not swallow the next pair."""
+    respx.get(url__regex=r"https://fundf10\.eastmoney\.com/jbgk_.*\.html").mock(
+        return_value=httpx.Response(200, text=_PROFILE_HTML)
+    )
+    source = TiantianSource()
+    try:
+        profile = await source.profile(_FUND)
+    finally:
+        await source.aclose()
+
+    assert profile.fund_type == "混合型-偏股"
+    assert profile.fund_class is FundClass.EQUITY
+    assert profile.manager == "周蔚文、冯炉丹"
+    assert profile.custodian == "建设银行"
+    assert profile.scale == "80.39亿元"
+    assert profile.as_of is not None
+    assert profile.as_of.isoformat() == "2026-09-30"
+    assert profile.inception_date is not None
+    assert profile.inception_date.isoformat() == "2008-07-25"
+    assert profile.tracking_index is None
+    assert profile.benchmark is not None
+    assert profile.benchmark.coverage == pytest.approx(1.0)
+    assert profile.missing == ()
+
+
+@respx.mock
+async def test_profile_throttle_is_rate_limited_not_an_outage() -> None:
+    """514 is Eastmoney's anti-scraping status; it must not cool the source."""
+    respx.get(url__regex=r"https://fundf10\.eastmoney\.com/jbgk_.*\.html").mock(
+        return_value=httpx.Response(514)
+    )
+    source = TiantianSource()
+    try:
+        with pytest.raises(RateLimitedError) as excinfo:
+            await source.profile(_FUND)
+    finally:
+        await source.aclose()
+
+    assert excinfo.value.retryable is False

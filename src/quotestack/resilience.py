@@ -25,11 +25,13 @@ class Cooldown:
 
     Args:
         duration: How long to skip the source, in seconds.
-        failure_threshold: Consecutive failures required before cooling.
+        failure_threshold: Consecutive failures required before cooling. Two,
+            not one: a single blip is common and cooling the source would make
+            every other instrument fail for the whole window.
     """
 
     duration: float = 30.0
-    failure_threshold: int = 1
+    failure_threshold: int = 2
     _failures: dict[str, int] = field(default_factory=dict)
     _until: dict[str, float] = field(default_factory=dict)
     _clock: object = field(default=time.monotonic, repr=False)
@@ -74,10 +76,19 @@ class TokenBucket:
 
     Args:
         rate: Tokens added per second.
-        capacity: Maximum burst size.
+        capacity: Maximum burst size. Kept at 1 by default so requests are
+            spaced evenly: sending a burst of ten back to back is what earns a
+            514 from Eastmoney's rate limiter.
+        rate: Four per second is the measured ceiling for Eastmoney's fund
+            pages over a reused connection; five trips their throttle.
+
+    Example:
+        Four requests per second, strictly spaced, is the safest default::
+
+            bucket = TokenBucket(rate=4.0, capacity=1)
     """
 
-    def __init__(self, rate: float = 5.0, capacity: int = 10) -> None:
+    def __init__(self, rate: float = 4.0, capacity: int = 1) -> None:
         """Create a bucket that starts full."""
         if rate <= 0:
             msg = "rate must be positive"

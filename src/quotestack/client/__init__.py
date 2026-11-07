@@ -46,6 +46,7 @@ from quotestack.models import (
     Interval,
     Market,
     NavPoint,
+    Profile,
     QuarterHoldings,
     Quote,
     QuoteResult,
@@ -329,6 +330,43 @@ class MarketData:
             max_age=max_age,
         )
         return cast("list[Bar]", bars)[-limit:]
+
+    async def profile(
+        self,
+        code: str,
+        asset_class: AssetClass = AssetClass.FUND,
+        market: Market = Market.CN,
+        *,
+        max_age: float | None = None,
+    ) -> Profile:
+        """Fetch a fund's static profile.
+
+        Args:
+            code: Fund code.
+            asset_class: Defaults to ``FUND``.
+            market: Defaults to ``CN``.
+            max_age: Accept cached data up to this many seconds old.
+
+        Returns:
+            The profile, including the parsed benchmark.
+
+        Raises:
+            UnsupportedError: The instrument has no profile.
+            UpstreamError: The source failed and no usable cache exists.
+        """
+        instrument = self.resolve(code, asset_class, market)
+        self._require(instrument, Capability.PROFILE)
+        key = make_key(Capability.PROFILE, instrument.id)
+
+        value = await self._fetch.get(
+            key,
+            Capability.PROFILE,
+            instrument,
+            fetch=partial(self._fetch_profile, instrument),
+            is_expected=lambda item: isinstance(item, Profile),
+            max_age=max_age,
+        )
+        return cast("Profile", value)
 
     async def holdings(
         self,
@@ -624,6 +662,9 @@ class MarketData:
         return await source.history(  # type: ignore[attr-defined]
             instrument, interval, adjust, limit
         )
+
+    async def _fetch_profile(self, instrument: Instrument, source: object) -> object:
+        return await source.profile(instrument)  # type: ignore[attr-defined]
 
     async def _fetch_holdings(
         self,
