@@ -192,6 +192,7 @@ quotestack estimate 022430
 - [ ] **M6-6** `Dockerfile`（单容器，不写 compose）
 - [ ] **M6-7** 事件钩子（库零依赖，server 接 metrics）
 - [ ] **M6-8** 生成 `docs/api/openapi.yaml`，CI 校验与代码一致
+- [ ] **M6-9** 配置加载（`quotestack.toml` + 环境变量覆盖 + 启动校验）
 
 **完成标准**
 

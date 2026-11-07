@@ -54,6 +54,10 @@ client = MarketData(
 )
 ```
 
+**服务形态下**没有调用方写代码，TTL 由 `quotestack.toml` 的 `[ttl]` 段或 `QUOTESTACK_TTL_*` 环境变量提供，server 读取后转成上面的构造参数。详见 [部署与环境 § 配置](09-deployment.md#配置)。
+
+库本身**不读环境变量、不读配置文件**——保持无隐藏输入。
+
 ---
 
 ## 缓存键

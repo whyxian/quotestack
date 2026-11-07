@@ -351,7 +351,7 @@ GET  /v1/healthz
 
 #### `GET /v1/healthz`
 
-`data`：`status`(`ok`/`degraded`)、`proxy`、`sources{name→状态}`、`cache{能力→条目数}`、`recent_schema_changes[]`
+`data`：`status`(`ok`/`degraded`)、`config`（当前生效的 ttl / proxy）、`sources{name→状态}`、`cache{能力→条目数}`、`recent_schema_changes[]`
 
 **不做**：逐接口的完整 JSON 示例。完整 schema 在 M6 由 FastAPI 生成到 `docs/api/openapi.yaml`，避免 Markdown 与代码各写一份、彼此漂移。
 

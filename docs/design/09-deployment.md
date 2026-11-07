@@ -9,10 +9,10 @@
 
 quotestack 有两种交付形态：**作为库被导入**，或**作为 HTTP 服务运行**。
 
-| 形态 | 适用场景 | 交付物 |
-|---|---|---|
-| 库 | Python 项目直接调用 | PyPI 包 |
-| 服务 | 非 Python 调用方（如 Java 后端） | 单进程 / Docker 镜像 |
+| 形态  | 适用场景                    | 交付物             |
+| --- | ----------------------- | --------------- |
+| 库   | Python 项目直接调用           | PyPI 包          |
+| 服务  | 非 Python 调用方（如 Java 后端） | 单进程 / Docker 镜像 |
 
 ---
 
@@ -140,15 +140,109 @@ docker run -d --name quotestack -p 8000:8000 -v quotestack-cache:/data quotestac
 
 ---
 
-### 运行参数（环境变量）
+## 配置
 
-| 变量 | 默认 | 说明 |
-|---|---|---|
-| `QUOTESTACK_PORT` | `8000` | 监听端口 |
-| `QUOTESTACK_CACHE_DIR` | `~/.cache/quotestack` | 缓存文件目录 |
-| `QUOTESTACK_LOG_LEVEL` | `INFO` | `DEBUG` 时输出完整排查信息 |
-| `QUOTESTACK_PROXY` | 空 | 出站代理，如 `http://127.0.0.1:7890` |
-| `HTTPS_PROXY` / `HTTP_PROXY` | 空 | 标准代理变量，优先级低于 `QUOTESTACK_PROXY` |
+库形态下，配置就是构造参数：
+
+```python
+client = MarketData(ttl={Capability.QUOTE: 60}, proxy="http://127.0.0.1:7890")
+```
+
+服务形态下没有调用方写代码，因此由 **server 读取配置文件与环境变量**，再构造客户端。
+
+**配置解析只在 server 层**——库不读环境变量、不读文件，保持无隐藏输入。
+
+### 优先级
+
+从低到高，后者覆盖前者：
+
+```
+1. 代码默认值
+2. 配置文件  quotestack.toml
+3. 环境变量  QUOTESTACK_*
+4. 命令行参数 --port / --host / --config
+```
+
+### 配置文件
+
+默认读取工作目录下的 `quotestack.toml`；用 `--config` 或 `QUOTESTACK_CONFIG` 指定其他路径。
+
+```toml
+[server]
+host = "0.0.0.0"
+port = 8000
+
+[cache]
+dir = "/data"
+
+[log]
+level = "INFO"
+
+[proxy]
+url    = "http://127.0.0.1:7890"
+bypass = ["eastmoney.com", "qq.com"]
+
+[ttl]
+quote     = 30
+history   = 3600
+nav       = 21600
+profile   = 86400
+holdings  = "never"     # 历史季度不变，永久缓存
+benchmark = 21600
+estimate  = 30
+fx        = 3600
+```
+
+`holdings = "never"` 在加载时转成无穷大。配置文件给人看，可读性优先于类型统一。
+
+### 完整配置项
+
+| 配置键 | 环境变量 | 默认 | 说明 |
+|---|---|---|---|
+| `server.host` | `QUOTESTACK_SERVER_HOST` | `127.0.0.1` | 监听地址 |
+| `server.port` | `QUOTESTACK_SERVER_PORT` | `8000` | 监听端口 |
+| `cache.dir` | `QUOTESTACK_CACHE_DIR` | `~/.cache/quotestack` | 缓存文件目录 |
+| `log.level` | `QUOTESTACK_LOG_LEVEL` | `INFO` | `DEBUG` 输出完整排查信息 |
+| `proxy.url` | `QUOTESTACK_PROXY_URL` | 空 | 出站代理 |
+| `proxy.bypass` | `QUOTESTACK_PROXY_BYPASS` | 空 | 逗号分隔的域名列表 |
+| `ttl.quote` | `QUOTESTACK_TTL_QUOTE` | 30 | 秒 |
+| `ttl.history` | `QUOTESTACK_TTL_HISTORY` | 3600 | 秒 |
+| `ttl.nav` | `QUOTESTACK_TTL_NAV` | 21600 | 秒 |
+| `ttl.profile` | `QUOTESTACK_TTL_PROFILE` | 86400 | 秒 |
+| `ttl.holdings` | `QUOTESTACK_TTL_HOLDINGS` | `never` | `never` 或秒数 |
+| `ttl.benchmark` | `QUOTESTACK_TTL_BENCHMARK` | 21600 | 秒 |
+| `ttl.estimate` | `QUOTESTACK_TTL_ESTIMATE` | 30 | 秒 |
+| `ttl.fx` | `QUOTESTACK_TTL_FX` | 3600 | 秒 |
+
+`HTTPS_PROXY` / `HTTP_PROXY` 也会被识别，但优先级低于 `QUOTESTACK_PROXY_URL`。
+
+### 验证配置生效
+
+启动日志会打一条环境快照：
+
+```json
+{"event":"startup","version":"0.1.0","proxy":null,
+ "ttl":{"quote":60,"history":3600,"holdings":"never"}}
+```
+
+`/healthz` 同样返回当前生效的配置，用于确认容器里到底加载了什么：
+
+```json
+{"data":{"config":{"ttl":{"quote":60,"holdings":"never"}},"sources":{...}}}
+```
+
+改了配置但行为没变时，先看这两处，再看是否重启过。
+
+### 配置校验
+
+加载时校验，非法值直接拒绝启动，不做静默降级：
+
+| 规则 | 示例 |
+|---|---|
+| TTL 必须为正数或 `never` | `quote = 0` → 启动失败 |
+| 端口必须在 1–65535 | `port = 70000` → 启动失败 |
+| 未知键 → 警告，不阻断 | `ttl.unknown = 5` → 日志警告 |
+| 环境变量类型错误 | `QUOTESTACK_TTL_QUOTE=abc` → 启动失败 |
 
 ---
 
