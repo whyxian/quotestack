@@ -13,7 +13,7 @@
 
 ## 2. 当前阶段
 
-**M1 已完成**，下一步 M2 基础能力补齐。
+**M2 已完成**，下一步 M3 多源与批量。
 
 进度见 [docs/ROADMAP.md](docs/ROADMAP.md)，每完成一项会勾选。
 
@@ -66,6 +66,7 @@ quotestack quote 600519              # 冒烟：查实时价
 | 主题 | 文件 |
 |---|---|
 | 模块结构、依赖方向、数据流 | [ARCHITECTURE](docs/harness/ARCHITECTURE.md) |
+| **逐文件中文导读（读代码从这里开始）** | [CODE_MAP_ZH](docs/harness/CODE_MAP_ZH.md) |
 
 ---
 
