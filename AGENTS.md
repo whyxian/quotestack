@@ -35,7 +35,7 @@ quotestack estimate 022430           # 基金盘中估值
 quotestack-server --dump-openapi     # 重新生成 OpenAPI（改接口后必做）
 ```
 
-> 当前全部可用。
+> 当前全部可用。**提交前钩子已启用**：ruff + format + mypy 由 pre-commit 自动执行。
 
 ---
 

@@ -102,6 +102,19 @@ warn_unreachable = true
 warn_no_return = true
 files = ["src"]
 
+[tool.coverage.run]
+source = ["quotestack"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+exclude_lines = [
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "\\.\\.\\.",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

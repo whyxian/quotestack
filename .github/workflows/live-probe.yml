@@ -1,0 +1,23 @@
+name: live probe
+
+# Fixtures are snapshots: if a source changes shape they still pass. Only a
+# real request notices, so this runs on a schedule instead of on every push.
+on:
+  schedule:
+    # 01:00 UTC, which is 09:00 in Shanghai.
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev --extra server
+      - name: Probe every source
+        env:
+          QUOTESTACK_LIVE: "1"
+        run: uv run pytest tests/test_smoke.py -q

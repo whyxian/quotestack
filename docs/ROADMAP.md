@@ -10,8 +10,8 @@
 ## 当前进度
 
 ```
-阶段：M6 完成 ✅ → 下一步 M7 工程质量
-已完成：11 / 11（累计 67 / 84 项）
+阶段：M7 进行中（4/7）→ 剩余 fixture 目录、golden、examples、import-linter
+已完成：11 / 11（累计 69 / 84 项）
 下一项：M7-1 fixture 目录
 ```
 
@@ -254,8 +254,8 @@ curl localhost:8000/metrics
 - [ ] **M7-1** fixture 录制脚本 + 目录结构
 - [ ] **M7-2** 4 个核心解析器的 golden 测试
 - [ ] **M7-3** 坏样本（`schema_changed`）测试用例
-- [ ] **M7-4** 单测覆盖率 ≥ 85%
-- [ ] **M7-5** CI 三段式（PR / 每日探测 / 发布）；探测覆盖每个源×能力
+- [x] **M7-4** 单测覆盖率 ≥ 85%
+- [x] **M7-5** CI：`.github/workflows/ci.yml`（PR）+ `live-probe.yml`（每日）；发布流程在 M8
 - [ ] **M7-6** `examples/` 三个脚本
 - [ ] **M7-7** import-linter 分层检查
 

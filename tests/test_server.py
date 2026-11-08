@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import pathlib
 from typing import Any
 
@@ -318,3 +319,27 @@ def test_committed_spec_matches_the_code() -> None:
     for path, operations in generated["paths"].items():
         for method, operation in operations.items():
             assert committed["paths"][path][method]["summary"] == operation["summary"]
+
+
+def test_dump_openapi_writes_a_document(capsys: pytest.CaptureFixture[str]) -> None:
+    """The CLI can emit the spec without starting a server."""
+    from quotestack.server.__main__ import main
+
+    assert main(["--dump-openapi", "--format", "json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert len(payload["paths"]) == 12
+
+
+def test_dump_openapi_defaults_to_yaml(capsys: pytest.CaptureFixture[str]) -> None:
+    from quotestack.server.__main__ import main
+
+    assert main(["--dump-openapi"]) == 0
+    assert capsys.readouterr().out.startswith("openapi:")
+
+
+def test_server_rejects_a_missing_config_file(capsys: pytest.CaptureFixture[str]) -> None:
+    """A path the caller named must exist, or startup stops."""
+    from quotestack.server.__main__ import main
+
+    assert main(["--config", "definitely-missing.toml"]) == 2
+    assert "config error" in capsys.readouterr().err
