@@ -13,7 +13,7 @@
 
 ## 2. 当前阶段
 
-**M5 已完成**，核心能力全部可用。下一步 M6 服务化（FastAPI）。
+**M6 基本完成**：库、CLI、HTTP 服务、Docker 均可用。下一步 M7 工程质量。
 
 进度见 [docs/ROADMAP.md](docs/ROADMAP.md)，每完成一项会勾选。
 
@@ -24,7 +24,7 @@
 ## 3. 快速命令
 
 ```bash
-uv sync                              # 安装依赖
+uv sync --extra dev --extra server   # 安装依赖（服务端需要 server extra）
 uv run pytest -q                     # 测试（全离线）
 uv run pytest --cov=quotestack --cov-fail-under=85   # 带覆盖率
 uv run ruff check .                  # lint

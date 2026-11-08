@@ -10,9 +10,9 @@
 ## 当前进度
 
 ```
-阶段：M5 完成 ✅ → 下一步 M6 服务化
-已完成：11 / 11（累计 58 / 84 项）
-下一项：M6-1 FastAPI 服务骨架
+阶段：M6 基本完成（8/9）→ 下一步 M7 工程质量
+已完成：11 / 11（累计 66 / 84 项）
+下一项：M6-8 合并生成与手写契约
 ```
 
 ---
@@ -224,15 +224,15 @@ quotestack estimate 022430
 
 > 目标：Java 后端可以通过 HTTP 调用。
 
-- [ ] **M6-1** `quotestack_server`：FastAPI 壳
-- [ ] **M6-2** 11 条路由
-- [ ] **M6-3** 统一错误响应 + HTTP 状态码映射
-- [ ] **M6-4** `/healthz`
-- [ ] **M6-5** `/metrics`（`prometheus_client`，放 `[server]` extra）
-- [ ] **M6-6** `Dockerfile`（单容器，不写 compose）
-- [ ] **M6-7** 事件钩子（库零依赖，server 接 metrics）
-- [ ] **M6-8** 生成 `docs/api/openapi.yaml`，CI 校验与代码一致
-- [ ] **M6-9** 配置加载（`quotestack.toml` + 环境变量覆盖 + 启动校验）
+- [x] **M6-1** `quotestack_server`：FastAPI 壳
+- [x] **M6-2** 11 条路由
+- [x] **M6-3** 统一错误响应 + HTTP 状态码映射
+- [x] **M6-4** `/healthz`
+- [x] **M6-5** `/metrics`（`prometheus_client`，放 `[server]` extra）
+- [x] **M6-6** `Dockerfile`（单容器，不写 compose）
+- [x] **M6-7** 事件钩子（库零依赖，server 接 metrics）
+- [ ] **M6-8** 用生成的 spec 替换手写 `openapi.yaml`，CI 校验一致（**生成已可用**，`quotestack-server --dump-openapi`；合并两份契约待做）
+- [x] **M6-9** 配置加载（`quotestack.toml` + 环境变量覆盖 + 启动校验）
 
 **完成标准**
 

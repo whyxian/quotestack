@@ -42,6 +42,7 @@ dev = [
 
 [project.scripts]
 quotestack = "quotestack.cli:main"
+quotestack-server = "quotestack.server.__main__:main"
 
 [project.urls]
 Repository = "https://github.com/whyxian/quotestack"
@@ -89,6 +90,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["T20"]              # tests may print for debugging
 "src/quotestack/cli.py" = ["T20"]
+"src/quotestack/server/__main__.py" = ["T20"]  # a server entry point reports to stderr
 "benchmarks/*.py" = ["T20"]  # a CLI exists to print
 
 [tool.mypy]

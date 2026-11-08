@@ -1,0 +1,502 @@
+"""FastAPI application.
+
+The HTTP layer is deliberately thin: it converts arguments, calls one library
+method, and serialises the result. Every rule about caching, fallback and
+estimation already lives in the library, and duplicating any of it here would
+create a second place to keep correct.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import importlib.util
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Annotated, Any
+
+from fastapi import Depends, FastAPI, Query, Request
+
+from quotestack.client import MarketData
+from quotestack.models import (
+    Adjust,
+    AssetClass,
+    Capability,
+    EstimateBasis,
+    FundClass,
+    Interval,
+    Market,
+)
+from quotestack.server import errors, metrics
+from quotestack.server.config import Config, load
+from quotestack.server.schemas import (
+    BarModel,
+    BarsResponse,
+    BatchRequest,
+    BatchResponse,
+    BenchmarkComponentModel,
+    BenchmarkModel,
+    BenchmarkPointModel,
+    BenchmarkResponse,
+    CurveComponentModel,
+    EstimateModel,
+    EstimateResponse,
+    FxModel,
+    FxResponse,
+    HealthPayload,
+    HealthResponse,
+    HoldingModel,
+    HoldingsResponse,
+    InstrumentModel,
+    InstrumentResponse,
+    InstrumentSummaryModel,
+    ListingPayload,
+    ListingResponse,
+    NavPointModel,
+    NavResponse,
+    ProfileModel,
+    ProfileResponse,
+    QuarterModel,
+    QuoteModel,
+    QuoteResponse,
+    QuoteResultModel,
+)
+
+__all__ = ["create_app"]
+
+_MAX_LIMIT = 5000
+
+
+def create_app(config: Config | None = None, client: MarketData | None = None) -> FastAPI:
+    """Build the application.
+
+    Args:
+        config: Runtime configuration. Loaded from disk when omitted.
+        client: Pre-built client, mainly for tests.
+
+    Returns:
+        A configured :class:`FastAPI` instance.
+    """
+    settings = config or load()
+
+    owned = client is None
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if client is None:
+            app.state.client = _build_client(settings)
+        try:
+            yield
+        finally:
+            if owned:
+                await app.state.client.aclose()
+
+    app = FastAPI(
+        title="quotestack API",
+        version="0.1.0",
+        summary="多源行情适配层",
+        lifespan=lifespan,
+    )
+    # Set eagerly so an injected client works even when the ASGI transport does
+    # not run the lifespan, which is the case in tests.
+    app.state.config = settings
+    if client is not None:
+        app.state.client = client
+
+    errors.install(app)
+    _register(app)
+    if _metrics_enabled():
+        metrics.install(app)
+    return app
+
+
+def _metrics_enabled() -> bool:
+    """Metrics are on unless the prometheus client is unavailable."""
+    return importlib.util.find_spec("prometheus_client") is not None
+
+
+def _build_client(settings: Config) -> MarketData:
+    ttl = {
+        capability: settings.ttl[capability.value]
+        for capability in Capability
+        if capability.value in settings.ttl
+    }
+    return MarketData(ttl=ttl or None, proxy=settings.proxy)
+
+
+def _client(request: Request) -> MarketData:
+    client: MarketData = request.app.state.client
+    return client
+
+
+Client = Annotated[MarketData, Depends(_client)]
+
+Code = Annotated[str, Query(min_length=1, max_length=24)]
+ClassParam = Annotated[AssetClass, Query()]
+VenueParam = Annotated[Market, Query()]
+
+
+def _register(app: FastAPI) -> None:
+    """Attach every route.
+
+    Args:
+        app: The application to extend.
+    """
+
+    @app.get("/v1/resolve", response_model=InstrumentResponse, tags=["instrument"])
+    async def resolve(
+        client: Client,
+        code: Code,
+        asset_class: ClassParam = AssetClass.STOCK,
+        market: VenueParam = Market.CN,
+    ) -> dict[str, Any]:
+        return {"data": _instrument(client.resolve(code, asset_class, market))}
+
+    @app.get("/v1/quote", response_model=QuoteResponse, tags=["market"])
+    async def quote(
+        client: Client,
+        code: Code,
+        asset_class: ClassParam = AssetClass.STOCK,
+        market: VenueParam = Market.CN,
+        max_age: Annotated[int | None, Query(ge=0)] = None,
+    ) -> dict[str, Any]:
+        result = await client.quote(code, asset_class, market, max_age=max_age)
+        return {"data": _quote(result)}
+
+    @app.post("/v1/quotes/batch", response_model=BatchResponse, tags=["market"])
+    async def quote_many(client: Client, body: BatchRequest) -> dict[str, Any]:
+        items = [
+            (item.code, AssetClass(item.asset_class), Market(item.market)) for item in body.items
+        ]
+        results = await client.quote_many(items)
+        return {
+            "data": {
+                "results": [_quote_result(result) for result in results],
+                "fetched_at": _now(),
+            }
+        }
+
+    @app.get("/v1/history", response_model=BarsResponse, tags=["market"])
+    async def history(
+        client: Client,
+        code: Code,
+        asset_class: ClassParam = AssetClass.STOCK,
+        market: VenueParam = Market.CN,
+        interval: Annotated[Interval, Query()] = Interval.D1,
+        adjust: Annotated[Adjust, Query()] = Adjust.QFQ,
+        limit: Annotated[int, Query(ge=1, le=_MAX_LIMIT)] = 250,
+        max_age: Annotated[int | None, Query(ge=0)] = None,
+    ) -> dict[str, Any]:
+        bars = await client.history(
+            code,
+            asset_class,
+            market,
+            interval=interval,
+            adjust=adjust,
+            limit=limit,
+            max_age=max_age,
+        )
+        return {
+            "data": {
+                "bars": [_bar(bar) for bar in bars],
+                "interval": interval.value,
+                "adjust": adjust.value,
+                "source": bars[0].source if hasattr(bars[0], "source") else "eastmoney",
+                "fetched_at": _now(),
+            }
+        }
+
+    @app.get("/v1/nav", response_model=NavResponse, tags=["fund"])
+    async def nav(
+        client: Client,
+        code: Code,
+        asset_class: ClassParam = AssetClass.FUND,
+        market: VenueParam = Market.CN,
+        limit: Annotated[int, Query(ge=1, le=_MAX_LIMIT)] = 250,
+        max_age: Annotated[int | None, Query(ge=0)] = None,
+    ) -> dict[str, Any]:
+        points = await client.nav(code, asset_class, market, limit=limit, max_age=max_age)
+        latest = points[-1]
+        return {
+            "data": {
+                "points": [_nav_point(point) for point in points],
+                "latest": _nav_point(latest),
+                "source": "tiantian",
+                "fetched_at": _now(),
+            }
+        }
+
+    @app.get("/v1/profile", response_model=ProfileResponse, tags=["fund"])
+    async def profile(
+        client: Client,
+        code: Code,
+        asset_class: ClassParam = AssetClass.FUND,
+        market: VenueParam = Market.CN,
+    ) -> dict[str, Any]:
+        result = await client.profile(code, asset_class, market)
+        return {"data": _profile(result)}
+
+    @app.get("/v1/holdings", response_model=HoldingsResponse, tags=["fund"])
+    async def holdings(
+        client: Client,
+        code: Code,
+        asset_class: ClassParam = AssetClass.FUND,
+        market: VenueParam = Market.CN,
+        before: Annotated[str | None, Query(pattern=r"^\d{4}Q[1-4]$")] = None,
+        limit: Annotated[int, Query(ge=1, le=40)] = 4,
+    ) -> dict[str, Any]:
+        quarters = await client.holdings(code, asset_class, market, before=before, limit=limit)
+        has_more = len(quarters) == limit
+        return {
+            "data": {
+                "quarters": [_quarter(quarter) for quarter in quarters],
+                "has_more": has_more,
+                "next_before": quarters[-1].quarter if has_more and quarters else None,
+            }
+        }
+
+    @app.get("/v1/benchmark", response_model=BenchmarkResponse, tags=["fund"])
+    async def benchmark(
+        client: Client,
+        code: Code,
+        asset_class: ClassParam = AssetClass.FUND,
+        market: VenueParam = Market.CN,
+        start: Annotated[dt.date | None, Query()] = None,
+        end: Annotated[dt.date | None, Query()] = None,
+    ) -> dict[str, Any]:
+        curve = await client.benchmark(code, asset_class, market, start=start, end=end)
+        return {
+            "data": {
+                "effective_start": curve.effective_start.isoformat()
+                if curve.effective_start
+                else None,
+                "components_used": [
+                    CurveComponentModel(name=c.name, weight=c.weight, kind=c.kind.value)
+                    for c in curve.components_used
+                ],
+                "components_dropped": list(curve.components_dropped),
+                "coverage": curve.coverage,
+                "series": [
+                    BenchmarkPointModel(date=point.date.isoformat(), value=point.value)
+                    for point in curve.series
+                ],
+            }
+        }
+
+    @app.get("/v1/estimate", response_model=EstimateResponse, tags=["fund"])
+    async def estimate(
+        client: Client,
+        code: Code,
+        asset_class: ClassParam = AssetClass.FUND,
+        market: VenueParam = Market.CN,
+    ) -> dict[str, Any]:
+        result = await client.estimate(code, asset_class, market)
+        assumption = result.benchmark_assumption
+        return {
+            "data": EstimateModel(
+                change_pct=result.change_pct,
+                basis=result.basis.value,
+                coverage=result.coverage,
+                as_of=result.as_of.isoformat() if result.as_of else None,
+                explanation=result.explanation,
+                benchmark_assumption=(
+                    {
+                        "equity": list(assumption.equity),
+                        "non_equity": list(assumption.non_equity),
+                        "unclassified": list(assumption.unclassified),
+                    }
+                    if assumption
+                    else None
+                ),
+            ).model_dump()
+        }
+
+    @app.get("/v1/fx", response_model=FxResponse, tags=["market"])
+    async def fx(
+        client: Client,
+        base: Annotated[str, Query(pattern=r"^[A-Za-z]{3}$")],
+        quote: Annotated[str, Query(pattern=r"^[A-Za-z]{3}$")],
+    ) -> dict[str, Any]:
+        rate = await client.fx(base.upper(), quote.upper())
+        return {
+            "data": FxModel(
+                base=rate.base,
+                quote=rate.quote,
+                rate=rate.rate,
+                source=rate.source,
+                as_of=rate.as_of.isoformat(),
+                derived=rate.derived,
+            ).model_dump()
+        }
+
+    @app.get("/v1/instruments", response_model=ListingResponse, tags=["instrument"])
+    async def instruments(
+        client: Client,
+        asset_class: Annotated[AssetClass, Query()],
+        market: Annotated[Market, Query()],
+        listed: Annotated[bool | None, Query()] = None,
+        page: Annotated[int, Query(ge=1)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=500)] = 100,
+        tradable_only: Annotated[bool, Query()] = True,
+    ) -> dict[str, Any]:
+        items: list[InstrumentSummaryModel] = []
+        skipped = 0
+        target = page * page_size
+        async for batch in client.iter_instruments(
+            asset_class,
+            market,
+            listed=listed,
+            page_size=page_size,
+            tradable_only=tradable_only,
+        ):
+            for summary in batch:
+                if skipped < (page - 1) * page_size:
+                    skipped += 1
+                    continue
+                items.append(_summary(summary))
+            if skipped + len(items) >= target:
+                break
+
+        return {
+            "data": ListingPayload(
+                items=items[:page_size],
+                page=page,
+                page_size=page_size,
+                has_more=len(items) > page_size,
+                next_page=page + 1 if len(items) > page_size else None,
+            ).model_dump()
+        }
+
+    @app.get("/v1/healthz", response_model=HealthResponse, tags=["ops"])
+    async def healthz(client: Client) -> dict[str, Any]:
+        state = client.health()
+        payload = HealthPayload(
+            status="degraded" if state["status"] == "degraded" else "ok",
+            config={"ttl": _ttl_report(app.state.config)},
+            sources=dict(state["sources"]) if isinstance(state["sources"], dict) else {},
+            cache=dict(state["cache"]) if isinstance(state["cache"], dict) else {},
+        )
+        return {"data": payload.model_dump()}
+
+
+def _ttl_report(config: Config) -> dict[str, object]:
+    return {
+        name: ("never" if value == float("inf") else value) for name, value in config.ttl.items()
+    }
+
+
+def _now() -> str:
+    return dt.datetime.now().astimezone().isoformat()
+
+
+def _instrument(instrument: Any) -> dict[str, Any]:
+    return InstrumentModel(
+        id=instrument.id,
+        code=instrument.code,
+        asset_class=instrument.asset_class.value,
+        market=instrument.market.value,
+        currency=instrument.currency,
+        source_name=instrument.source_name,
+        confidence=instrument.confidence.value,
+        aliases=dict(instrument.aliases),
+        capabilities=sorted(capability.value for capability in instrument.capabilities),
+    ).model_dump()
+
+
+def _quote(quote: Any) -> dict[str, Any]:
+    return QuoteModel(
+        instrument_id=quote.instrument_id,
+        price=quote.price,
+        currency=quote.currency,
+        change=quote.change,
+        change_pct=quote.change_pct,
+        source=quote.source,
+        ts=quote.ts.isoformat(),
+        status=quote.status.value,
+        stale=quote.stale,
+    ).model_dump()
+
+
+def _quote_result(result: Any) -> QuoteResultModel:
+    return QuoteResultModel(
+        ok=result.ok,
+        instrument=(
+            InstrumentModel(**_instrument(result.instrument)) if result.instrument else None
+        ),
+        quote=QuoteModel(**_quote(result.quote)) if result.quote else None,
+        error=result.error,
+    )
+
+
+def _bar(bar: Any) -> BarModel:
+    return BarModel(
+        date=bar.date.isoformat(),
+        time=bar.time,
+        open=bar.open,
+        high=bar.high,
+        low=bar.low,
+        close=bar.close,
+        volume=bar.volume,
+        amount=bar.amount,
+    )
+
+
+def _nav_point(point: Any) -> NavPointModel:
+    return NavPointModel(date=point.date.isoformat(), nav=point.nav)
+
+
+def _profile(profile: Any) -> ProfileModel:
+    benchmark = profile.benchmark
+    return ProfileModel(
+        fund_type=profile.fund_type,
+        fund_class=profile.fund_class.value if profile.fund_class else None,
+        tracking_index=profile.tracking_index,
+        benchmark=(
+            BenchmarkModel(
+                text=benchmark.text,
+                components=[
+                    BenchmarkComponentModel(name=c.name, weight=c.weight, kind=c.kind.value)
+                    for c in benchmark.components
+                ],
+                coverage=benchmark.coverage,
+            )
+            if benchmark
+            else None
+        ),
+        company=profile.company,
+        manager=profile.manager,
+        custodian=profile.custodian,
+        scale=profile.scale,
+        inception_date=profile.inception_date.isoformat() if profile.inception_date else None,
+        as_of=profile.as_of.isoformat() if profile.as_of else None,
+        partial=profile.partial,
+        missing=list(profile.missing),
+    )
+
+
+def _quarter(quarter: Any) -> QuarterModel:
+    return QuarterModel(
+        quarter=quarter.quarter,
+        as_of=quarter.as_of.isoformat(),
+        holdings=[
+            HoldingModel(code=h.code, name=h.name, weight=h.weight) for h in quarter.holdings
+        ],
+    )
+
+
+def _summary(summary: Any) -> InstrumentSummaryModel:
+    return InstrumentSummaryModel(
+        code=summary.code,
+        name=summary.name,
+        asset_class=summary.asset_class.value,
+        market=summary.market.value,
+        currency=summary.currency,
+        listing_date=summary.listing_date.isoformat() if summary.listing_date else None,
+        board=summary.board,
+        industry=summary.industry,
+        fund_type=summary.fund_type,
+        fund_class=summary.fund_class.value if summary.fund_class else None,
+    )
+
+
+# Referenced by tests to keep the enum imports meaningful across refactors.
+_UNUSED = (EstimateBasis, FundClass)

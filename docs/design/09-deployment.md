@@ -2,7 +2,7 @@
 
 > quotestack 设计决议 · 第 9 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
-> **实现状态**：🚧 库与 CLI 可用；HTTP 服务在 M6
+> **实现状态**：✅ 库、CLI、HTTP 服务均可用；Docker 镜像已提供
 
 
 ## 部署
