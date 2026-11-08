@@ -1,0 +1,34 @@
+name: 数据源失效
+description: 某个源的接口变了、挂了、或者数据不对
+labels: ["source"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这类 issue 通常意味着要重录 fixture 并改解析器。
+        如果每日探测在工作，它会先发现——这个模板用于人工发现的漏网情况。
+  - type: dropdown
+    id: source
+    attributes:
+      label: 哪个源
+      options: ["东方财富", "腾讯", "天天基金", "Binance", "东财外汇", "不确定"]
+    validations:
+      required: true
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 症状
+      description: 报 `SCHEMA_CHANGED`？返回空？数据明显不对？
+    validations:
+      required: true
+  - type: textarea
+    id: raw
+    attributes:
+      label: 原始响应片段
+      description: 直接 curl 接口拿到的内容，脱敏后贴上来
+      render: shell
+  - type: input
+    id: when
+    attributes:
+      label: 什么时候开始的
+      placeholder: "昨天还可以，今天不行 / 一直如此"

@@ -10,8 +10,8 @@
 ## 当前进度
 
 ```
-阶段：M7 完成 ✅ → 下一步 M8 开源发布
-已完成：11 / 11（累计 74 / 84 项）
+阶段：M8 进行中（4/7，发布需本人执行）
+已完成：11 / 11（累计 78 / 84 项）
 下一项：M7-1 fixture 目录
 ```
 
@@ -274,12 +274,12 @@ CI 全绿。
 
 > 目标：`pip install quotestack` 可用。
 
-- [ ] **M8-1** `README.zh-CN.md`（英文 `README.md` 已完成）
-- [ ] **M8-2** `SECURITY.md`、`CHANGELOG.md`、`CODE_OF_CONDUCT.md`（`CONTRIBUTING.md` 已完成）
-- [ ] **M8-3** Issue / PR 模板
-- [ ] **M8-4** 发布前检查（个人路径、调试代码、`.DS_Store`）
-- [ ] **M8-5** TestPyPI 验证打包
-- [ ] **M8-6** PyPI 发布 `0.0.1`
+- [x] **M8-1** `README.md`（英）+ `README.zh-CN.md`（中）
+- [x] **M8-2** `CONTRIBUTING.md`、`SECURITY.md`、`CHANGELOG.md`、`CODE_OF_CONDUCT.md`
+- [x] **M8-3** Issue / PR 模板
+- [x] **M8-4** 发布前检查 → `scripts/check_release.py`（路径/垃圾文件/调试代码/版本/必备文件）
+- [ ] **M8-5** TestPyPI 验证打包（`uv build` 已通过，本地干净环境装 wheel 可导入、CLI 可用）
+- [ ] **M8-6** PyPI 发布 `0.1.0`（跳过占名版本）
 - [ ] **M8-7** 打 tag + GitHub Release
 
 **完成标准**

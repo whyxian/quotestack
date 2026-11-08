@@ -1,0 +1,34 @@
+name: 功能建议
+description: 想要新数据、新能力、或者改进现有行为
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到的实际问题
+      description: 描述场景，不要直接跳到方案
+      placeholder: "我需要盘中判断某只基金的表现，但现在只能等晚上的净值"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你希望怎么解决
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 试过的其他办法
+      description: 比如用别的库、自己抓数据，为什么不行
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及的部分
+      multiple: true
+      options:
+        - 行情（报价 / K 线）
+        - 基金（净值 / 画像 / 持仓 / 估值）
+        - 全市场列表
+        - 标识解析
+        - HTTP 服务
+        - 文档
+        - 其他

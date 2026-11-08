@@ -30,3 +30,8 @@ htmlcov/
 
 # Secrets
 .env
+
+# build output
+dist/
+build/
+*.egg-info/

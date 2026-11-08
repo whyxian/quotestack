@@ -1,0 +1,47 @@
+name: 缺陷报告
+description: 数据不对、报错、或者行为不符合预期
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        数据问题请先确认是**这个库的问题**还是**上游源的问题**。
+        例如某只基金查不到，先试试官网能不能查到。
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 期望的结果，和实际拿到的结果
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现方式
+      description: 最小可运行的代码
+      render: python
+      placeholder: |
+        from quotestack import AssetClass, Market, MarketData
+
+        async with MarketData() as client:
+            await client.quote("600519")
+    validations:
+      required: true
+  - type: textarea
+    id: traceback
+    attributes:
+      label: 错误信息
+      description: "完整 traceback，或 exc.code / exc.context"
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: "pip show quotestack，或 import quotestack 后看 __version__"
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python 版本与系统
+      placeholder: "3.12.16 / macOS 14 arm64"

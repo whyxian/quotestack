@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quotestack"
-version = "0.0.1"
+version = "0.1.0"
 description = "Multi-source market data adapter for A-shares, US stocks, mutual funds and crypto."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -95,6 +95,7 @@ ignore = [
 "src/quotestack/server/__main__.py" = ["T20"]  # a server entry point reports to stderr
 "benchmarks/*.py" = ["T20"]  # a CLI exists to print
 "examples/*.py" = ["T20"]    # examples exist to print
+"scripts/*.py" = ["T20"]     # report scripts exist to print
 
 [tool.mypy]
 python_version = "3.11"
