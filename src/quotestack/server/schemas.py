@@ -93,12 +93,14 @@ class InstrumentModel(_Model):
 
 class QuoteModel(_Model):
     instrument_id: str
-    price: str = Field(description="Decimal string, never a float")
+    price: str = Field(description="十进制字符串，不是数字。金额不能有浮点误差")
     currency: str
     change: str | None = None
-    change_pct: float | None = None
+    change_pct: float | None = Field(
+        default=None, description="涨跌幅百分数值，-1.76 表示 -1.76%"
+    )
     source: str
-    ts: str
+    ts: str = Field(description="RFC3339 带时区偏移的观测时刻")
     status: Literal["REALTIME", "HISTORICAL", "UNAVAILABLE"]
     stale: bool = False
 
@@ -110,7 +112,7 @@ class BarModel(_Model):
     high: str
     low: str
     close: str
-    volume: str
+    volume: str = Field(description="成交量，十进制字符串")
     amount: str | None = None
 
 
@@ -128,7 +130,7 @@ class BenchmarkComponentModel(_Model):
 class BenchmarkModel(_Model):
     text: str
     components: list[BenchmarkComponentModel]
-    coverage: float
+    coverage: float = Field(description="权重合计 / 100，小于 1 说明权重不全")
 
 
 class ProfileModel(_Model):
@@ -184,7 +186,7 @@ class EstimateModel(_Model):
 class FxModel(_Model):
     base: str
     quote: str
-    rate: str
+    rate: str = Field(description="汇率，十进制字符串")
     source: str
     as_of: str
     derived: bool

@@ -1,7 +1,11 @@
 # HTTP 接口契约
 
 > [openapi.yaml](openapi.yaml) 是本项目 HTTP 层的**唯一权威接口定义**。
-> 更新于 2026-11-08。
+> **由代码生成，不要手改。**
+
+```bash
+quotestack-server --dump-openapi > docs/api/openapi.yaml
+```
 
 ---
 
@@ -9,8 +13,10 @@
 
 一份 OpenAPI 3.1 文档，描述 quotestack 服务化后的 12 个接口。
 
-**现在还没实现**（M6 才写服务），所以它是**契约先行**，不是从代码生成的。
-M6 完成后会改成由 FastAPI 生成，并用 CI 校验两者一致。
+它由 FastAPI 从代码生成，所以**不可能和实现不一致**。
+
+`tests/test_server.py::test_committed_spec_matches_the_code` 会对比提交的文件与
+重新生成的结果；忘了重新生成，测试就会失败。
 
 ---
 
@@ -99,16 +105,12 @@ M6 完成后会改成由 FastAPI 生成，并用 CI 校验两者一致。
 2. 再改 `docs/design/05-api.md`（写理由）
 3. 最后写代码
 
-**改字段**：同上顺序。先改契约，再改实现——否则会变成"文档追代码"，这是我们想避免的。
+**改字段**：改 Pydantic 模型 → 重新生成 → 提交。描述写在 `Field(description=...)` 里，
+**不要手改 YAML**。
 
 ---
 
-## M6 之后
+## 人工检查
 
-服务实现完成后：
-
-```bash
-uv run python -m quotestack.server --dump-openapi > docs/api/openapi.yaml
-```
-
-CI 会跑同一条命令并 `git diff --exit-code`，**任何接口改动没同步到文档都会让构建失败**。
+生成物只有结构，没有取舍理由。想理解某个字段为什么是字符串、为什么 `null` 不等于 `0`，
+看 [05-api](../design/05-api.md)——那里才是解释性的。

@@ -13,7 +13,7 @@
 
 ## 2. 当前阶段
 
-**M6 基本完成**：库、CLI、HTTP 服务、Docker 均可用。下一步 M7 工程质量。
+**M6 已完成**：库、CLI、HTTP 服务、Docker 均可用。下一步 M7 工程质量。
 
 进度见 [docs/ROADMAP.md](docs/ROADMAP.md)，每完成一项会勾选。
 
@@ -32,6 +32,7 @@ uv run ruff format .                 # 格式化
 uv run mypy src                      # 类型检查
 quotestack quote 600519              # 冒烟：查实时价
 quotestack estimate 022430           # 基金盘中估值
+quotestack-server --dump-openapi     # 重新生成 OpenAPI（改接口后必做）
 ```
 
 > 当前全部可用。

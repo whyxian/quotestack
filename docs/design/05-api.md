@@ -588,7 +588,14 @@ async for batch in client.iter_instruments(AssetClass.FUND, Market.CN, listed=Fa
 
 **错误**：无（永远返回 200）
 
-**不做**：逐接口的完整 JSON 示例。完整 schema 在 M6 由 FastAPI 生成到 `docs/api/openapi.yaml`，避免 Markdown 与代码各写一份、彼此漂移。
+**完整 schema 见 [openapi.yaml](../api/openapi.yaml)**，它由代码生成：
+
+```bash
+quotestack-server --dump-openapi > docs/api/openapi.yaml
+```
+
+本文只解释**为什么**这么设计；字段的权威定义在生成物里。改接口的正确顺序是
+「改代码 → 重新生成 → 提交」，`tests/test_server.py` 会拦住忘记重新生成的情况。
 
 ---
 

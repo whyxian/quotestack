@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import pathlib
 from typing import Any
 
 import httpx
@@ -293,3 +294,27 @@ async def test_metrics_endpoint_is_served() -> None:
 
     assert response.status_code == 200
     assert "quotestack_events_total" in response.text
+
+
+def test_committed_spec_matches_the_code() -> None:
+    """The committed OpenAPI file must be exactly what the app generates.
+
+    Regenerate with ``quotestack-server --dump-openapi > docs/api/openapi.yaml``
+    when this fails; the point is that the two can never disagree.
+    """
+    import yaml
+
+    app = create_app(Config(), client=_FakeClient())  # type: ignore[arg-type]
+    generated = app.openapi()
+
+    committed = yaml.safe_load(
+        (pathlib.Path(__file__).resolve().parents[1] / "docs/api/openapi.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert set(committed["paths"]) == set(generated["paths"])
+    assert committed["components"]["schemas"].keys() == generated["components"]["schemas"].keys()
+    for path, operations in generated["paths"].items():
+        for method, operation in operations.items():
+            assert committed["paths"][path][method]["summary"] == operation["summary"]

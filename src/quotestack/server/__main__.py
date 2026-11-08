@@ -7,6 +7,8 @@ import json
 import sys
 from dataclasses import replace
 
+import yaml
+
 from quotestack.server.app import create_app
 from quotestack.server.config import ConfigError, load
 
@@ -31,6 +33,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="print the OpenAPI document and exit",
     )
+    parser.add_argument(
+        "--format",
+        choices=("yaml", "json"),
+        default="yaml",
+        help="output format for --dump-openapi",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -46,14 +54,28 @@ def main(argv: list[str] | None = None) -> int:
 
     app = create_app(config)
     if args.dump_openapi:
-        json.dump(app.openapi(), sys.stdout, ensure_ascii=False, indent=2)
-        sys.stdout.write("\n")
+        _write_spec(app, args.format)
         return 0
 
     import uvicorn
 
     uvicorn.run(app, host=config.host, port=config.port, log_level=config.log_level.lower())
     return 0
+
+
+def _write_spec(app: object, fmt: str) -> None:
+    """Write the OpenAPI document to stdout.
+
+    Args:
+        app: A FastAPI instance.
+        fmt: ``yaml`` or ``json``.
+    """
+    document = app.openapi()  # type: ignore[attr-defined]
+    if fmt == "json":
+        json.dump(document, sys.stdout, ensure_ascii=False, indent=2)
+    else:
+        yaml.safe_dump(document, sys.stdout, allow_unicode=True, sort_keys=False, width=100)
+    sys.stdout.write("\n")
 
 
 if __name__ == "__main__":

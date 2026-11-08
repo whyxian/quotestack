@@ -142,7 +142,7 @@ def _register(app: FastAPI) -> None:
         app: The application to extend.
     """
 
-    @app.get("/v1/resolve", response_model=InstrumentResponse, tags=["instrument"])
+    @app.get("/v1/resolve", summary="解析代码", description="把代码解析成内部标识，并返回各数据源的映射。纯规则解析，不发起网络请求。", response_model=InstrumentResponse, tags=["instrument"])
     async def resolve(
         client: Client,
         code: Code,
@@ -151,7 +151,7 @@ def _register(app: FastAPI) -> None:
     ) -> dict[str, Any]:
         return {"data": _instrument(client.resolve(code, asset_class, market))}
 
-    @app.get("/v1/quote", response_model=QuoteResponse, tags=["market"])
+    @app.get("/v1/quote", summary="实时报价", description="返回单个标的的最新报价。上游失败且缓存仍在 max_stale 窗口内时，返回旧值并把 stale 置为 true。", response_model=QuoteResponse, tags=["market"])
     async def quote(
         client: Client,
         code: Code,
@@ -162,7 +162,7 @@ def _register(app: FastAPI) -> None:
         result = await client.quote(code, asset_class, market, max_age=max_age)
         return {"data": _quote(result)}
 
-    @app.post("/v1/quotes/batch", response_model=BatchResponse, tags=["market"])
+    @app.post("/v1/quotes/batch", summary="批量报价", description="一次查询多个标的。返回列表与请求等长同序，单条失败不影响其余。", response_model=BatchResponse, tags=["market"])
     async def quote_many(client: Client, body: BatchRequest) -> dict[str, Any]:
         items = [
             (item.code, AssetClass(item.asset_class), Market(item.market)) for item in body.items
@@ -175,7 +175,7 @@ def _register(app: FastAPI) -> None:
             }
         }
 
-    @app.get("/v1/history", response_model=BarsResponse, tags=["market"])
+    @app.get("/v1/history", summary="K 线与分钟线", description="场外基金没有 K 线，请求它们返回 UNSUPPORTED，而不是空数组。", response_model=BarsResponse, tags=["market"])
     async def history(
         client: Client,
         code: Code,
@@ -205,7 +205,7 @@ def _register(app: FastAPI) -> None:
             }
         }
 
-    @app.get("/v1/nav", response_model=NavResponse, tags=["fund"])
+    @app.get("/v1/nav", summary="基金净值", description="场外基金只有每日净值，没有盘中报价。", response_model=NavResponse, tags=["fund"])
     async def nav(
         client: Client,
         code: Code,
@@ -225,7 +225,7 @@ def _register(app: FastAPI) -> None:
             }
         }
 
-    @app.get("/v1/profile", response_model=ProfileResponse, tags=["fund"])
+    @app.get("/v1/profile", summary="基金画像", description="基金类型、跟踪标的、业绩基准、规模、经理。", response_model=ProfileResponse, tags=["fund"])
     async def profile(
         client: Client,
         code: Code,
@@ -235,7 +235,7 @@ def _register(app: FastAPI) -> None:
         result = await client.profile(code, asset_class, market)
         return {"data": _profile(result)}
 
-    @app.get("/v1/holdings", response_model=HoldingsResponse, tags=["fund"])
+    @app.get("/v1/holdings", summary="季度持仓", description="按季度倒序返回前十大重仓股。limit 是季度数，不是股票数。", response_model=HoldingsResponse, tags=["fund"])
     async def holdings(
         client: Client,
         code: Code,
@@ -254,7 +254,7 @@ def _register(app: FastAPI) -> None:
             }
         }
 
-    @app.get("/v1/benchmark", response_model=BenchmarkResponse, tags=["fund"])
+    @app.get("/v1/benchmark", summary="基准加权曲线", description="把业绩基准里的成分指数按权重加权。取不到数据的成分被剔除并报告，coverage 相应下降。", response_model=BenchmarkResponse, tags=["fund"])
     async def benchmark(
         client: Client,
         code: Code,
@@ -282,7 +282,7 @@ def _register(app: FastAPI) -> None:
             }
         }
 
-    @app.get("/v1/estimate", response_model=EstimateResponse, tags=["fund"])
+    @app.get("/v1/estimate", summary="基金盘中估值", description="用跟踪指数或持仓推算当日涨跌。算不出来时返回 change_pct=null，不是 0——未知与零变化是两件事。", response_model=EstimateResponse, tags=["fund"])
     async def estimate(
         client: Client,
         code: Code,
@@ -310,7 +310,7 @@ def _register(app: FastAPI) -> None:
             ).model_dump()
         }
 
-    @app.get("/v1/fx", response_model=FxResponse, tags=["market"])
+    @app.get("/v1/fx", summary="汇率", description="以 USD 为基准表做交叉换算，derived 标记该汇率是直接报价还是算出来的。", response_model=FxResponse, tags=["market"])
     async def fx(
         client: Client,
         base: Annotated[str, Query(pattern=r"^[A-Za-z]{3}$")],
@@ -328,7 +328,7 @@ def _register(app: FastAPI) -> None:
             ).model_dump()
         }
 
-    @app.get("/v1/instruments", response_model=ListingResponse, tags=["instrument"])
+    @app.get("/v1/instruments", summary="市场列表", description="枚举一个市场的全部标的。列表只含静态元数据，不含行情。", response_model=ListingResponse, tags=["instrument"])
     async def instruments(
         client: Client,
         asset_class: Annotated[AssetClass, Query()],
@@ -366,7 +366,7 @@ def _register(app: FastAPI) -> None:
             ).model_dump()
         }
 
-    @app.get("/v1/healthz", response_model=HealthResponse, tags=["ops"])
+    @app.get("/v1/healthz", summary="运行状态", description="报告各源可用性、冷却状态、缓存占用，以及当前生效的配置。", response_model=HealthResponse, tags=["ops"])
     async def healthz(client: Client) -> dict[str, Any]:
         state = client.health()
         payload = HealthPayload(
