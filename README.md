@@ -4,22 +4,18 @@ Multi-source market data adapter for **A-shares, US stocks, mutual funds and cry
 
 > **Status: pre-alpha.** API is not stable yet. Do not use in production.
 
-## Why
+Getting consistent market data across four asset classes is repetitive work: every
+source returns a different shape, fails differently, and needs its own caching,
+fallback and rate limiting. quotestack collapses that into one set of calls.
 
-Getting consistent market data across asset classes is repetitive work: every source
-returns a different shape, fails differently, and needs its own caching and fallback.
-quotestack collapses that into one set of calls.
-
-See [docs/design/00-why.md](docs/design/00-why.md) for the full rationale and a
-comparison with akshare / tushare / yfinance.
+`pip install` is not available yet — see [Install](#install).
 
 ## Install
 
-> Not yet published to PyPI. Until M8 completes, install from source.
-
 ```bash
 git clone <repo> && cd quotestack
-uv sync --extra dev
+uv sync --extra dev            # 作为库使用
+uv sync --extra dev --extra server   # 需要 HTTP 服务时
 ```
 
 ## Usage
@@ -33,7 +29,7 @@ from quotestack import AssetClass, Market, MarketData
 async def main() -> None:
     async with MarketData() as client:
         quote = await client.quote("600519", AssetClass.STOCK, Market.CN)
-        print(quote.price, quote.currency)
+        print(quote.price, quote.currency)          # 1453.00 CNY
 
         bars = await client.history("600519", limit=5)
         print(len(bars), "bars")
@@ -42,20 +38,82 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-## Scope
+Funds carry the interesting capabilities:
 
-| Supported | Not supported |
-|---|---|
-| A-share stocks and ETFs | Convertible bonds, futures, options |
-| US stocks | Minute-level long history |
-| Open-end mutual funds (NAV, profile, holdings, estimate) | Trading / order placement |
-| Crypto (spot) | Data warehousing |
+```python
+async with MarketData() as client:
+    profile = await client.profile("022430")        # 类型、基准、经理、规模
+    quarters = await client.holdings("166002", limit=4)   # 季度前十大
+    estimate = await client.estimate("166002")      # 盘中估算
+
+    if estimate.change_pct is None:                 # 算不出来，不是 0
+        print(estimate.explanation)
+```
+
+A universe listing refreshes a local instrument table:
+
+```python
+async for batch in client.iter_instruments(AssetClass.STOCK, Market.CN):
+    ...  # 库只给数据流；落库与 diff 由调用方负责
+```
+
+## What it covers
+
+| | Supported | Not supported |
+|---|---|---|
+| **A-shares** | stocks and ETFs, full history, listings | convertible bonds, futures, options |
+| **US stocks** | quotes and daily bars, listings | minute-level long history |
+| **Mutual funds** | NAV, profile, benchmark, holdings, intraday estimate | anything requiring a trading account |
+| **Crypto** | Binance spot universe | derivatives |
+
+Five sources back this: Eastmoney (primary), Tencent (realtime fallback),
+Tiantian Fund (open-end funds), Binance Vision (crypto), Eastmoney FX (rates).
+Routing and fallback are automatic; see [03-sources](docs/design/03-sources.md).
+
+## Run as a service
+
+```bash
+uv run quotestack-server            # 127.0.0.1:8000
+curl 'http://127.0.0.1:8000/v1/quote?code=600519'
+```
+
+Twelve endpoints, unified `{data, error}` envelope, Prometheus metrics at `/metrics`.
+The contract is generated from code: [`docs/api/openapi.yaml`](docs/api/openapi.yaml).
 
 ## Documentation
 
-- [Roadmap](docs/ROADMAP.md)
-- [Design decisions](docs/design/README.md)
-- [Glossary](docs/design/16-glossary.md)
+**Using it**
+
+| Topic | File |
+|---|---|
+| API surface and field semantics | [05-api](docs/design/05-api.md) |
+| OpenAPI spec | [docs/api](docs/api/README.md) |
+| Glossary | [16-glossary](docs/design/16-glossary.md) |
+| Runnable examples | [examples/](examples/) |
+
+**Developing it**
+
+| Topic | File |
+|---|---|
+| Setup, workflow, conventions | [CONTRIBUTING](CONTRIBUTING.md) |
+| Module structure and data flow | [ARCHITECTURE](docs/harness/ARCHITECTURE.md) |
+| Commented code map (中文) | [CODE_MAP_ZH](docs/harness/CODE_MAP_ZH.md) |
+| Design decisions and why | [docs/design](docs/design/README.md) |
+| Measured evidence behind every claim | [11-evidence](docs/design/11-evidence.md) |
+
+## Project status
+
+Built in milestones, tracked in [docs/ROADMAP.md](docs/ROADMAP.md):
+
+```
+M0 scaffold    M1 MVP        M2 resilience   M3 multi-source
+M4 funds       M5 estimate   M6 service      M7 quality     ✅
+M8 release     M9 integration
+```
+
+Estimate accuracy is not a claim, it is measured — see
+[11-evidence](docs/design/11-evidence.md#46-估值回测m5-6): correlation 0.958 and
+mean absolute error 0.41pp on an active fund, 0.02pp on an ETF feeder.
 
 ## License
 

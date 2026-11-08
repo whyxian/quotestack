@@ -274,8 +274,8 @@ CI 全绿。
 
 > 目标：`pip install quotestack` 可用。
 
-- [ ] **M8-1** `README.md`（英文）+ `README.zh-CN.md`
-- [ ] **M8-2** `CONTRIBUTING.md`、`SECURITY.md`、`CHANGELOG.md`、`CODE_OF_CONDUCT.md`
+- [ ] **M8-1** `README.zh-CN.md`（英文 `README.md` 已完成）
+- [ ] **M8-2** `SECURITY.md`、`CHANGELOG.md`、`CODE_OF_CONDUCT.md`（`CONTRIBUTING.md` 已完成）
 - [ ] **M8-3** Issue / PR 模板
 - [ ] **M8-4** 发布前检查（个人路径、调试代码、`.DS_Store`）
 - [ ] **M8-5** TestPyPI 验证打包
