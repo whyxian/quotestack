@@ -85,6 +85,48 @@ def check_version() -> list[str]:
     return problems
 
 
+def check_placeholders() -> list[str]:
+    """Unresolved placeholders must not reach a release.
+
+    The repository URL is unknown until the project is published, so it is a
+    literal placeholder. Shipping one means the changelog links 404.
+    """
+    if "--allow-placeholders" in sys.argv:
+        return []
+    problems = []
+    for path in _files():
+        if path.suffix not in {".md", ".toml"}:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for marker in ("OWNER/", "<repo>"):
+            if marker in text:
+                problems.append(f"{path.relative_to(ROOT)}: unresolved {marker}")
+    return problems
+
+
+def check_urls_agree() -> list[str]:
+    """The repository URL must say the same thing everywhere."""
+    if "--allow-placeholders" in sys.argv:
+        return []
+    with (ROOT / "pyproject.toml").open("rb") as handle:
+        urls = tomllib.load(handle)["project"].get("urls", {})
+    repository = urls.get("Repository", "")
+    if not repository:
+        return ["pyproject has no [project.urls] Repository"]
+
+    owner = repository.rstrip("/").split("/")[-2:-1]
+    if not owner:
+        return [f"cannot parse an owner from {repository}"]
+
+    problems = []
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    if f"{owner[0]}/quotestack" not in changelog:
+        problems.append(
+            f"CHANGELOG links do not use {owner[0]}/quotestack (repository is {repository})"
+        )
+    return problems
+
+
 def check_required_files() -> list[str]:
     required = ("LICENSE", "README.md", "pyproject.toml", "CHANGELOG.md")
     return [f"missing {name}" for name in required if not (ROOT / name).exists()]
@@ -96,6 +138,8 @@ def main() -> int:
         "junk files": check_junk_files,
         "debug leftovers": check_debug_leftovers,
         "version": check_version,
+        "placeholders": check_placeholders,
+        "url consistency": check_urls_agree,
         "required files": check_required_files,
     }
 

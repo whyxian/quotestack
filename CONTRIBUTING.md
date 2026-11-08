@@ -151,7 +151,31 @@ test(estate): cover the missing-alias branch
 
 ---
 
-## 9. 本地跑服务
+## 9. 发布（维护者）
+
+```bash
+# 1. 替换仓库地址（首次发布时执行一次）
+OWNER=<你的 GitHub 用户名>
+sed -i '' "s|<repo>|github.com/$OWNER/quotestack|g; s|OWNER/|$OWNER/|g" \
+  README.md README.zh-CN.md CONTRIBUTING.md guide/*.md CHANGELOG.md
+
+# 2. 检查
+uv run python scripts/check_release.py     # 全部 ok 才能继续
+
+# 3. 构建
+uv build
+
+# 4. 先发 TestPyPI 验一遍
+uv publish --index testpypi
+
+# 5. 正式发布
+uv publish
+```
+
+`check_release.py` 会拦住：个人路径、垃圾文件、调试代码、版本号不一致、
+**未替换的占位符**、**仓库地址前后不一致**、缺少必备文件。
+
+## 10. 本地跑服务
 
 ```bash
 uv run quotestack-server                      # 127.0.0.1:8000
