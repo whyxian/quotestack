@@ -31,6 +31,7 @@ from quotestack.errors import (
 )
 from quotestack.funds import classify_fund_type
 from quotestack.models import (
+    Allocation,
     AssetClass,
     Capability,
     Holding,
@@ -56,6 +57,7 @@ _QUARTER_RE = re.compile(r"(\d{4})年(\d)季度")
 _ROW_RE = re.compile(r"<tr[^>]*>(.*?)</tr>", re.S)
 _CELL_RE = re.compile(r"<td[^>]*>(.*?)</td>", re.S)
 _TAG_RE = re.compile(r"<[^>]+>")
+_ASSET_RE = re.compile(r"var Data_assetAllocation\s*=\s*(\{.*?\});", re.S)
 _PAIR_RE = re.compile(r"<th[^>]*>(.*?)</th>\s*<td[^>]*>(.*?)</td>", re.S)
 _DATE_RE = re.compile(r"(\d{4})年(\d{1,2})月(\d{1,2})日")
 
@@ -71,7 +73,13 @@ class TiantianSource:
     meta = SourceMeta(
         name="tiantian",
         capabilities=frozenset(
-            {Capability.NAV, Capability.LIST, Capability.HOLDINGS, Capability.PROFILE}
+            {
+                Capability.NAV,
+                Capability.LIST,
+                Capability.HOLDINGS,
+                Capability.PROFILE,
+                Capability.ESTIMATE,
+            }
         ),
         markets=frozenset({(AssetClass.FUND, Market.CN)}),
         timeout=8.0,  # the payload can reach several hundred kilobytes
@@ -301,6 +309,48 @@ class TiantianSource:
             holdings.append(Holding(code=cells[1], name=cells[2], weight=weight))
         return holdings
 
+    async def allocation(self, instrument: Instrument) -> Allocation | None:
+        """Fetch the published asset allocation.
+
+        Args:
+            instrument: Fund with a ``tiantian`` alias.
+
+        Returns:
+            The newest allocation, or ``None`` when the fund does not publish
+            one (money market funds report no stock ratio).
+
+        Raises:
+            UpstreamError: The request failed.
+        """
+        code = instrument.aliases.get("tiantian")
+        if code is None:
+            raise UpstreamError(
+                "instrument has no tiantian alias",
+                source=self.meta.name,
+                instrument=instrument.id,
+            )
+
+        response = await self._client.get(
+            _URL.format(code=code),
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        if response.status_code >= 400:
+            raise UpstreamError(
+                f"tiantian responded with {response.status_code}",
+                source=self.meta.name,
+                status_code=response.status_code,
+                instrument=instrument.id,
+            )
+
+        match = _ASSET_RE.search(response.text)
+        if match is None:
+            return None
+        try:
+            payload = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            return None
+        return _to_allocation(payload)
+
     async def list_instruments(
         self,
         *,
@@ -506,3 +556,48 @@ def _split_scale(raw: str) -> tuple[str | None, dt.date | None]:
     _, _, as_of_text = raw.partition("截止至：")
     as_of, _ = _split_date(as_of_text) if as_of_text else (None, None)
     return scale, as_of
+
+
+def _to_allocation(payload: dict[str, object]) -> Allocation | None:
+    """Read the newest point of each allocation series."""
+    series = payload.get("series")
+    categories = payload.get("categories")
+    if not isinstance(series, list):
+        return None
+
+    latest: dict[str, float] = {}
+    for entry in series:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        data = entry.get("data")
+        if not isinstance(name, str) or not isinstance(data, list) or not data:
+            continue
+        value = data[-1]
+        if isinstance(value, (int, float)):
+            latest[name] = float(value)
+
+    stock = latest.get("股票占净比")
+    bond = latest.get("债券占净比")
+    cash = latest.get("现金占净比")
+    if stock is None and bond is None and cash is None:
+        return None
+
+    as_of = _parse_iso_date(categories[-1]) if isinstance(categories, list) and categories else None
+    return Allocation(
+        stock=stock or 0.0,
+        bond=bond or 0.0,
+        cash=cash or 0.0,
+        as_of=as_of,
+    )
+
+
+def _parse_iso_date(raw: object) -> dt.date | None:
+    """Parse the ``YYYY-MM-DD`` labels used by the allocation categories."""
+    if not isinstance(raw, str):
+        return None
+    try:
+        return dt.date.fromisoformat(raw.strip())
+    except ValueError:
+        found, _ = _split_date(raw)
+        return found

@@ -110,6 +110,20 @@ class FundClass(StrEnum):
     """Unknown or unclassified."""
 
 
+class EstimateBasis(StrEnum):
+    """What the estimate was computed from."""
+
+    INDEX = "index"
+    """Tracking index change times equity exposure."""
+
+    HOLDINGS = "holdings"
+    """Top holdings plus a benchmark proxy for the remainder."""
+
+    NONE = "none"
+    """No usable inputs; ``change_pct`` is null unless the fund is a money
+    market fund, whose NAV genuinely does not move."""
+
+
 class Confidence(StrEnum):
     """How much to trust a resolved identifier."""
 

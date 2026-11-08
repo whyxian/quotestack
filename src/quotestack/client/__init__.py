@@ -35,15 +35,29 @@ from quotestack.errors import (
     UnsupportedError,
     UpstreamError,
 )
+from quotestack.estimate import (
+    assumption_of,
+    describe_holdings,
+    describe_index,
+    equity_proxy,
+    weighted_change,
+)
 from quotestack.identity import resolve as resolve_rules
+from quotestack.identity.resolver import _EM_MARKET_ID
+from quotestack.identity.rules import cn_exchange
 from quotestack.logging import event, get_logger
 from quotestack.models import (
     Adjust,
+    Allocation,
     AssetClass,
     Bar,
+    BenchmarkAssumption,
     BenchmarkCurve,
     BenchmarkPoint,
     Capability,
+    Estimate,
+    EstimateBasis,
+    FundClass,
     FxRate,
     Instrument,
     InstrumentSummary,
@@ -334,6 +348,202 @@ class MarketData:
             max_age=max_age,
         )
         return cast("list[Bar]", bars)[-limit:]
+
+    async def estimate(
+        self,
+        code: str,
+        asset_class: AssetClass = AssetClass.FUND,
+        market: Market = Market.CN,
+    ) -> Estimate:
+        """Estimate the fund's intraday change.
+
+        Two formulas are used, chosen from the fund type:
+
+        - index funds and ETFs: tracking index change times equity exposure
+        - active funds: top holdings plus a benchmark proxy for the remainder
+
+        Inputs that are missing or stale degrade to ``basis="none"`` with
+        ``change_pct=None`` rather than raising: an estimate is a best-effort
+        reference, and "cannot compute" is a legitimate answer.
+
+        Args:
+            code: Fund code.
+            asset_class: Defaults to ``FUND``.
+            market: Defaults to ``CN``.
+
+        Returns:
+            The estimate with its basis, coverage and explanation.
+
+        Raises:
+            UnsupportedError: The instrument is not a fund.
+            UpstreamError: A required request failed.
+        """
+        instrument = self.resolve(code, asset_class, market)
+        self._require(instrument, Capability.ESTIMATE)
+
+        try:
+            profile = await self.profile(code, asset_class, market)
+            allocation = await self._allocation(instrument)
+        except UpstreamError as exc:
+            return Estimate(
+                change_pct=None,
+                basis=EstimateBasis.NONE,
+                explanation=f"输入不可用：{exc.message}",
+            )
+
+        assumption = assumption_of(profile.benchmark)
+        if profile.fund_class is FundClass.MONEY:
+            return Estimate(
+                change_pct=0.0,
+                basis=EstimateBasis.NONE,
+                coverage=1.0,
+                explanation="货币基金净值固定为 1.0，不做估值",
+                benchmark_assumption=assumption,
+            )
+
+        if allocation is None:
+            return Estimate(
+                change_pct=None,
+                basis=EstimateBasis.NONE,
+                explanation="没有资产配置数据，无法确定权益仓位",
+                benchmark_assumption=assumption,
+            )
+
+        if profile.tracking_index or (profile.fund_type or "").startswith("指数型"):
+            return await self._estimate_by_index(profile, allocation, assumption)
+        return await self._estimate_by_holdings(instrument, profile, allocation, assumption)
+
+    async def _estimate_by_index(
+        self,
+        profile: Profile,
+        allocation: Allocation,
+        assumption: BenchmarkAssumption,
+    ) -> Estimate:
+        name = profile.tracking_index
+        if not name:
+            for component, _ in equity_proxy(profile.benchmark):
+                name = component.name
+                break
+        if not name:
+            return Estimate(
+                change_pct=None,
+                basis=EstimateBasis.NONE,
+                explanation="指数型基金既无跟踪标的也无权益基准",
+                benchmark_assumption=assumption,
+            )
+
+        secid = await self._resolve_index(name)
+        if secid is None:
+            return Estimate(
+                change_pct=None,
+                basis=EstimateBasis.NONE,
+                explanation=f"跟踪标的「{name}」没有可用的指数行情",
+                benchmark_assumption=assumption,
+            )
+
+        changes = await self._quotes_by_secid([secid])
+        index_change = changes.get(secid)
+        if index_change is None:
+            return Estimate(
+                change_pct=None,
+                basis=EstimateBasis.NONE,
+                explanation=f"跟踪标的「{name}」今日无行情",
+                benchmark_assumption=assumption,
+            )
+
+        exposure = allocation.equity_exposure / 100
+        result = index_change * exposure
+        return Estimate(
+            change_pct=round(result, 2),
+            basis=EstimateBasis.INDEX,
+            coverage=round(exposure, 4),
+            as_of=datetime.now().astimezone(),
+            explanation=describe_index(name, index_change, exposure, result),
+            benchmark_assumption=assumption,
+        )
+
+    async def _estimate_by_holdings(
+        self,
+        instrument: Instrument,
+        profile: Profile,
+        allocation: Allocation,
+        assumption: BenchmarkAssumption,
+    ) -> Estimate:
+        quarters = await self.holdings(
+            instrument.code,
+            instrument.asset_class,
+            instrument.market,
+            limit=1,
+        )
+        if not quarters:
+            return Estimate(
+                change_pct=None,
+                basis=EstimateBasis.NONE,
+                explanation="没有季度持仓，无法按持股估算",
+                benchmark_assumption=assumption,
+            )
+
+        latest = quarters[0]
+        stock_secids: list[tuple[str, float]] = []
+        for holding in latest.holdings:
+            try:
+                venue = cn_exchange(holding.code)
+            except ValueError:
+                continue
+            stock_secids.append((f"{_EM_MARKET_ID[venue]}.{holding.code}", holding.weight))
+
+        stock_changes = await self._quotes_by_secid([sid for sid, _ in stock_secids])
+        top = weighted_change(stock_secids, stock_changes)
+        top_change = top[0] if top else 0.0
+        top_weight = sum(weight for _, weight in stock_secids)
+
+        proxies: list[tuple[str, float]] = []
+        names: dict[str, str] = {}
+        for component, weight in equity_proxy(profile.benchmark):
+            secid = await self._resolve_index(component.name)
+            if secid is None:
+                continue
+            proxies.append((secid, weight))
+            names[secid] = component.name
+
+        proxy_changes = await self._quotes_by_secid([sid for sid, _ in proxies]) if proxies else {}
+        proxy = weighted_change(proxies, proxy_changes)
+        proxy_change = proxy[0] if proxy else None
+
+        remainder = max(0.0, allocation.stock - top_weight)
+        result = top_weight / 100 * top_change
+        if proxy_change is not None:
+            result += remainder / 100 * proxy_change
+
+        coverage = min(1.0, (top_weight + (remainder if proxy_change is not None else 0)) / 100)
+        return Estimate(
+            change_pct=round(result, 2),
+            basis=EstimateBasis.HOLDINGS,
+            coverage=round(coverage, 4),
+            as_of=datetime.now().astimezone(),
+            explanation=describe_holdings(
+                top_weight,
+                top_change,
+                remainder,
+                proxy_change,
+                result,
+            ),
+            benchmark_assumption=assumption,
+        )
+
+    async def _allocation(self, instrument: Instrument) -> Allocation | None:
+        source = self._sources.get("tiantian")
+        if source is None:
+            return None
+        allocation: Allocation | None = await source.allocation(instrument)  # type: ignore[attr-defined]
+        return allocation
+
+    async def _quotes_by_secid(self, secids: Sequence[str]) -> dict[str, float]:
+        source = self._sources.get("eastmoney")
+        if source is None or not secids:
+            return {}
+        changes: dict[str, float] = await source.quotes_by_secid(list(secids))  # type: ignore[attr-defined]
+        return changes
 
     async def benchmark(
         self,

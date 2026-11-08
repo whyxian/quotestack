@@ -129,3 +129,37 @@ class QuotesMixin(CoreMixin):
             change=_scaled(row.get("f4"), scale),
             change_pct=_as_float(row.get("f3"), PCT_DIVISOR),
         )
+
+    async def quotes_by_secid(self, secids: Sequence[str]) -> dict[str, float]:
+        """Fetch the current percent change for raw secids.
+
+        Used by the estimator, which works with index and stock identifiers
+        rather than resolved instruments.
+
+        Args:
+            secids: Eastmoney identifiers such as ``1.000906`` or ``1.600519``.
+
+        Returns:
+            Percent change keyed by secid. Symbols with no data are omitted.
+
+        Raises:
+            UpstreamError: The request failed.
+        """
+        changes: dict[str, float] = {}
+        for start in range(0, len(secids), MAX_BATCH):
+            rows = await self._fetch_chunk(secids[start : start + MAX_BATCH])
+            for row in rows:
+                secid = _secid_of_row(row)
+                pct = _as_float(row.get("f3"), PCT_DIVISOR)
+                if secid is not None and pct is not None:
+                    changes[secid] = pct
+        return changes
+
+
+def _secid_of_row(row: dict[str, object]) -> str | None:
+    """Rebuild a secid from the market id and code columns."""
+    market = row.get("f13")
+    code = row.get("f12")
+    if not isinstance(code, str) or not isinstance(market, int):
+        return None
+    return f"{market}.{code}"

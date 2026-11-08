@@ -13,7 +13,16 @@ from typing import Any
 
 from quotestack.client import MarketData
 from quotestack.errors import MarketDataError
-from quotestack.models import Adjust, AssetClass, Bar, Instrument, Interval, Market, Quote
+from quotestack.models import (
+    Adjust,
+    AssetClass,
+    Bar,
+    Estimate,
+    Instrument,
+    Interval,
+    Market,
+    Quote,
+)
 
 __all__ = ["main"]
 
@@ -56,6 +65,9 @@ def _build_parser() -> argparse.ArgumentParser:
     health = sub.add_parser("health", help="show source and cache state")
     health.add_argument("--json", action="store_true", dest="as_json")
 
+    estimate = sub.add_parser("estimate", help="estimate a fund's intraday change")
+    _add_instrument_args(estimate, default_class=AssetClass.FUND)
+
     history = sub.add_parser("history", help="show historical bars")
     _add_instrument_args(history)
     history.add_argument(
@@ -67,11 +79,15 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _add_instrument_args(parser: argparse.ArgumentParser) -> None:
+def _add_instrument_args(
+    parser: argparse.ArgumentParser,
+    *,
+    default_class: AssetClass = AssetClass.STOCK,
+) -> None:
     parser.add_argument("code", help="instrument code, e.g. 600519")
     parser.add_argument(
         "--asset-class",
-        default=AssetClass.STOCK.value,
+        default=default_class.value,
         choices=[a.value for a in AssetClass],
         dest="asset_class",
     )
@@ -90,6 +106,15 @@ async def _dispatch(args: argparse.Namespace) -> int:
         return 0
 
     async with MarketData() as client:
+        if args.command == "estimate":
+            result = await client.estimate(
+                args.code,
+                AssetClass(args.asset_class),
+                Market(args.market),
+            )
+            _emit_estimate(result, as_json=args.as_json)
+            return 0
+
         if args.command == "resolve":
             instrument = client.resolve(
                 args.code,
@@ -148,6 +173,37 @@ def _emit_instrument(instrument: Instrument, *, as_json: bool) -> None:
     print(f"  confidence  {instrument.confidence.value}")
     print(f"  aliases     {aliases}")
     print(f"  abilities   {caps}")
+
+
+def _emit_estimate(estimate: Estimate, *, as_json: bool) -> None:
+    if as_json:
+        _write_json(
+            {
+                "change_pct": estimate.change_pct,
+                "basis": estimate.basis.value,
+                "coverage": estimate.coverage,
+                "as_of": estimate.as_of.isoformat() if estimate.as_of else None,
+                "explanation": estimate.explanation,
+                "benchmark_assumption": (
+                    {
+                        "equity": list(estimate.benchmark_assumption.equity),
+                        "non_equity": list(estimate.benchmark_assumption.non_equity),
+                        "unclassified": list(estimate.benchmark_assumption.unclassified),
+                    }
+                    if estimate.benchmark_assumption
+                    else None
+                ),
+            }
+        )
+        return
+
+    change = "算不出来" if estimate.change_pct is None else f"{estimate.change_pct:+.2f}%"
+    coverage = "-" if estimate.coverage is None else f"{estimate.coverage:.1%}"
+    print(f"estimate  {change}")
+    print(_SEPARATOR)
+    print(f"  basis     {estimate.basis.value}")
+    print(f"  coverage  {coverage}")
+    print(f"  reason    {estimate.explanation}")
 
 
 def _emit_health(payload: dict[str, object], *, as_json: bool) -> None:

@@ -2,7 +2,7 @@
 
 > quotestack 设计决议 · 第 5 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
-> **实现状态**：🚧 10 / 11 方法可用（只剩 estimate）
+> **实现状态**：✅ 11 / 11 方法可用
 
 
 ## 接口清单（10 个）
@@ -21,7 +21,7 @@
 | 6 | `profile(code, asset_class, market)` | ✅ M4 | 静态画像 + 基准结构 |
 | 7 | `holdings(code, asset_class, market, before, limit)` | ✅ M4 | 季度持仓分页 |
 | 8 | `benchmark(code, asset_class, market, start, end)` | ✅ M4 | 基准加权曲线 |
-| 9 | `estimate(code, asset_class, market)` | M5 | 估值（派生） |
+| 9 | `estimate(code, asset_class, market)` | ✅ M5 | 估值（派生） |
 | 10 | `fx(base, quote)` | ✅ M3 | 汇率 |
 | 11 | `iter_instruments(asset_class, market, listed=None)` | ✅ M3.5 | 全市场列表 |
 

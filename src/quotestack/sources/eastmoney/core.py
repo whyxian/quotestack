@@ -10,7 +10,7 @@ from quotestack.errors import (
     SchemaChangedError,
     UpstreamError,
 )
-from quotestack.indexes import KNOWN_INDEXES, normalize_index_name
+from quotestack.indexes import KNOWN_INDEXES, candidate_names
 from quotestack.models import AssetClass, Capability, Instrument, Market
 from quotestack.sources.base import SourceMeta
 
@@ -79,10 +79,12 @@ class CoreMixin:
         Raises:
             UpstreamError: The search request failed.
         """
-        cleaned = normalize_index_name(name)
-        known = KNOWN_INDEXES.get(cleaned)
-        if known is not None:
-            return known
+        names = candidate_names(name)
+        for candidate in names:
+            known = KNOWN_INDEXES.get(candidate)
+            if known is not None:
+                return known
+        cleaned = names[-1]
 
         response = await self._client.get(
             SEARCH_URL,
