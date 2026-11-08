@@ -50,5 +50,5 @@
 - 加密源在部分网络下不可达，需代理
 - 中债系列指数取不到，含该成分的基准曲线覆盖率会低于 1
 
-[Unreleased]: https://github.com/OWNER/quotestack/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/OWNER/quotestack/releases/tag/v0.1.0
+[Unreleased]: https://github.com/whyxian/quotestack/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/whyxian/quotestack/releases/tag/v0.1.0

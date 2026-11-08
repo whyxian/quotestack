@@ -14,7 +14,7 @@ quotestack 把这些收敛成一套调用。
 ## 安装
 
 ```bash
-git clone <repo> && cd quotestack
+git clone https://github.com/whyxian/quotestack.git && cd quotestack
 uv sync --extra dev                  # 当库用
 uv sync --extra dev --extra server   # 需要 HTTP 服务时
 ```

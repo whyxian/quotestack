@@ -13,7 +13,7 @@ fallback and rate limiting. quotestack collapses that into one set of calls.
 ## Install
 
 ```bash
-git clone <repo> && cd quotestack
+git clone https://github.com/whyxian/quotestack.git && cd quotestack
 uv sync --extra dev            # 作为库使用
 uv sync --extra dev --extra server   # 需要 HTTP 服务时
 ```

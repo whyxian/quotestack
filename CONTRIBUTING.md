@@ -10,7 +10,7 @@
 需要 uv（≥ 0.5）。它会自己装 Python，不需要事先准备。
 
 ```bash
-git clone <repo> && cd quotestack
+git clone https://github.com/whyxian/quotestack.git && cd quotestack
 uv sync --extra dev --extra server
 ```
 
@@ -156,7 +156,7 @@ test(estate): cover the missing-alias branch
 ```bash
 # 1. 替换仓库地址（首次发布时执行一次）
 OWNER=<你的 GitHub 用户名>
-sed -i '' "s|<repo>|github.com/$OWNER/quotestack|g; s|OWNER/|$OWNER/|g" \
+sed -i '' "s|github.com/whyxian/quotestack|github.com/$whyxian/quotestack|g; s|whyxian/|$whyxian/|g" \
   README.md README.zh-CN.md CONTRIBUTING.md guide/*.md CHANGELOG.md
 
 # 2. 检查

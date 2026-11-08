@@ -15,7 +15,7 @@
 ### 从源码（当前唯一方式）
 
 ```bash
-git clone <repo> && cd quotestack
+git clone https://github.com/whyxian/quotestack.git && cd quotestack
 uv sync --extra dev
 ```
 

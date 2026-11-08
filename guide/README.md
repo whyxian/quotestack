@@ -36,7 +36,7 @@ await client.quote("510010", AssetClass.FUND,  Market.CN)      # 场内 ETF
 ### 1. 安装
 
 ```bash
-git clone <repo> && cd quotestack
+git clone https://github.com/whyxian/quotestack.git && cd quotestack
 uv sync --extra dev
 ```
 
