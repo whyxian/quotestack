@@ -66,7 +66,7 @@
 1. 勾 docs/ROADMAP.md
 2. 更新受影响设计文档顶部的「实现状态」
 3. uv run python scripts/sync_docs.py        # 索引状态与事实块会同步
-4. 更新 docs/harness/ARCHITECTURE.md 的文件规模与调用路径（若结构变了）
+4. 结构变了就改 ARCHITECTURE 的调用路径（文件规模是生成块，不用手改）
 ```
 
 第 3 步是机械的：索引状态列从各篇自己的标题读，所以**先改标题再跑脚本**。

@@ -139,6 +139,38 @@ def _facts_block(facts: dict[str, object]) -> str:
     )
 
 
+def _invariants() -> str:
+    """Render the short form of every non-negotiable rule.
+
+    AGENTS.md is the only file guaranteed to enter an agent's context, so the
+    rules have to be visible there. The table in CONSTRAINTS.md is the source;
+    this is generated from it rather than typed twice.
+    """
+    text = (ROOT / "docs/harness/CONSTRAINTS.md").read_text(encoding="utf-8")
+    block = re.search(r"<!-- invariants:begin -->(.*?)<!-- invariants:end -->", text, re.S)
+    if block is None:
+        return ""
+
+    lines = [
+        BEGIN,
+        "<!-- 由 scripts/sync_docs.py 从 docs/harness/CONSTRAINTS.md 生成，不要手改 -->",
+        "",
+        "| ID | 不可协商 | 反例 |",
+        "|---|---|---|",
+    ]
+    for line in block.group(1).splitlines():
+        # A cell may contain an escaped pipe (``float \| str``), so protect it
+        # before splitting and put it back afterwards.
+        protected = line.replace(r"\|", "\x00")
+        cells = [
+            cell.strip().replace("\x00", r"\|") for cell in protected.strip().strip("|").split("|")
+        ]
+        if len(cells) == 3 and re.fullmatch(r"R\d+", cells[0]):
+            lines.append(f"| {cells[0]} | {cells[1]} | {cells[2]} |")
+    lines.extend(["", END])
+    return "\n".join(lines)
+
+
 def _status_of(path: pathlib.Path) -> str:
     """Read a design document's own status line."""
     text = path.read_text(encoding="utf-8")
@@ -210,6 +242,20 @@ def sync() -> list[pathlib.Path]:
         INDEX.write_text(updated, encoding="utf-8")
         changes.append(INDEX)
 
+    agents = ROOT / "AGENTS.md"
+    text = agents.read_text(encoding="utf-8")
+    block = _invariants()
+    pattern = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END), re.S)
+    if block:
+        updated_agents = (
+            pattern.sub(lambda _: block, text)
+            if pattern.search(text)
+            else text.replace("## 5. 三类文档的边界", block + "\n\n## 5. 三类文档的边界", 1)
+        )
+        if updated_agents != text:
+            agents.write_text(updated_agents, encoding="utf-8")
+            changes.append(agents)
+
     updated = _sync_architecture(facts)
     if updated != ARCHITECTURE.read_text(encoding="utf-8"):
         ARCHITECTURE.write_text(updated, encoding="utf-8")
@@ -228,17 +274,25 @@ def main() -> int:
     if not check:
         for path in sync():
             print(f"updated {path.relative_to(ROOT)}")
-        if not sync.__doc__:
-            return 1
         return 0
 
-    before = {path: path.read_text(encoding="utf-8") for path in (INDEX, ARCHITECTURE)}
+    agents = ROOT / "AGENTS.md"
+    before = {path: path.read_text(encoding="utf-8") for path in (INDEX, ARCHITECTURE, agents)}
     facts = _counts()
     stale = []
     if _sync_index_status(_facts_block(facts)) != before[INDEX]:
         stale.append(INDEX)
     if _sync_architecture(facts) != before[ARCHITECTURE]:
         stale.append(ARCHITECTURE)
+    block = _invariants()
+    pattern = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END), re.S)
+    projected = (
+        pattern.sub(lambda _: block, before[agents])
+        if block and pattern.search(before[agents])
+        else before[agents]
+    )
+    if projected != before[agents]:
+        stale.append(agents)
 
     for path in stale:
         print(f"stale {path.relative_to(ROOT)}")

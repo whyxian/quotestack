@@ -189,7 +189,8 @@ GET  /v1/fx?base=&quote=
 GET  /v1/healthz
 ```
 
-11 条路由对应 10 个库方法：`quote` / `quote_many` 共用两条路由，其余一一对应。
+路由与库方法基本一一对应；`quote` / `quote_many` 共用同一份取数逻辑。
+> 具体数量见 [design/README](README.md) 的生成事实表。
 
 #### 参数约定
 

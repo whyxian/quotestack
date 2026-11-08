@@ -5,7 +5,8 @@
 >
 > 代码注释是英文的（面向开源社区），这份文档负责让你**不用读注释也能看懂代码**。
 > 每个文件一张表：职责 + 关键成员 + 容易踩的点。
-> 更新于 2026-11-08，对应 M5 完成状态（45 个文件 / 6,000 行）。
+> 覆盖 `src/quotestack/` 全部模块。**本文不写行数**——行数会变，写在这里就会过期；
+> 需要时看 [ARCHITECTURE](harness/ARCHITECTURE.md) 末尾的生成表。
 
 ---
 
@@ -126,7 +127,7 @@ _fallback()        有 stale 值就返回，否则抛 Unavailable
 
 ---
 
-## `sources/tencent.py` — 腾讯（214 行）
+## `sources/tencent.py` — 腾讯
 
 **职责**：实时报价兜底，补东财缺失的美股。
 
@@ -139,7 +140,7 @@ _fallback()        有 stale 值就返回，否则抛 Unavailable
 
 ---
 
-## `sources/tiantian.py` — 天天基金（245 行）
+## `sources/tiantian.py` — 天天基金
 
 **职责**：场外基金净值 + 全量基金列表。
 
@@ -152,7 +153,7 @@ _fallback()        有 stale 值就返回，否则抛 Unavailable
 
 ---
 
-## `sources/binance.py` — 加密（128 行）
+## `sources/binance.py` — 加密
 
 **职责**：交易对列表。用 `data-api.binance.vision`（国内可达）。
 
@@ -162,7 +163,7 @@ _fallback()        有 stale 值就返回，否则抛 Unavailable
 
 ---
 
-## `sources/fx.py` — 汇率（185 行）
+## `sources/fx.py` — 汇率
 
 **职责**：USD 基准表 + 交叉换算。
 
@@ -176,7 +177,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 ---
 
-## `sources/routing.py` — 路由表（48 行）
+## `sources/routing.py` — 路由表
 
 `(asset_class, market, capability)` → 源名列表，按优先级排列。
 
@@ -191,7 +192,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 ## `identity/` — 标识解析
 
-### `rules.py`（90 行）
+### `rules.py`
 
 | 函数 | 作用 |
 |---|---|
@@ -201,7 +202,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 **注意**：`92` 开头必须在 `9` 之前判断，否则北交所被误判成上交所。
 
-### `resolver.py`（169 行）
+### `resolver.py`
 
 `resolve()` → `Instrument`。**基金分类不可靠**：`166002` 是场外基金但前缀是 `16`，
 所以所有基金都给 `NAV` 能力，前缀像场内的再加 `QUOTE`/`HISTORY`，并标 `confidence=partial`。
@@ -210,7 +211,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 ## `cache/` — 缓存
 
-### `base.py`（182 行）
+### `base.py`
 
 | 成员 | 作用 |
 |---|---|
@@ -219,13 +220,13 @@ USD/HKD  = USDCNH ÷ HKDCNH
 | `make_key(...)` | `v1\|quote\|CN:STOCK:600519` |
 | `_DEFAULT_MAX_STALE` | 每能力的陈旧上限（quote 1 天，history ∞） |
 
-### `memory.py`（41 行）
+### `memory.py`
 
 进程内字典，**过期不删**——留着当 stale 兜底。
 
 ---
 
-## `resilience.py` — 冷却与限流（129 行）
+## `resilience.py` — 冷却与限流
 
 | 类 | 作用 |
 |---|---|
@@ -236,7 +237,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 ---
 
-## `funds.py` — 基金分类（56 行）
+## `funds.py` — 基金分类
 
 `classify_fund_type("混合型-偏股")` → `FundClass.EQUITY`
 
@@ -291,7 +292,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 ---
 
-## `errors.py` — 14 个错误类（161 行）
+## `errors.py` — 14 个错误类
 
 ```
 MarketDataError                 基类，带 code / retryable / fallback
@@ -312,7 +313,7 @@ MarketDataError                 基类，带 code / retryable / fallback
 
 ---
 
-## `logging.py` — 结构化事件（64 行）
+## `logging.py` — 结构化事件
 
 | 函数 | 作用 |
 |---|---|
@@ -323,7 +324,7 @@ MarketDataError                 基类，带 code / retryable / fallback
 
 ---
 
-## `sync.py` — 同步包装（150 行）
+## `sync.py` — 同步包装
 
 后台线程跑常驻事件循环，调用通过 `run_coroutine_threadsafe` 提交。
 
@@ -333,13 +334,56 @@ MarketDataError                 基类，带 code / retryable / fallback
 
 ---
 
-## `cli.py` — 命令行（242 行）
+## `cli.py` — 命令行
 
 4 个命令：`quote` / `history` / `resolve` / `health`，都支持 `--json`。
 
 `main(argv)` 返回退出码：成功 0，业务错误 1，Ctrl-C 130。
 
 ---
+
+## `server/` — HTTP 层
+
+把库包成 12 条路由。**只做协议转换**：解析请求、调客户端、套信封。业务逻辑一律不在这里。
+
+### `app.py`
+
+| 成员 | 作用 |
+|---|---|
+| `create_app(config, client)` | 工厂；把客户端挂到 `app.state` |
+| `lifespan` | 启动建客户端、关闭时 `aclose` |
+| `ERROR_RESPONSES` | 11 条数据路由共享的错误声明，让 OpenAPI 说出会失败 |
+| `_wrap(...)` | 统一 `{data, error}` 信封 |
+| 12 个路由 | `resolve` `quote` `quotes/batch` `history` `nav` `profile` `holdings` `benchmark` `estimate` `fx` `instruments` `healthz` |
+
+> 路由声明了 `responses=ERROR_RESPONSES`，否则 FastAPI 只文档化 200，
+> 代码生成器会造出无法表达错误的客户端。
+
+### `schemas.py`
+
+请求与响应的 Pydantic 模型。**与 `models/` 是两个世界**：这里允许出现 HTTP 需要的形状
+（分页参数、`has_more`），但不复制领域语义。金额字段在这里仍是 `str`。
+
+### `config.py`
+
+| 成员 | 作用 |
+|---|---|
+| `Config` | `slots=True` 的配置对象（`dataclasses.replace` 改字段） |
+| `load(path)` | TOML → 环境变量 → 命令行，逐层覆盖 |
+| `_as_port` / `_as_ttl` | **拒绝而不是纠正**：`port = true` 会报错，不会变成 1 |
+
+### `errors.py`
+
+`STATUS_BY_CODE`：错误码 → HTTP 状态。`tests/test_docs.py` 拿它和
+`design/06-errors.md` 的表格逐行比对，两边不许漂移。
+
+### `metrics.py`
+
+事件 → Prometheus 计数器。日志 handler 在服务层配置（库里不配，这是红线）。
+
+### `__main__.py`
+
+`quotestack-server` 入口。`--dump-openapi` 生成契约，是 `docs/api/openapi.yaml` 的唯一来源。
 
 ## `models/` — 数据模型
 

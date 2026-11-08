@@ -34,7 +34,32 @@ uv run quotestack-server --dump-openapi > docs/api/openapi.yaml
 
 ---
 
-## 4. 读什么
+## 4. 不可协商（违反即不可合并）
+
+细节和理由在 [harness/CONSTRAINTS](docs/harness/CONSTRAINTS.md)。**这张表是从那里生成的**，
+改条款请改 CONSTRAINTS。
+
+<!-- generated:begin -->
+<!-- 由 scripts/sync_docs.py 从 docs/harness/CONSTRAINTS.md 生成，不要手改 -->
+
+| ID | 不可协商 | 反例 |
+|---|---|---|
+| R1 | 价格、金额、成交量、净值一律 `str` | `price: float` |
+| R2 | 库不得配置 logging handler | `src/` 里出现 `logging.basicConfig()` |
+| R3 | 源差异只能关在 `sources/` 内 | `client.py` 里判断"东财返回 f2 字段" |
+| R4 | 缓存超过 `max_stale` 必须抛错 | 忽略容忍期直接返回旧值 |
+| R5 | 一个字段只能有一种类型 | `price: float \| str` |
+| R6 | 装软件、写家目录、起常驻进程前必须先问 | 直接 `brew install` |
+| R7 | 对外可见且难撤回的操作先问（打 tag、发版、推远程） | 不打招呼就 `git push --tags` |
+| R8 | 不许为了让测试通过而放宽断言 | 把 `assert x == 5` 改成 `assert x` |
+| R9 | 不许改坏样本让测试通过 | 把 fixture 改小让它不再触发分支 |
+| R10 | 数字只写在生成块里，正文不写数字 | 手写"11 个方法"，之后不再更新 |
+
+<!-- generated:end -->
+
+---
+
+## 5. 读什么
 
 ### 动手改代码之前
 
@@ -60,7 +85,7 @@ uv run quotestack-server --dump-openapi > docs/api/openapi.yaml
 
 ---
 
-## 5. 三类文档的边界
+## 6. 三类文档的边界
 
 | 目录 / 文件 | 读者 | 回答 |
 |---|---|---|
@@ -73,7 +98,7 @@ uv run quotestack-server --dump-openapi > docs/api/openapi.yaml
 
 ---
 
-## 6. 缺什么就补什么
+## 7. 缺什么就补什么
 
 `harness/` 跟代码一起长。踩到新坑、发现自己违反了没写下来的规矩、走了三步才搞明白
 的流程——**直接补进对应文件**，不要只在对话里说。

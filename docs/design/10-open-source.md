@@ -2,7 +2,7 @@
 
 > quotestack 设计决议 · 第 10 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
-> **实现状态**：⬜ 未开始（M8）
+> **实现状态**：🚧 发布前准备已完成（LICENSE / README / CONTRIBUTING / SECURITY / CHANGELOG / 模板 / 打包验证）；PyPI 待发
 
 
 ## 开源准备
@@ -13,6 +13,10 @@
 | 许可 | MIT |
 | 仓库 | monorepo 内，零内部依赖 |
 | 目录 | 见下 |
+
+> ⚠️ 下面这棵树是**规划时的设想**，与实际仓库不一致：没有 `quotestack_server/`，
+> 没有 okx/coingecko，HTTP 层在 `src/quotestack/server/`。
+> 当前结构见 [ARCHITECTURE](../harness/ARCHITECTURE.md)。
 
 ```
 quote-service/

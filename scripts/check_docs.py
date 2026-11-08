@@ -89,6 +89,55 @@ def check_code_blocks() -> list[str]:
     return problems
 
 
+# Numbers that were typed by hand once and then stopped being true. Prose must
+# not restate a count; the generated blocks are the only place a number lives.
+STALE_PHRASES = (
+    "6,000 行",
+    "45 个文件",
+    "10 个入口",
+    "11 种错误",
+    "11 条路由",
+    "10 个方法",
+    "142 个测试",
+    "13 种错误",
+    "7,292 行",
+)
+
+
+def _prose_lines(path: pathlib.Path) -> list[tuple[int, str]]:
+    """Lines that are prose: not fenced code, not inside a generated block."""
+    lines = []
+    in_code = False
+    in_generated = False
+    for number, line in enumerate(_all_lines(path), start=1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code = not in_code
+            continue
+        if "generated:begin" in stripped:
+            in_generated = True
+            continue
+        if "generated:end" in stripped:
+            in_generated = False
+            continue
+        if in_code or in_generated:
+            continue
+        lines.append((number, line))
+    return lines
+
+
+def check_stale_numbers() -> list[str]:
+    """A hand-typed count in prose is a future contradiction."""
+    problems = []
+    for path in _documents():
+        for number, line in _prose_lines(path):
+            for phrase in STALE_PHRASES:
+                if phrase in line:
+                    where = f"{path.relative_to(ROOT)}:{number}"
+                    problems.append(f"{where}: hand-typed count '{phrase}' (delete it)")
+    return problems
+
+
 def check_guide_is_standalone() -> list[str]:
     """The guide must not link outside itself, or hosting it breaks."""
     problems = []
@@ -114,6 +163,7 @@ def main() -> int:
         "links resolve": check_links,
         "code blocks parse": check_code_blocks,
         "guide is standalone": check_guide_is_standalone,
+        "no hand-typed counts": check_stale_numbers,
     }
 
     failed = False

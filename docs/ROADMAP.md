@@ -225,7 +225,7 @@ quotestack estimate 022430
 > 目标：Java 后端可以通过 HTTP 调用。
 
 - [x] **M6-1** `quotestack_server`：FastAPI 壳
-- [x] **M6-2** 11 条路由
+- [x] **M6-2** 全部 HTTP 路由
 - [x] **M6-3** 统一错误响应 + HTTP 状态码映射
 - [x] **M6-4** `/healthz`
 - [x] **M6-5** `/metrics`（`prometheus_client`，放 `[server]` extra）
