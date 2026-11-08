@@ -7,9 +7,11 @@
 
 ## 接口清单（10 个）
 
-> 以下方法均为 `async def`，调用需 `await`。同步场景用 `quotestack.sync.SyncMarketData`，详见 [运行时模型](13-runtime-model.md)。
+> 除 `resolve` 外均为 `async def`，调用需 `await`。`resolve` 只做字符串规则，是同步方法。
+> 不写 async 的场景用 `from quotestack.sync import SyncMarketData`，详见 [运行时模型](13-runtime-model.md)。
 
-所有方法的第一参数都是 `code`，配合 `asset_class` 与 `market`——调用方**永远不持有 instrument**（见 7.3 一跳原则）。
+凡是以标的为对象的方法，入参都是 `code` + `asset_class` + `market`——调用方**永远不持有 instrument**（见 7.3 一跳原则）。
+> 例外：`quote_many` 收三元组列表，`fx` 收两个货币码，`iter_instruments` 收市场而非标的。
 
 | # | 入口 | 状态 | 说明 |
 |---|---|---|---|

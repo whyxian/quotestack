@@ -29,8 +29,10 @@ MarketDataError
 | `Timeout` | ✅ 1 次 | ✅ | 504 |
 | `RateLimited` | 等 `retry_after` | ✅ | 429 |
 | `Unavailable` | ✅ | ✅ | 502 |
-| `EmptyResponse` | ❌ | ✅ 立即 | 404 |
-| `SchemaChanged` | ❌ | ✅ + 告警 | 500 |
+| `EmptyResponse` | ❌ | ✅ 立即 | 502 |
+| `SchemaChanged` | ❌ | ✅ + 告警 | 502 |
+| `Unauthorized` | ❌ | ✅ | 502 |
+| `ClientBroken` | ❌ | — | 503 |
 
 **`EmptyResponse` 与 `Unavailable` 必须分开**：东财对 `560000` 返回 `{"rc":0,"data":null}`——HTTP 200、结构正常、就是没这只票。当 `Unavailable` 重试是白等。
 

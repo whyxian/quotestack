@@ -42,12 +42,12 @@ quotestack-server --dump-openapi > docs/api/openapi.yaml
 | GET | `/v1/fx` | 汇率 | ✅ |
 | GET | `/v1/instruments` | 市场列表 | ✅ |
 | GET | `/v1/healthz` | 运行状态 | ✅（命令行版已有） |
-| GET | `/v1/profile` | 基金画像 | ⬜ M4 |
-| GET | `/v1/holdings` | 季度持仓 | ⬜ M4 |
-| GET | `/v1/benchmark` | 基准曲线 | ⬜ M4 |
-| GET | `/v1/estimate` | 基金估值 | ⬜ M5 |
+| GET | `/v1/profile` | 基金画像 | ✅ |
+| GET | `/v1/holdings` | 季度持仓 | ✅ |
+| GET | `/v1/benchmark` | 基准曲线 | ✅ |
+| GET | `/v1/estimate` | 基金估值 | ✅ |
 
-「✅」指**库层能力已实现**，HTTP 层仍要等 M6。
+全部 12 条路由已实现并可用。
 
 ---
 

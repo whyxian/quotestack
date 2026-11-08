@@ -170,3 +170,56 @@ def test_index_status_matches_each_page() -> None:
         if declared is None:
             continue
         assert shown == declared.group(1).strip(), f"{target} status drifted"
+
+
+def test_error_status_table_matches_the_server() -> None:
+    """The HTTP mapping documented in 06-errors must be the one the server uses."""
+    from quotestack.server.errors import STATUS_BY_CODE
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    text = (root / "docs/design/06-errors.md").read_text(encoding="utf-8")
+
+    documented: dict[str, int] = {}
+    for line in text.splitlines():
+        match = re.match(r"^\| `([A-Za-z]+)` \| .*? \| (\d{3}) \|$", line)
+        if match:
+            documented[match.group(1)] = int(match.group(2))
+
+    actual = {cls.__name__.removesuffix("Error"): status for cls, status in STATUS_BY_CODE.items()}
+
+    assert documented, "no mapping rows parsed from 06-errors"
+    for name, status in documented.items():
+        assert actual.get(name) == status, (
+            f"{name}: doc says {status}, server says {actual.get(name)}"
+        )
+    assert set(documented) == set(actual) | {"Delisted"}, (
+        f"documented {sorted(documented)} vs server {sorted(actual)}"
+    )
+
+
+def test_sources_listed_in_the_docs_match_the_code() -> None:
+    """A source named in the docs must exist; a removed one must not linger."""
+    from quotestack.sources import (
+        BinanceSource,
+        EastMoneySource,
+        FxSource,
+        TencentSource,
+        TiantianSource,
+    )
+
+    real = {
+        source.meta.name
+        for source in (
+            EastMoneySource(),
+            TencentSource(),
+            TiantianSource(),
+            BinanceSource(),
+            FxSource(),
+        )
+    }
+    root = pathlib.Path(__file__).resolve().parents[1]
+    index = (root / "docs/design/README.md").read_text(encoding="utf-8")
+
+    assert "OKX+CoinGecko" not in index, "removed sources still listed as active"
+    for name in real:
+        assert f"`{name}`" in index

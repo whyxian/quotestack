@@ -2,7 +2,8 @@
 
 ## 报告漏洞
 
-**不要开公开 issue。** 用 GitHub 的 [私密漏洞报告](../../security/advisories/new)，
+**不要开公开 issue。** 用 GitHub 的
+[私密漏洞报告](https://github.com/whyxian/quotestack/security/advisories/new)，
 或在仓库主页找到维护者邮箱。
 
 请在报告里包含：

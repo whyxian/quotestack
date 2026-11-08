@@ -82,17 +82,24 @@ The contract is generated from code: [`docs/api/openapi.yaml`](docs/api/openapi.
 
 ## Documentation
 
-**Using it** — start with the [guide](guide/README.md)（中文，自成一体，可单独托管）
+Two separate bodies of documentation, for two different readers.
+
+### If you want to use it
+
+Start at the [**guide**](guide/README.md) — 中文，十篇，自成一体，可单独托管。
+It never links back into this repository, so it works as a standalone site.
 
 | Topic | File |
 |---|---|
-| 安装、概念、五种用法、错误处理、实战配方 | [guide/](guide/README.md) |
-| API surface and field semantics | [05-api](docs/design/05-api.md) |
-| OpenAPI spec | [docs/api](docs/api/README.md) |
-| Glossary | [16-glossary](docs/design/16-glossary.md) |
+| 安装、概念、行情、基金、估值、服务、错误、配方 | [guide/](guide/README.md) |
 | Runnable examples | [examples/](examples/) |
+| OpenAPI spec | [docs/api](docs/api/README.md) |
 
-**Developing it**
+### If you want to change it
+
+Everything under `docs/` is engineering documentation: why decisions were made,
+how the code is laid out, what the measurements were. It is written for whoever
+maintains this repository.
 
 | Topic | File |
 |---|---|
@@ -100,6 +107,7 @@ The contract is generated from code: [`docs/api/openapi.yaml`](docs/api/openapi.
 | Module structure and data flow | [ARCHITECTURE](docs/harness/ARCHITECTURE.md) |
 | Commented code map (中文) | [CODE_MAP_ZH](docs/harness/CODE_MAP_ZH.md) |
 | Design decisions and why | [docs/design](docs/design/README.md) |
+| API surface and field semantics | [05-api](docs/design/05-api.md) |
 | Measured evidence behind every claim | [11-evidence](docs/design/11-evidence.md) |
 
 ## Project status
