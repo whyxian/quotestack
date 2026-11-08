@@ -253,3 +253,79 @@ def test_entry_point_stays_an_index() -> None:
     lines = len((root / "AGENTS.md").read_text(encoding="utf-8").splitlines())
 
     assert lines < 130, f"AGENTS.md grew to {lines} lines; move detail into harness/"
+
+
+def test_sync_wrapper_covers_every_public_method() -> None:
+    """The sync facade must not silently expose a subset of the async client.
+
+    It shipped with five of eleven methods: no nav, no profile, no estimate.
+    Someone not using asyncio would have concluded the library could not do
+    those things.
+    """
+    import inspect
+
+    from quotestack import MarketData
+    from quotestack.sync import SyncMarketData
+
+    def public(cls: type) -> set[str]:
+        return {
+            name
+            for name, value in inspect.getmembers(cls, predicate=inspect.isfunction)
+            if not name.startswith("_") and name not in {"aclose", "close", "cache_stats", "health"}
+        }
+
+    missing = public(MarketData) - public(SyncMarketData)
+    assert not missing, f"SyncMarketData is missing {sorted(missing)}"
+
+
+def test_guide_capability_matrix_matches_the_sources() -> None:
+    """The matrix in the reference must be what each adapter declares.
+
+    Rows are capabilities, columns are sources.
+    """
+    from quotestack.models import Capability
+    from quotestack.sources import (
+        BinanceSource,
+        EastMoneySource,
+        FxSource,
+        TencentSource,
+        TiantianSource,
+    )
+
+    real = {
+        source().meta.name: {c.value for c in source().meta.capabilities}
+        for source in (EastMoneySource, TencentSource, TiantianSource, BinanceSource, FxSource)
+    }
+    labels = {
+        "东财": "eastmoney",
+        "腾讯": "tencent",
+        "天天基金": "tiantian",
+        "Binance": "binance",
+        "东财外汇": "eastmoney-fx",
+    }
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    text = (root / "guide/12-reference.md").read_text(encoding="utf-8")
+    section = text[text.index("| 能力 | 东财") :]
+    section = section[: section.index("\n\n")]
+
+    header: list[str] = []
+    checked = 0
+    for line in section.splitlines():
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if not header:
+            header = cells
+            continue
+        name = cells[0].strip("`")
+        if name not in {c.value for c in Capability}:
+            continue
+        for label, cell in zip(header[1:], cells[1:], strict=False):
+            source = labels[label]
+            documented = cell == "✅"
+            declared = name in real[source]
+            assert documented == declared, (
+                f"{source}/{name}: guide says {cell}, source declares {'YES' if declared else 'NO'}"
+            )
+            checked += 1
+
+    assert checked >= 40, f"only {checked} cells parsed; table shape changed"

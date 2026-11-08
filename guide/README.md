@@ -97,6 +97,9 @@ print(estimate.change_pct)   # -1.66
 | 起一个 HTTP 服务给别的系统调 | [07 服务化](07-service.md) |
 | 出错了怎么处理、怎么重试 | [08 错误处理](08-errors.md) |
 | 常见场景的完整写法 | [09 实战配方](09-recipes.md) |
+| **不写 async，用同步版** | [10 同步用法](10-sync.md) |
+| 数据不对 / 查不到 / 变慢了 | [11 排障](11-troubleshooting.md) |
+| 默认值、参数、字段类型速查 | [12 速查](12-reference.md) |
 
 ---
 

@@ -8,21 +8,30 @@ thread owns one loop for the lifetime of the wrapper.
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import threading
-from collections.abc import Coroutine, Mapping
+from collections.abc import Coroutine, Iterator, Mapping, Sequence
 from types import TracebackType
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from quotestack.client import MarketData
 from quotestack.models import (
     Adjust,
     AssetClass,
     Bar,
+    BenchmarkCurve,
     Capability,
+    Estimate,
+    FxRate,
     Instrument,
+    InstrumentSummary,
     Interval,
     Market,
+    NavPoint,
+    Profile,
+    QuarterHoldings,
     Quote,
+    QuoteResult,
 )
 
 __all__ = ["SyncMarketData"]
@@ -144,6 +153,110 @@ class SyncMarketData:
                 max_age=max_age,
             )
         )
+
+    def quote_many(
+        self,
+        items: Sequence[tuple[str, AssetClass, Market]],
+    ) -> list[QuoteResult]:
+        """Fetch several quotes, blocking until done."""
+        return self._call(self._client.quote_many(items))
+
+    def nav(
+        self,
+        code: str,
+        asset_class: AssetClass = AssetClass.FUND,
+        market: Market = Market.CN,
+        *,
+        limit: int = 250,
+        max_age: float | None = None,
+    ) -> list[NavPoint]:
+        """Fetch a fund's NAV series, blocking until done."""
+        return self._call(self._client.nav(code, asset_class, market, limit=limit, max_age=max_age))
+
+    def profile(
+        self,
+        code: str,
+        asset_class: AssetClass = AssetClass.FUND,
+        market: Market = Market.CN,
+        *,
+        max_age: float | None = None,
+    ) -> Profile:
+        """Fetch a fund profile, blocking until done."""
+        return self._call(self._client.profile(code, asset_class, market, max_age=max_age))
+
+    def holdings(
+        self,
+        code: str,
+        asset_class: AssetClass = AssetClass.FUND,
+        market: Market = Market.CN,
+        *,
+        before: str | None = None,
+        limit: int = 4,
+    ) -> list[QuarterHoldings]:
+        """Fetch quarterly holdings, blocking until done."""
+        return self._call(
+            self._client.holdings(code, asset_class, market, before=before, limit=limit)
+        )
+
+    def benchmark(
+        self,
+        code: str,
+        asset_class: AssetClass = AssetClass.FUND,
+        market: Market = Market.CN,
+        *,
+        start: dt.date | None = None,
+        end: dt.date | None = None,
+    ) -> BenchmarkCurve:
+        """Build the weighted benchmark curve, blocking until done."""
+        return self._call(self._client.benchmark(code, asset_class, market, start=start, end=end))
+
+    def estimate(
+        self,
+        code: str,
+        asset_class: AssetClass = AssetClass.FUND,
+        market: Market = Market.CN,
+    ) -> Estimate:
+        """Estimate a fund's intraday change, blocking until done."""
+        return self._call(self._client.estimate(code, asset_class, market))
+
+    def fx(self, base: str, quote: str) -> FxRate:
+        """Convert between two currencies, blocking until done."""
+        return self._call(self._client.fx(base, quote))
+
+    def iter_instruments(
+        self,
+        asset_class: AssetClass,
+        market: Market,
+        *,
+        listed: bool | None = None,
+        page_size: int = 100,
+        tradable_only: bool = True,
+    ) -> Iterator[list[InstrumentSummary]]:
+        """Walk a market listing batch by batch, blocking for each batch.
+
+        The async client yields batches lazily. Here each batch is fetched and
+        returned in turn, so memory stays bounded the same way.
+
+        Yields:
+            Batches of instrument summaries.
+        """
+        # A synchronous iterator cannot await, so the async generator is
+        # drained one batch at a time through the background loop.
+        stream = self._client.iter_instruments(
+            asset_class,
+            market,
+            listed=listed,
+            page_size=page_size,
+            tradable_only=tradable_only,
+        )
+        while True:
+            try:
+                batch: list[InstrumentSummary] = self._call(
+                    cast(Coroutine[Any, Any, list[InstrumentSummary]], stream.__anext__())
+                )
+            except StopAsyncIteration:
+                return
+            yield batch
 
     def cache_stats(self) -> dict[str, int]:
         """Return cache occupancy."""
