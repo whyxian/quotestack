@@ -2,7 +2,7 @@
 
 > quotestack 设计决议 · 第 4 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
-> **实现状态**：🚧 三态、单飞、max_stale 已实现；SQLite 后端未做
+> **实现状态**：🚧 三态、单飞、max_stale 已实现；SQLite 后端未做（M6 之后）
 
 
 ## 缓存

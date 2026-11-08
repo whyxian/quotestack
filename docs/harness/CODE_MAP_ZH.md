@@ -2,7 +2,7 @@
 
 > 代码注释是英文的（面向开源社区），这份文档负责让你**不用读注释也能看懂代码**。
 > 每个文件一张表：职责 + 关键成员 + 容易踩的点。
-> 更新于 2026-11-08，对应 M3.6 完成状态（37 个文件 / 4,292 行）。
+> 更新于 2026-11-08，对应 M5 完成状态（45 个文件 / 6,000 行）。
 
 ---
 
@@ -26,7 +26,11 @@ src/quotestack/
 ├── logging.py         结构化事件
 ├── resilience.py      冷却 + 限流
 ├── funds.py           基金分类
-├── models/            Instrument / Quote / Bar / NavPoint / Summary / Result / FxRate / 枚举
+├── benchmark.py       基准解析 + 权益判定
+├── indexes.py         指数名称 → secid
+├── estimate.py        估值算式与措辞
+├── models/            Instrument / Quote / Bar / NavPoint / Summary / Result /
+│                     FxRate / Holding / Profile / Allocation / Curve / Estimate / 枚举
 ├── identity/          代码 → 各源标识
 ├── cache/             三态缓存
 └── sources/           五个数据源 + 路由表
@@ -58,6 +62,10 @@ models ← errors ← identity ← cache
 | `fx(base, quote)` | 汇率 | 走 `eastmoney-fx` |
 | `iter_instruments(...)` | 全市场列表 | 异步迭代器，分页 |
 | `health()` | 运行时状态 | 与 `/healthz` 同结构 |
+| `profile(code)` | 基金画像 | 类型、基准、经理、规模 |
+| `holdings(code, before=, limit=)` | 季度持仓 | `limit` 是季度数，`before` 是排他游标 |
+| `benchmark(code, start=, end=)` | 基准加权曲线 | 剔除不可还原组件并降 coverage |
+| `estimate(code)` | 盘中估值 | 指数型走公式 A，主动型走公式 B |
 | `cache_stats()` | 缓存条目数 | 调试用 |
 
 **内部流程**（按调用顺序）：
@@ -235,6 +243,51 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 ---
 
+## `benchmark.py` — 基准解析（约 170 行）
+
+把一句中文基准拆成带权重的组件：
+
+```
+中证800指数收益率*70%+上证国债指数收益率*25%+存款*5%
+→ [(中证800, 70, EQUITY), (上证国债, 25, NON_EQUITY), (存款, 5, NON_EQUITY)]
+```
+
+| 成员 | 作用 |
+|---|---|
+| `parse_benchmark(text)` | 拆项、取权重、算 coverage |
+| `classify_component(name)` | 权益 / 非权益 / 未识别 |
+| `Benchmark` | 原文 + 组件 + coverage |
+
+**判定顺序是关键**：先判非权益（`债`/`存款`/`利率`），再判「含指数」。
+否则 `中债总指数` 会被当成权益。
+
+---
+
+## `indexes.py` — 指数名称解析（约 90 行）
+
+| 成员 | 作用 |
+|---|---|
+| `normalize_index_name("中证800指数收益率")` | → `中证800` |
+| `candidate_names(...)` | 全名失败时去掉「上证/中证」前缀重试 |
+| `KNOWN_INDEXES` | 搜索接口查不到的（债券指数）走兜底表 |
+
+---
+
+## `estimate.py` — 估值算式（约 140 行）
+
+纯函数，无网络，可完全离线测试。
+
+| 函数 | 作用 |
+|---|---|
+| `assumption_of(benchmark)` | 分组成 equity / non_equity / unclassified |
+| `equity_proxy(benchmark)` | 权益组件权重归一化到 100 |
+| `weighted_change(weights, changes)` | 缺失组件自动剔除并重新归一 |
+| `describe_index/holdings(...)` | 生成人话解释 |
+
+**`change_pct=None` 与 `0` 的区别贯穿此处**：「算不出来」返回 `None`。
+
+---
+
 ## `errors.py` — 14 个错误类（161 行）
 
 ```
@@ -297,6 +350,11 @@ MarketDataError                 基类，带 code / retryable / fallback
 | `summary.py` | `InstrumentSummary` | **不含行情字段** |
 | `result.py` | `QuoteResult` | 批量结果，`instrument` 可空 |
 | `fx.py` | `FxRate` | `derived` 标记是否交叉算出 |
+| `holdings.py` | `Holding` / `QuarterHoldings` | `weight` 是占净值百分比 |
+| `profile.py` | `Profile` | `benchmark` 是解析后的结构，不是字符串 |
+| `allocation.py` | `Allocation` | `equity_exposure` = 股票 + 其他（联接基金靠这个） |
+| `curve.py` | `BenchmarkCurve` | `coverage` < 1 说明只用了部分组件 |
+| `estimate.py` | `Estimate` | `change_pct=None` 表示未知 |
 
 **铁律**：价格、金额、成交量、净值一律用 `str`。
 
@@ -312,6 +370,9 @@ MarketDataError                 基类，带 code / retryable / fallback
 | 改 stale 上限 | `cache/base.py` 的 `_DEFAULT_MAX_STALE` |
 | 改降级顺序 | `sources/routing.py` 的 `_ROUTES` |
 | 改基金分类 | `funds.py` 的 `_RULES` |
+| 改基准判定 | `benchmark.py` 的 `_NON_EQUITY` |
+| 加指数映射 | `indexes.py` 的 `KNOWN_INDEXES` |
+| 改估值公式 | `estimate.py` |
 | 加日志事件 | `logging.py` 的 `EVENTS` |
 | 改错误语义 | `errors.py` |
 | 改 CLI 输出 | `cli.py` 的 `_emit_*` |

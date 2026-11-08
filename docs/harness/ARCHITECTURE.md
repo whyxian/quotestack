@@ -1,6 +1,6 @@
 # 架构（as-built）
 
-> 反映 **M3.5 完成时**的真实代码，不是设计意图。
+> 反映 **M5 完成时**的真实代码，不是设计意图。
 > 设计理由见 `docs/design/`；本文件只描述"代码现在长什么样"。
 > 逐文件、逐函数的中文说明见 [CODE_MAP_ZH](CODE_MAP_ZH.md)。
 > 更新于 2026-11-08。
@@ -11,40 +11,44 @@
 
 ```
 src/quotestack/
-├── __init__.py            对外导出 21 个符号
-├── client/                ★ 主入口
-├── cli.py                 命令行 4 个命令
+├── __init__.py            对外导出 24 个符号
+├── client/
+│   ├── __init__.py        ★ MarketData：全部公开方法
+│   └── fetch.py           FetchPolicy：三态缓存、单飞、降级、限流
+├── cli.py                 命令行 5 个命令
 ├── sync.py                同步包装
 ├── errors.py              14 个错误类
 ├── logging.py             结构化事件
 ├── resilience.py          冷却 + 令牌桶
-├── funds.py               基金类型归一化
-├── models/                数据模型
-│   ├── enums.py           7 个枚举
+├── funds.py               基金类型 → FundClass
+├── benchmark.py           基准文本解析 + 权益判定
+├── indexes.py             指数名称 → secid
+├── estimate.py            估值算式与措辞
+├── models/                数据模型（13 个文件）
+│   ├── enums.py           8 个枚举
 │   ├── instrument.py      Instrument
 │   ├── quote.py           Quote
 │   ├── bar.py             Bar
 │   ├── nav.py             NavPoint
 │   ├── summary.py         InstrumentSummary
 │   ├── result.py          QuoteResult
-│   └── fx.py              FxRate
+│   ├── fx.py              FxRate
+│   ├── holdings.py        Holding / QuarterHoldings
+│   ├── profile.py         Profile
+│   ├── allocation.py      Allocation
+│   ├── curve.py           BenchmarkCurve
+│   └── estimate.py        Estimate
 ├── identity/              代码 → 各源标识
-│   ├── rules.py           纯规则
-│   └── resolver.py        组装 Instrument
-├── cache/
-│   ├── base.py            三态、键、TTL 表
-│   └── memory.py          进程内实现
-└── sources/               数据源适配器
+├── cache/                 三态缓存
+└── sources/               五个数据源
     ├── base.py            SourceMeta / Quoter / Historian
-    ├── routing.py         路由表
-    ├── eastmoney.py       行情 + 列表（642 行，已超标）
+    ├── routing.py         路由表 + candidates()
+    ├── eastmoney/         core / quotes / klines / listings / parsing
     ├── tencent.py         实时兜底
-    ├── tiantian.py        净值 + 基金列表
+    ├── tiantian.py        净值 + 列表 + 持仓 + 画像 + 配置
     ├── binance.py         交易对列表
     └── fx.py              汇率
 ```
-
----
 
 ## 2. 依赖方向
 
@@ -102,6 +106,27 @@ client.quote("600519")
 
 ---
 
+## 3.5 一次 `estimate()` 的路径
+
+```
+client.estimate("166002")
+  ├─ profile()            → fund_class / benchmark / tracking_index
+  ├─ _allocation()        → 股票/债券/现金占净比
+  ├─ 货币型？             → change_pct=0.0, basis=none（结束）
+  ├─ 有跟踪标的？
+  │    ├─ resolve_index() → secid
+  │    ├─ quotes_by_secid → 当日涨跌
+  │    └─ 涨跌 × 权益敞口 → basis=index
+  └─ 否则按持仓
+       ├─ holdings(limit=1)        → 最新季报前十大
+       ├─ quotes_by_secid(个股)    → 加权贡献
+       ├─ equity_proxy(基准)       → 权益组件归一权重
+       ├─ quotes_by_secid(指数)    → 剩余仓位按基准补
+       └─ basis=holdings
+```
+
+**算不出来时 `change_pct=None`，不是 0**；货币基金例外，它的 0 是真实的。
+
 ## 4. 一次 `iter_instruments()` 的路径
 
 ```
@@ -149,32 +174,34 @@ v1|nav|CN:FUND:166002
 
 ## 7. 文件规模现状
 
-| 文件 | 行数 |
-|---|---|
-| `client/__init__.py` | 550 |
-| `sources/tiantian.py` | 245 |
-| `cli.py` | 242 |
-| `client/fetch.py` | 216 |
-| `sources/tencent.py` | 214 |
-| 其余 32 个文件 | < 200 |
+| 文件 | 行数 | 说明 |
+|---|---|---|
+| `client/__init__.py` | 1028 | 11 个公开方法 + 编排，20% 是 docstring |
+| `sources/tiantian.py` | 603 | 净值、列表、持仓、画像、配置 |
+| `cli.py` | 298 | 5 个命令 |
+| `client/fetch.py` | 218 | 取数机制 |
+| `sources/tencent.py` | 214 | 双布局解析 |
+| 其余 40 个文件 | < 210 | |
+| **合计** | **6,000 行 / 45 文件** | |
 
-**总规模**：约 4,300 行 / 37 文件。
-
-**不设行数上限。** 拆分只看一个标准：拆出来的东西有没有自己的名字和职责。
+**不设行数上限。** 拆分只看一个标准：**拆出来的东西有没有自己的名字和职责**。
 
 | 拆开 | 理由 |
 |---|---|
 | `client/fetch.py` | 缓存三态 + 单飞 + 降级是**可独立测试的机制**，不属于公开 API |
+| `benchmark.py` / `indexes.py` / `estimate.py` | 纯函数，无状态，可离线测试 |
 | `sources/eastmoney/*` | 三个端点族各有载荷怪癖，解析层可共用 |
-| `candidates()` 移进 `routing.py` | 它决定"试哪些源"，属于路由 |
+| `candidates()` 在 `routing.py` | 它决定"试哪些源"，属于路由 |
 
 | 不拆 | 理由 |
 |---|---|
-| `client/__init__.py` 550 行 | `MarketData` 是一个内聚的公开 API，拆开会让读者跳 5 个文件 |
-| `klines.py` 只有 1 个方法 | 它同时拥有 `KLT` / `FQT` 映射表，是完整关注点 |
-| `fx` 放在 `client/__init__.py` | 汇率就是对货币对的报价，不值得单独成文件 |
+| `client/__init__.py` | `MarketData` 是唯一的公开入口，拆开会让读者跳多个文件 |
+| `sources/tiantian.py` | 五个方法都打同一个域名、同一套 GBK/JS 解析习惯 |
 
----
+**已知观察**：`client/__init__.py` 从 M3.6 的 550 行增长到 1028 行，主要是
+M4/M5 新增的 `profile` / `holdings` / `benchmark` / `estimate`。若继续增长，
+可把基金分析流程抽成模块级函数（如 `fund_ops.py(estimate(client, ...))`），
+让类方法只做委托。**现在还没到那个程度。**
 
 ## 8. 测试布局
 
@@ -194,7 +221,7 @@ tests/
 └── test_smoke.py         真实请求（默认跳过）
 ```
 
-**104 个测试**，全离线（respx 拦截 HTTP），3 个 live 用例需 `QUOTESTACK_LIVE=1`。
+**142 个测试**，全离线（respx 拦截 HTTP），3 个 live 用例需 `QUOTESTACK_LIVE=1`，回测脚本在 `benchmarks/`。
 
 ---
 
@@ -209,4 +236,7 @@ tests/
 | 改降级顺序 | `sources/routing.py` 的 `_ROUTES` |
 | 改基金分类 | `funds.py` 的 `_RULES` |
 | 加日志事件 | `logging.py` 的 `EVENTS`（先注册再发） |
+| 改估值公式 | `estimate.py`（算式与措辞）+ `client.estimate` |
+| 改指数名称映射 | `indexes.py` 的 `KNOWN_INDEXES` |
+| 改基准判定规则 | `benchmark.py` 的 `_NON_EQUITY` |
 | 改 CLI 输出 | `cli.py` 的 `_emit_*` |

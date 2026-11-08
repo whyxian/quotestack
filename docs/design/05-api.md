@@ -13,9 +13,9 @@
 
 | # | 入口 | 状态 | 说明 |
 |---|---|---|---|
-| 1 | `resolve(code, asset_class, market)` | 🚧 M1 | 规则解析可用；`expected_name` 校验在 M3 |
+| 1 | `resolve(code, asset_class, market)` | 🚧 M1 | 规则解析可用；`expected_name` 校验待做（M6 的 HTTP 参数） |
 | 2 | `quote(code, asset_class, market)` | ✅ M1 | 实时价 |
-| 3 | `quote_many(items)` | M3 | 批量报价 |
+| 3 | `quote_many(items)` | ✅ M3 | 批量报价，等长同序 |
 | 4 | `history(code, asset_class, market, interval, adjust, limit)` | ✅ M1 | K 线 + 分钟线 |
 | 5 | `nav(code, asset_class, market, limit)` | ✅ M3 | 净值序列 |
 | 6 | `profile(code, asset_class, market)` | ✅ M4 | 静态画像 + 基准结构 |
