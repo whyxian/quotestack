@@ -203,6 +203,22 @@ M4/M5 新增的 `profile` / `holdings` / `benchmark` / `estimate`。若继续增
 可把基金分析流程抽成模块级函数（如 `fund_ops.py(estimate(client, ...))`），
 让类方法只做委托。**现在还没到那个程度。**
 
+<!-- generated:begin -->
+<!-- 由 scripts/sync_docs.py 生成，不要手改 -->
+
+| 文件 | 行数 |
+|---|---|
+| `quotestack/client/__init__.py` | 1044 |
+| `quotestack/sources/tiantian.py` | 618 |
+| `quotestack/server/app.py` | 601 |
+| `quotestack/server/schemas.py` | 312 |
+| `quotestack/cli.py` | 298 |
+| 其余 47 个文件 | < 218 |
+
+**合计**：7,351 行 / 52 文件。
+
+<!-- generated:end -->
+
 ## 8. 测试布局
 
 ```

@@ -134,3 +134,39 @@ def test_guide_status_table_matches_the_spec() -> None:
 
     # The guide table is an error table, so success codes are out of scope.
     assert listed == documented, f"guide lists {sorted(listed)}, spec declares {sorted(documented)}"
+
+
+def test_generated_doc_blocks_are_current() -> None:
+    """The numbers in the docs must be the ones the code produces.
+
+    Regenerating and comparing is the only way to keep hand-typed counts from
+    drifting; four different error counts once lived in this repository.
+    """
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "scripts/sync_docs.py", "--check"],
+        cwd=pathlib.Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, (
+        f"docs are stale:\n{result.stdout}\nrun: uv run python scripts/sync_docs.py"
+    )
+
+
+def test_index_status_matches_each_page() -> None:
+    """The index table must not claim a status its page contradicts."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    design = root / "docs" / "design"
+    index = (design / "README.md").read_text(encoding="utf-8")
+
+    for match in re.finditer(r"^\| \[\d+\]\(([^)]+\.md)\) \| \*\*.+?\*\* \| (.+?) \|", index, re.M):
+        target, shown = match.group(1), match.group(2).strip()
+        page = (design / target).read_text(encoding="utf-8")
+        declared = re.search(r"^> \*\*实现状态\*\*：(.+)$", page, re.M)
+        if declared is None:
+            continue
+        assert shown == declared.group(1).strip(), f"{target} status drifted"
