@@ -180,7 +180,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 `(asset_class, market, capability)` → 源名列表，按优先级排列。
 
-```python
+```text
 (STOCK, CN, QUOTE) → ("eastmoney", "tencent")
 (FUND,  CN, NAV)   → ("tiantian",)
 ```

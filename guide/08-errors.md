@@ -110,6 +110,8 @@ for _ in range(10):
 场外基金**没有盘中价格**，这是定义。看它有什么能力：
 
 ```python
+try:
+    await client.quote("022430", AssetClass.FUND, Market.CN)
 except UnsupportedError as exc:
     print(exc.context["available"])
     # ['BENCHMARK', 'ESTIMATE', 'HOLDINGS', 'NAV', 'PROFILE']
@@ -139,6 +141,8 @@ if quote.stale:
 ### 4. 对 `SchemaChangedError` 无动于衷
 
 ```python
+try:
+    quote = await client.quote("600519")
 except SchemaChangedError:
     # 这不是偶发故障，是上游改了接口
     # 库需要更新，应该报警而不是重试
@@ -182,6 +186,8 @@ failed = [
 ## 日志里该记什么
 
 ```python
+try:
+    quote = await client.quote("600519")
 except MarketDataError as exc:
     logger.warning(
         "market data failed",

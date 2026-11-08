@@ -57,7 +57,7 @@ logging.getLogger("quotestack").setLevel(logging.DEBUG)
 print(client.health())
 ```
 
-```python
+```json
 {
     "status": "ok",                       # ok / degraded
     "sources": {

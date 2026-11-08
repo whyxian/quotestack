@@ -26,6 +26,13 @@ repos:
         pass_filenames: false
         always_run: true
         require_serial: true
+      - id: check-docs
+        name: check docs
+        entry: .venv/bin/python scripts/check_docs.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        require_serial: true
       - id: mypy
         name: mypy
         entry: .venv/bin/mypy src

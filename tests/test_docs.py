@@ -329,3 +329,23 @@ def test_guide_capability_matrix_matches_the_sources() -> None:
             checked += 1
 
     assert checked >= 40, f"only {checked} cells parsed; table shape changed"
+
+
+def test_documentation_fragments_and_links() -> None:
+    """Links must resolve and Python blocks must parse.
+
+    Both fail silently: a broken link only matters when a reader clicks it, and
+    a block that does not parse only matters when someone copies it. Neither
+    shows up in review, which is why they are checked here.
+    """
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "scripts/check_docs.py"],
+        cwd=pathlib.Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"documentation checks failed:\n{result.stdout}"

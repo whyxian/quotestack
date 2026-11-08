@@ -42,10 +42,15 @@
 - 只解释「为什么」，不复述「是什么」
 
 ```python
-# 好：解释了反直觉的原因
-# bool is a subclass of int, so `port = true` would otherwise become 1.
-if isinstance(value, bool) or not isinstance(value, int):
+def as_port(value: object) -> int | None:
+    # 好：解释了反直觉的原因
+    # bool is a subclass of int, so `port = true` would otherwise become 1.
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
 
+
+counter = 0
 # 坏：把代码翻译成英文
 # increment the counter
 counter += 1

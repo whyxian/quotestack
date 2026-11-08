@@ -46,13 +46,13 @@ client.quote("600519", max_age=300)    # 5 分钟内的缓存都行
 
 ### `quote`
 
-```python
+```text
 quote(code, asset_class=STOCK, market=CN, *, max_age=None) -> Quote
 ```
 
 ### `quote_many`
 
-```python
+```text
 quote_many(items: list[tuple[str, AssetClass, Market]]) -> list[QuoteResult]
 ```
 
@@ -60,7 +60,7 @@ quote_many(items: list[tuple[str, AssetClass, Market]]) -> list[QuoteResult]
 
 ### `history`
 
-```python
+```text
 history(code, asset_class=STOCK, market=CN, *,
         interval=Interval.D1, adjust=Adjust.QFQ,
         limit=250, max_age=None) -> list[Bar]
@@ -73,19 +73,19 @@ history(code, asset_class=STOCK, market=CN, *,
 
 ### `nav`
 
-```python
+```text
 nav(code, asset_class=FUND, market=CN, *, limit=250, max_age=None) -> list[NavPoint]
 ```
 
 ### `profile`
 
-```python
+```text
 profile(code, asset_class=FUND, market=CN, *, max_age=None) -> Profile
 ```
 
 ### `holdings`
 
-```python
+```text
 holdings(code, asset_class=FUND, market=CN, *,
          before=None, limit=4) -> list[QuarterHoldings]
 ```
@@ -97,20 +97,20 @@ holdings(code, asset_class=FUND, market=CN, *,
 
 ### `benchmark`
 
-```python
+```text
 benchmark(code, asset_class=FUND, market=CN, *,
           start=None, end=None) -> BenchmarkCurve
 ```
 
 ### `estimate`
 
-```python
+```text
 estimate(code, asset_class=FUND, market=CN) -> Estimate
 ```
 
 ### `fx`
 
-```python
+```text
 fx(base: str, quote: str) -> FxRate
 ```
 
@@ -118,7 +118,7 @@ fx(base: str, quote: str) -> FxRate
 
 ### `iter_instruments`
 
-```python
+```text
 iter_instruments(asset_class, market, *,
                  listed=None, page_size=100,
                  tradable_only=True) -> AsyncIterator[list[InstrumentSummary]]
