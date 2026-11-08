@@ -29,7 +29,8 @@ instrument = client.resolve("600519", AssetClass.STOCK, Market.CN)
 
 instrument.id            # 'CN:STOCK:600519'
 instrument.aliases       # {'eastmoney': '1.600519', 'tencent': 'sh600519'}
-instrument.capabilities  # {QUOTE, HISTORY}
+instrument.capabilities  # frozenset({<Capability.QUOTE: 'QUOTE'>, <Capability.HISTORY: 'HISTORY'>})
+sorted(c.value for c in instrument.capabilities)   # ['HISTORY', 'QUOTE']
 ```
 
 `aliases` 是各数据源自己的标识——**你不需要用它**，库内部用。之所以暴露出来，
@@ -130,11 +131,11 @@ if quote.stale:
 from quotestack.errors import MarketDataError
 
 try:
-    await client.quote("999999")
+    client.resolve("ABC", AssetClass.STOCK, Market.CN)
 except MarketDataError as exc:
-    print(exc.code)     # 'NOT_FOUND'
-    print(exc.message)  # 人话
-    print(exc.context)  # 结构化细节
+    print(exc.code)     # 'INVALID_ARGUMENT'
+    print(exc.message)  # 'US tickers must be alphabetic' 之类的人话
+    print(exc.context)  # {'code': 'ABC', 'market': 'CN'}
 ```
 
 `code` 是稳定字符串，适合 `switch`；`message` 可能变，别拿来做判断。

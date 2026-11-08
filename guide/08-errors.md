@@ -9,12 +9,28 @@
 ```python
 from quotestack.errors import MarketDataError
 
+# 参数不对：立刻失败，不联网
+try:
+    client.resolve("ABC", AssetClass.STOCK, Market.CN)
+except MarketDataError as exc:
+    print(exc.code)     # 'INVALID_ARGUMENT'
+    print(exc.context)  # {'code': 'ABC', 'market': 'CN'}
+
+# 标的没这个能力：告诉你它有什么
+try:
+    await client.quote("022430", AssetClass.FUND, Market.CN)
+except MarketDataError as exc:
+    print(exc.code)     # 'UNSUPPORTED'
+    print(exc.context["available"])   # ['BENCHMARK', 'ESTIMATE', 'HOLDINGS', 'NAV', 'PROFILE']
+
+# 所有源都失败：逐个告诉你为什么
 try:
     await client.quote("999999")
 except MarketDataError as exc:
-    print(exc.code)     # 'NOT_FOUND'
-    print(exc.message)  # 'eastmoney returned no data for ...'
-    print(exc.context)  # {'missing': ['1.999999']}
+    print(exc.code)       # 'UNAVAILABLE'
+    print(exc.context["attempts"])
+    # [{'source': 'eastmoney', 'reason': 'EMPTY_RESPONSE'},
+    #  {'source': 'tencent', 'reason': 'EMPTY_RESPONSE'}]
 ```
 
 | 属性 | 稳定性 | 用途 |
@@ -50,28 +66,30 @@ except MarketDataError as exc:
 ## 实用的分类
 
 ```python
+import asyncio
+
+from quotestack import MarketData
 from quotestack.errors import MarketDataError
 
+# 值得重试的：上游暂时不行
 RETRYABLE = {"UNAVAILABLE", "TIMEOUT"}
+# 需要退避的：不是坏了，是太快
+SLOW_DOWN = {"RATE_LIMITED"}
 
 
-async def fetch_with_retry(client, code, attempts: int = 3):
+async def fetch_with_retry(client: MarketData, code: str, attempts: int = 3):
     for attempt in range(attempts):
         try:
             return await client.quote(code)
         except MarketDataError as exc:
-            if exc.code not in RETRYABLE or attempt == attempts - 1:
-                raise
-            await asyncio.sleep(2**attempt)     # 1s, 2s, 4s
-```
-
-**`RATE_LIMITED` 单独处理**——它不是"挂了"，是"慢一点"：
-
-```python
-except MarketDataError as exc:
-    if exc.code == "RATE_LIMITED":
-        await asyncio.sleep(5)
-        continue
+            last_attempt = attempt == attempts - 1
+            if exc.code in SLOW_DOWN and not last_attempt:
+                await asyncio.sleep(5)          # 固定退避
+                continue
+            if exc.code in RETRYABLE and not last_attempt:
+                await asyncio.sleep(2**attempt)  # 1s, 2s
+                continue
+            raise
 ```
 
 ---
@@ -141,8 +159,20 @@ ok = [r for r in results if r.ok]
 failed = [(r.instrument.code, r.error) for r in results if not r.ok]
 ```
 
+**注意：解析就失败的项没有 `instrument`**（`None`），因为你给的代码本身不合法、
+连标的都没定位到。用 `zip` 拿原始代码更稳：
+
+```python
+failed = [
+    (item[0], result.error)
+    for item, result in zip(items, results)
+    if not result.ok
+]
 ```
-失败: [('022430', 'UNSUPPORTED: CN:FUND:022430 has no quote data')]
+
+```
+失败: [('022430', 'UNSUPPORTED: CN:FUND:022430 has no quote data'),
+       ('ABC', 'INVALID_ARGUMENT: mainland codes must be six digits')]
 ```
 
 **别用 try/except 包整个批量调用**——那样一条失败会丢掉全部结果。

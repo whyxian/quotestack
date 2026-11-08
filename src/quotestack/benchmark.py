@@ -163,7 +163,15 @@ def _clean(text: str | None) -> str | None:
     if text is None:
         return None
     cleaned = text.strip().replace("\u00a0", " ")
-    for placeholder in ("该基金无跟踪标的", "无", "暂无", "--", "-"):
+    for placeholder in (
+        "该基金无跟踪标的",
+        "该基金暂未披露业绩比较基准",
+        "暂未披露业绩比较基准",
+        "无",
+        "暂无",
+        "--",
+        "-",
+    ):
         if cleaned == placeholder:
             return None
     # Some pages prefix the sentence with the label itself.

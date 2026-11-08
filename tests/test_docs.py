@@ -111,3 +111,26 @@ def test_sources_declare_list_when_they_implement_it() -> None:
         implements = hasattr(source, "list_instruments")
         declares = Capability.LIST in source.meta.capabilities
         assert implements == declares, f"{source.meta.name} disagrees with itself"
+
+
+def test_guide_status_table_matches_the_spec() -> None:
+    """The status codes the guide lists must be the ones the API can return."""
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    spec = yaml.safe_load((root / "docs/api/openapi.yaml").read_text(encoding="utf-8"))
+    documented = set()
+    for operations in spec["paths"].values():
+        for operation in operations.values():
+            documented.update(
+                int(code)
+                for code in operation.get("responses", {})
+                if code.isdigit() and int(code) >= 400
+            )
+
+    guide = (root / "guide/07-service.md").read_text(encoding="utf-8")
+    table = guide[guide.index("| 状态 | 错误码") : guide.index("> **不要只看")]
+    listed = {int(code) for code in re.findall(r"^\| (\d{3}) \|", table, re.M)}
+
+    # The guide table is an error table, so success codes are out of scope.
+    assert listed == documented, f"guide lists {sorted(listed)}, spec declares {sorted(documented)}"

@@ -157,6 +157,20 @@ class TiantianSource:
             )
         return self._parse_profile(response.text)
 
+    @staticmethod
+    def _value(raw: str | None) -> str | None:
+        """Treat the page's placeholder strings as absent.
+
+        The source writes ``---`` and ``--`` for fields it has no value for,
+        which is not the same as a field holding three dashes.
+        """
+        if raw is None:
+            return None
+        cleaned = raw.strip()
+        if cleaned in {"", "-", "--", "---", "—", "N/A"}:
+            return None
+        return cleaned
+
     def _parse_profile(self, html: str) -> Profile:
         # The page omits the closing tag of the fund-code cell, so a naive
         # <th>..</th><td>..</td> match swallows the following pair. Closing it
@@ -168,9 +182,9 @@ class TiantianSource:
             for key, value in _PAIR_RE.findall(html)
         }
 
-        fund_type = labels.get("基金类型") or None
-        benchmark_text = labels.get("业绩比较基准")
-        tracking = labels.get("跟踪标的")
+        fund_type = self._value(labels.get("基金类型"))
+        benchmark_text = self._value(labels.get("业绩比较基准"))
+        tracking = self._value(labels.get("跟踪标的"))
         scale, as_of = _split_scale(labels.get("净资产规模", ""))
         inception, _ = _split_date(labels.get("成立日期/规模", ""))
 
@@ -192,9 +206,9 @@ class TiantianSource:
             fund_class=classify_fund_type(fund_type),
             tracking_index=tracking if tracking and "无" not in tracking else None,
             benchmark=parse_benchmark(benchmark_text) if benchmark_text else None,
-            company=labels.get("基金管理人") or None,
-            manager=labels.get("基金经理人") or None,
-            custodian=labels.get("基金托管人") or None,
+            company=self._value(labels.get("基金管理人")),
+            manager=self._value(labels.get("基金经理人")),
+            custodian=self._value(labels.get("基金托管人")),
             scale=scale,
             inception_date=inception,
             as_of=as_of,
@@ -550,9 +564,10 @@ def _split_date(raw: str) -> tuple[dt.date | None, str | None]:
 
 def _split_scale(raw: str) -> tuple[str | None, dt.date | None]:
     """Split ``80.39亿元（截止至：2026年09月30日）`` into a scale and a date."""
-    if not raw:
+    if not raw or raw.strip() in {"-", "--", "---", "—", "N/A"}:
         return None, None
-    scale = raw.split("（")[0].strip() or None
+    candidate = raw.split("（")[0].strip()
+    scale: str | None = None if candidate in {"", "-", "--", "---", "—", "N/A"} else candidate
     _, _, as_of_text = raw.partition("截止至：")
     as_of, _ = _split_date(as_of_text) if as_of_text else (None, None)
     return scale, as_of

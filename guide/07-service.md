@@ -70,12 +70,15 @@ curl 'http://127.0.0.1:8000/v1/quote?code=600519'
 | 400 | `INVALID_ARGUMENT` | 参数不合法 |
 | 404 | `NOT_FOUND` | 代码不存在 |
 | 409 | `AMBIGUOUS` | 有多个候选，需指定 `asset_class` |
+| 410 | `DELISTED` | 已退市 |
 | 422 | `UNSUPPORTED` | 该标的没这个能力 |
 | 429 | `RATE_LIMITED` | 触发上游限流 |
 | 502 | `UNAVAILABLE` / `SCHEMA_CHANGED` / `EMPTY_RESPONSE` | 上游失败 |
+| 503 | `CLIENT_BROKEN` | 所有源结构都变了，需升级库 |
 | 504 | `TIMEOUT` | 上游超时 |
 
 > **不要只看 `error` 字段。** 监控、重试、网关限流都依赖状态码。
+> 但业务判断请用 `error.code`——它比状态码更精确，多个错误可能映射到同一个状态。
 
 ---
 
@@ -274,7 +277,7 @@ ApiResponse<Quote> response = restClient.get()
     .body(new ParameterizedTypeReference<ApiResponse<Quote>>() {});
 
 if (response.error() != null) {
-    // 处理，不用管状态码
+    // 分支判断用 error.code，比状态码更精确
 }
 ```
 

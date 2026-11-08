@@ -38,6 +38,7 @@ from quotestack.server.schemas import (
     BenchmarkPointModel,
     BenchmarkResponse,
     CurveComponentModel,
+    ErrorResponse,
     EstimateModel,
     EstimateResponse,
     FxModel,
@@ -61,7 +62,22 @@ from quotestack.server.schemas import (
     QuoteResultModel,
 )
 
-__all__ = ["create_app"]
+__all__ = ["ERROR_RESPONSES", "create_app"]
+
+# Declared on every data route so the generated contract tells a client which
+# failures to expect. Without this FastAPI documents only the success shape,
+# and code generators produce clients that cannot express an error.
+ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {"model": ErrorResponse, "description": "参数不合法"},
+    404: {"model": ErrorResponse, "description": "代码不存在或已退市"},
+    409: {"model": ErrorResponse, "description": "代码有多个候选"},
+    410: {"model": ErrorResponse, "description": "已退市"},
+    422: {"model": ErrorResponse, "description": "该标的不支持此能力"},
+    429: {"model": ErrorResponse, "description": "触发上游限流"},
+    502: {"model": ErrorResponse, "description": "上游失败"},
+    503: {"model": ErrorResponse, "description": "所有源结构变更，需升级"},
+    504: {"model": ErrorResponse, "description": "上游超时"},
+}
 
 _MAX_LIMIT = 5000
 
@@ -144,6 +160,7 @@ def _register(app: FastAPI) -> None:
 
     @app.get(
         "/v1/resolve",
+        responses=ERROR_RESPONSES,
         summary="解析代码",
         description="把代码解析成内部标识，并返回各数据源的映射。纯规则解析，不发起网络请求。",
         response_model=InstrumentResponse,
@@ -159,6 +176,7 @@ def _register(app: FastAPI) -> None:
 
     @app.get(
         "/v1/quote",
+        responses=ERROR_RESPONSES,
         summary="实时报价",
         description="返回单个标的的最新报价。上游失败且缓存仍在 max_stale 窗口内时，返回旧值并把 stale 置为 true。",
         response_model=QuoteResponse,
@@ -176,6 +194,7 @@ def _register(app: FastAPI) -> None:
 
     @app.post(
         "/v1/quotes/batch",
+        responses=ERROR_RESPONSES,
         summary="批量报价",
         description="一次查询多个标的。返回列表与请求等长同序，单条失败不影响其余。",
         response_model=BatchResponse,
@@ -195,6 +214,7 @@ def _register(app: FastAPI) -> None:
 
     @app.get(
         "/v1/history",
+        responses=ERROR_RESPONSES,
         summary="K 线与分钟线",
         description="场外基金没有 K 线，请求它们返回 UNSUPPORTED，而不是空数组。",
         response_model=BarsResponse,
@@ -231,6 +251,7 @@ def _register(app: FastAPI) -> None:
 
     @app.get(
         "/v1/nav",
+        responses=ERROR_RESPONSES,
         summary="基金净值",
         description="场外基金只有每日净值，没有盘中报价。",
         response_model=NavResponse,
@@ -257,6 +278,7 @@ def _register(app: FastAPI) -> None:
 
     @app.get(
         "/v1/profile",
+        responses=ERROR_RESPONSES,
         summary="基金画像",
         description="基金类型、跟踪标的、业绩基准、规模、经理。",
         response_model=ProfileResponse,
@@ -273,6 +295,7 @@ def _register(app: FastAPI) -> None:
 
     @app.get(
         "/v1/holdings",
+        responses=ERROR_RESPONSES,
         summary="季度持仓",
         description="按季度倒序返回前十大重仓股。limit 是季度数，不是股票数。",
         response_model=HoldingsResponse,
@@ -298,6 +321,7 @@ def _register(app: FastAPI) -> None:
 
     @app.get(
         "/v1/benchmark",
+        responses=ERROR_RESPONSES,
         summary="基准加权曲线",
         description="把业绩基准里的成分指数按权重加权。取不到数据的成分被剔除并报告，coverage 相应下降。",
         response_model=BenchmarkResponse,
@@ -332,6 +356,7 @@ def _register(app: FastAPI) -> None:
 
     @app.get(
         "/v1/estimate",
+        responses=ERROR_RESPONSES,
         summary="基金盘中估值",
         description="用跟踪指数或持仓推算当日涨跌。算不出来时返回 change_pct=null，不是 0——未知与零变化是两件事。",
         response_model=EstimateResponse,
@@ -366,6 +391,7 @@ def _register(app: FastAPI) -> None:
 
     @app.get(
         "/v1/fx",
+        responses=ERROR_RESPONSES,
         summary="汇率",
         description="以 USD 为基准表做交叉换算，derived 标记该汇率是直接报价还是算出来的。",
         response_model=FxResponse,
@@ -390,6 +416,7 @@ def _register(app: FastAPI) -> None:
 
     @app.get(
         "/v1/instruments",
+        responses=ERROR_RESPONSES,
         summary="市场列表",
         description="枚举一个市场的全部标的。列表只含静态元数据，不含行情。",
         response_model=ListingResponse,

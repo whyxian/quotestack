@@ -101,6 +101,11 @@ _LISTING_PLAN: dict[tuple[AssetClass, Market, bool | None], tuple[str, ...]] = {
 }
 
 
+def _holds_no_equity(allocation: Allocation | None) -> bool:
+    """Whether the fund genuinely holds nothing that moves with equities."""
+    return allocation is None or allocation.equity_exposure <= 0.5
+
+
 def default_sources(proxy: str | None = None) -> dict[str, object]:
     """Build the built-in source registry."""
     return {
@@ -392,7 +397,11 @@ class MarketData:
             )
 
         assumption = assumption_of(profile.benchmark)
-        if profile.fund_class is FundClass.MONEY:
+        # A money market fund's NAV really is fixed, so zero is the honest
+        # answer. That only holds when the fund holds no equity: some sources
+        # label closed-end vehicles as money funds, and returning zero for
+        # those would be a fabricated answer rather than a real one.
+        if profile.fund_class is FundClass.MONEY and _holds_no_equity(allocation):
             return Estimate(
                 change_pct=0.0,
                 basis=EstimateBasis.NONE,

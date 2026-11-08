@@ -1,10 +1,13 @@
 # 09 实战配方
 
-常见场景的完整写法，直接抄。
+常见场景的完整写法。
+
+> 标注「示意」的片段里有 `upsert`、`load_codes_from_db` 这类**你自己的存储层函数**——
+> 库不碰数据库，这些要你自己实现。其余的可以直接跑。
 
 ---
 
-## 1. 每天刷新品种库
+## 1. 每天刷新品种库（存储层需自备）
 
 ```python
 import asyncio
@@ -163,7 +166,7 @@ async def portfolio_value(
 
 ---
 
-## 6. 服务端：把库包一层缓存
+## 6. 服务端：调长 TTL 而不是自己写缓存
 
 库自带缓存，但如果你要做跨进程共享：
 
@@ -189,7 +192,7 @@ async def quote(code: str, request: Request) -> dict:
 
 ---
 
-## 7. 多市场组合：A股 + 美股 + 黄金
+## 7. 多市场组合：A股 + 美股（按汇率折算）
 
 ```python
 from decimal import Decimal

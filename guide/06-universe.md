@@ -119,7 +119,9 @@ async for batch in client.iter_instruments(
 想拿全量（包括权证）：
 
 ```python
-async for batch in client.iter_instruments(..., tradable_only=False):
+async for batch in client.iter_instruments(
+    AssetClass.STOCK, Market.US, tradable_only=False
+):
     ...
 ```
 
@@ -140,7 +142,8 @@ async for batch in client.iter_instruments(AssetClass.CRYPTO, Market.CRYPTO):
 
 ## 刷新自己的品种库
 
-完整写法：
+下面是**结构示意**——`upsert` / `stored_codes` / `mark_delisted` 是你的存储层，
+库不提供，需要你自己实现：
 
 ```python
 import asyncio
