@@ -59,9 +59,13 @@ include = ["src/quotestack", "tests", "README.md", "LICENSE"]
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
-# Docs contain illustrative code snippets; formatting them causes churn
-# (ruff >=0.14 formats Python code blocks inside Markdown).
-extend-exclude = ["docs"]
+# Markdown code blocks are illustrative: they align comments for readability,
+# and they contain deliberate fragments (`...`, undefined storage helpers).
+# ruff >=0.14 reformats Python inside Markdown, which flattens that alignment,
+# so no Markdown is formatted or linted. The pre-commit hooks already limit
+# themselves to Python files; excluding here keeps `ruff format --check .`
+# agreeing with them.
+extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = [

@@ -14,12 +14,12 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --extra dev --extra server
-      - name: Lint
-        run: uv run ruff check .
-      - name: Format
-        run: uv run ruff format --check .
-      - name: Types
-        run: uv run mypy src
+      # The hooks are the single definition of what is enforced. Running them
+      # in CI rather than duplicating the commands keeps the file sets and
+      # flags from drifting apart, which is how an unformatted markdown file
+      # once passed every commit and failed the build.
+      - name: Hooks (lint, format, types)
+        run: uv run pre-commit run --all-files --show-diff-on-failure
       - name: Tests
         run: uv run pytest -q --cov=quotestack --cov-report=term
       - name: Docs are up to date
