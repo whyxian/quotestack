@@ -213,9 +213,9 @@ M4/M5 新增的 `profile` / `holdings` / `benchmark` / `estimate`。若继续增
 | `quotestack/server/app.py` | 601 |
 | `quotestack/server/schemas.py` | 312 |
 | `quotestack/cli.py` | 298 |
-| 其余 47 个文件 | < 267 |
+| 其余 47 个文件 | < 263 |
 
-**合计**：7,468 行 / 52 文件。
+**合计**：7,464 行 / 52 文件。
 
 <!-- generated:end -->
 

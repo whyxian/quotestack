@@ -16,6 +16,16 @@ repos:
         language: system
         types_or: [python, pyi]
         require_serial: true
+      # Runs after the formatter, because formatting changes line counts and
+      # the generated tables quote them. Committing stale tables is then
+      # impossible rather than merely discouraged.
+      - id: sync-docs
+        name: sync docs
+        entry: .venv/bin/python scripts/sync_docs.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        require_serial: true
       - id: mypy
         name: mypy
         entry: .venv/bin/mypy src
