@@ -88,7 +88,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["T20"]              # tests may print for debugging
-"src/quotestack/cli.py" = ["T20"]  # a CLI exists to print
+"src/quotestack/cli.py" = ["T20"]
+"benchmarks/*.py" = ["T20"]  # a CLI exists to print
 
 [tool.mypy]
 python_version = "3.11"

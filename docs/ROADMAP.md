@@ -10,9 +10,9 @@
 ## 当前进度
 
 ```
-阶段：M5 估值主体完成（回测脚本待做）→ 下一步 M6 服务化
-已完成：11 / 11（累计 57 / 84 项）
-下一项：M5-6 回测脚本
+阶段：M5 完成 ✅ → 下一步 M6 服务化
+已完成：11 / 11（累计 58 / 84 项）
+下一项：M6-1 FastAPI 服务骨架
 ```
 
 ---
@@ -206,7 +206,7 @@ quotestack holdings 022430 --limit 2
 - [x] **M5-3** 货币基金短路（`basis=none`）
 - [x] **M5-4** `benchmark_assumption` 输出
 - [x] **M5-5** `explanation` 人话生成
-- [ ] **M5-6** 回测脚本 `benchmarks/estimate_accuracy.py`
+- [x] **M5-6** 回测脚本 `benchmarks/estimate_accuracy.py`
 
 **完成标准**
 
