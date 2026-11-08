@@ -1,13 +1,24 @@
+# Hooks run the tools from this project's venv, not pinned copies downloaded by
+# pre-commit. Two reasons: the versions always match pyproject.toml, and nothing
+# is fetched from the network on first run.
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.0
+  - repo: local
     hooks:
-      - id: ruff
-        args: [--fix]
+      - id: ruff-check
+        name: ruff check
+        entry: .venv/bin/ruff check --fix --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
       - id: ruff-format
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
-    hooks:
+        name: ruff format
+        entry: .venv/bin/ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
       - id: mypy
-        files: ^src/
-        additional_dependencies: ["pydantic>=2.6", "httpx>=0.27"]
+        name: mypy
+        entry: .venv/bin/mypy src
+        language: system
+        pass_filenames: false
+        types_or: [python, pyi]

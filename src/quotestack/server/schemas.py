@@ -96,9 +96,7 @@ class QuoteModel(_Model):
     price: str = Field(description="十进制字符串，不是数字。金额不能有浮点误差")
     currency: str
     change: str | None = None
-    change_pct: float | None = Field(
-        default=None, description="涨跌幅百分数值，-1.76 表示 -1.76%"
-    )
+    change_pct: float | None = Field(default=None, description="涨跌幅百分数值，-1.76 表示 -1.76%")
     source: str
     ts: str = Field(description="RFC3339 带时区偏移的观测时刻")
     status: Literal["REALTIME", "HISTORICAL", "UNAVAILABLE"]
