@@ -19,7 +19,7 @@
 
 ```
 src/quotestack/
-├── client/            ★ 主入口 MarketData（5 个 mixin）
+├── client/            ★ 主入口 MarketData + FetchPolicy
 ├── cli.py             命令行
 ├── sync.py            同步包装
 ├── errors.py          14 个错误类
