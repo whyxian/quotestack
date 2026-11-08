@@ -283,40 +283,47 @@ async for batch in client.iter_instruments(AssetClass.FUND, Market.CN, listed=Fa
 
 ### 7.6 接口明细
 
-公共参数（除 `/healthz` 与 `/fx` 外，每个接口都有）：
+每个接口统一按下面三段写，顺序固定：
 
-| 参数 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `code` | string | ✅ | 标的代码 |
-| `asset_class` | enum | ❌ | `STOCK` / `FUND` / `CRYPTO`，默认 `STOCK` |
-| `market` | enum | ❌ | `CN` / `US` / `CRYPTO`，默认 `CN` |
+1. **参数**——公共参数见 7.5，这里只列额外的；没有额外参数时写「无」
+2. **响应 `data`**——字段表，嵌套对象紧跟一张小表
+3. **错误**——稳定错误码 + HTTP 状态
 
 #### `GET /v1/resolve`
 
-| 额外参数 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `expected_name` | string | ❌ | 传入后用于校验解析结果，名称差异过大则换候选。**M3 实现** |
+**参数**
 
-| `data` 字段 | 类型 | 说明 |
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|---|---|---|---|---|
+| `expected_name` | string | ❌ | — | 用于校验解析结果，名称差异过大则换候选（M6 实现） |
+
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
 |---|---|---|
-| `id` | string | `CN:STOCK:600519` |
-| `code` | string | 规范化的代码 |
-| `asset_class` / `market` | enum | |
+| `id` | string | 内部标识，`CN:STOCK:600519` |
+| `code` | string | 规范化后的代码 |
+| `asset_class` | enum | `STOCK` / `FUND` / `CRYPTO` |
+| `market` | enum | `CN` / `US` / `CRYPTO` |
 | `currency` | string | 计价货币 |
 | `source_name` | string \| null | 源返回的名称，**非权威** |
 | `confidence` | enum | `exact` / `inferred` / `partial` |
-| `aliases` | object | 各源标识，如 `{"eastmoney":"1.600519"}` |
+| `aliases` | object | 各源标识，`{"eastmoney":"1.600519"}` |
 | `capabilities` | string[] | 该标的可用的能力 |
 
-错误：`INVALID_ARGUMENT`(400)、`AMBIGUOUS`(409)、`NOT_FOUND`(404)
+**错误**：`INVALID_ARGUMENT`(400)、`AMBIGUOUS`(409)、`NOT_FOUND`(404)
 
 #### `GET /v1/quote`
 
-| `data` 字段 | 类型 | 说明 |
+**参数**：无。
+
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
 |---|---|---|
-| `instrument_id` | string | |
+| `instrument_id` | string | 内部标识 |
 | `price` | string | 十进制字符串 |
-| `currency` | string | |
+| `currency` | string | 计价货币 |
 | `change` | string \| null | 涨跌额 |
 | `change_pct` | number \| null | 百分数，`-1.76` 表示 -1.76% |
 | `source` | string | 实际提供数据的源 |
@@ -324,93 +331,262 @@ async for batch in client.iter_instruments(AssetClass.FUND, Market.CN, listed=Fa
 | `status` | enum | `REALTIME` / `HISTORICAL` / `UNAVAILABLE` |
 | `stale` | boolean | 是否来自过期缓存 |
 
-错误：`UNSUPPORTED`(422)、`NOT_FOUND`(404)、`UPSTREAM_*`(502/504)
+**错误**：`UNSUPPORTED`(422)、`NOT_FOUND`(404)、`UPSTREAM_*`(502/504)
 
 #### `POST /v1/quotes/batch`
 
-请求体：`{"items": [{"code","asset_class","market"}, ...]}`，上限 200。
+**参数**：无，批量项放在请求体。
 
-| `data` 字段 | 类型 | 说明 |
+请求体：
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `items` | array | ✅ | 上限 200 项 |
+| `items[].code` | string | ✅ | 标的代码 |
+| `items[].asset_class` | enum | ❌ | 默认 `STOCK` |
+| `items[].market` | enum | ❌ | 默认 `CN` |
+
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
 |---|---|---|
-| `results` | array | **等长同序**，每项 `{ok, instrument, quote?, error?}` |
+| `results` | array | **等长同序**，与请求一一对应 |
 | `fetched_at` | string | 整批的抓取时刻 |
 
-单条失败不影响其余，`ok:false` 的项带 `error`。
+`results[]` 每项：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `ok` | boolean | 该项是否成功 |
+| `instrument` | object \| null | 解析失败时为 `null` |
+| `quote` | object \| null | 成功时存在 |
+| `error` | string \| null | 失败原因，形如 `UNSUPPORTED: …` |
+
+**错误**：`INVALID_ARGUMENT`(400，超过 200 项)
 
 #### `GET /v1/history`
 
-| 额外参数 | 类型 | 必填 | 默认 | 说明 |
+**参数**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
 |---|---|---|---|---|
 | `interval` | enum | ❌ | `1d` | `1m`–`60m` / `1d` / `1w` / `1M` |
 | `adjust` | enum | ❌ | `qfq` | `none` / `qfq` / `hfq` |
 | `limit` | int | ❌ | 250 | 从最新往前数 |
 
-| `data` 字段 | 类型 | 说明 |
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
 |---|---|---|
 | `bars` | array | 按日期升序 |
-| `interval` / `adjust` | enum | 回显实际使用的参数 |
-| `source` / `fetched_at` | string | |
+| `interval` | enum | 回显实际使用的周期 |
+| `adjust` | enum | 回显实际使用的复权 |
+| `source` | string | 实际提供数据的源 |
+| `fetched_at` | string | 抓取时刻 |
 
-每根 `Bar`：`date`(string)、`time`(string\|null，分钟线才有)、`open`/`high`/`low`/`close`/`volume`(string)、`amount`(string\|null)
+`bars[]` 每根：
 
-错误：`UNSUPPORTED`(422，场外基金无 K 线)、`EMPTY_RESPONSE`(404)
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `date` | string | 交易日，无时区 |
+| `time` | string \| null | 分钟线为 `HH:MM`，日线为 `null` |
+| `open` `high` `low` `close` | string | 价格，十进制字符串 |
+| `volume` | string | 成交量 |
+| `amount` | string \| null | 成交额 |
+
+**错误**：`UNSUPPORTED`(422，场外基金无 K 线)、`EMPTY_RESPONSE`(404)
 
 #### `GET /v1/nav`
 
-| 额外参数 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `limit` | int | ❌ | 返回点数，默认 250 |
+**参数**
 
-`data`：`points`（`[{date, nav}]`）、`latest`（最新一点）、`source`、`fetched_at`
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|---|---|---|---|---|
+| `limit` | int | ❌ | 250 | 返回点数，从最新往前数 |
 
-错误：`UNSUPPORTED`(422，非基金标的)
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `points` | array | 净值序列，按日期升序 |
+| `latest` | object | 最新一个点 |
+| `source` | string | 实际提供数据的源 |
+| `fetched_at` | string | 抓取时刻 |
+
+`points[]` 与 `latest` 结构相同：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `date` | string | 净值日期 |
+| `nav` | string | 单位净值，十进制字符串 |
+
+**错误**：`UNSUPPORTED`(422，非基金标的)
 
 #### `GET /v1/profile`
 
-`data` 字段：`fund_type`、`tracking_index`、`benchmark{text,components,coverage}`、`stock/bond/cash_position`、`manager`、`custodian`、`scale`、`inception_date`、`as_of`、`partial`、`missing[]`
+**参数**：无。
 
-错误：`UNSUPPORTED`(422)
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `fund_type` | string \| null | 源分类，如 `混合型-偏股` |
+| `fund_class` | enum \| null | 归一化分类，见 7.5 |
+| `tracking_index` | string \| null | 跟踪标的，非指数基金为 `null` |
+| `benchmark` | object \| null | 业绩比较基准，见下表 |
+| `company` | string \| null | 基金管理人 |
+| `manager` | string \| null | 基金经理 |
+| `custodian` | string \| null | 托管人 |
+| `scale` | string \| null | 净资产规模，如 `80.39亿元` |
+| `inception_date` | string \| null | 成立日期 |
+| `as_of` | string \| null | 规模与持仓的报告期 |
+| `partial` | boolean | 是否有字段缺失 |
+| `missing` | string[] | 缺失字段名 |
+
+`benchmark` 内部：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `text` | string | 原始基准字符串 |
+| `components` | array | `[{name, weight, kind}]`，`weight` 是百分数 |
+| `coverage` | number | 权重合计 / 100，小于 1 说明权重不全 |
+
+**错误**：`UNSUPPORTED`(422)
 
 #### `GET /v1/holdings`
 
-| 额外参数 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `before` | string | ❌ | 排他游标，如 `2025Q4` |
-| `limit` | int | ❌ | **季度数**，默认 4 |
+**参数**
 
-`data`：`quarters[{quarter, as_of, holdings[{code,name,weight}]}]`、`has_more`、`next_before`
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|---|---|---|---|---|
+| `before` | string | ❌ | — | 排他游标，如 `2025Q4`，只返回更早的季度 |
+| `limit` | int | ❌ | 4 | **季度数**，不是股票数 |
 
-错误：`UNSUPPORTED`(422)
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `quarters` | array | 按季度倒序 |
+| `has_more` | boolean | 是否还有更早的季度 |
+| `next_before` | string \| null | 下一页游标，没有更多时为 `null` |
+
+`quarters[]` 每个季度：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `quarter` | string | 如 `2026Q3` |
+| `as_of` | string | 季度末日期 |
+| `holdings` | array | `[{code, name, weight}]`，`weight` 是占净值百分数 |
+
+**错误**：`UNSUPPORTED`(422)
 
 #### `GET /v1/benchmark`
 
-| 额外参数 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `start` / `end` | string | ❌ | `YYYY-MM-DD`，默认近一年 |
+**参数**
 
-`data`：`effective_start`、`components_used[]`、`components_dropped[]`、`coverage`、`series[{date,value}]`
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|---|---|---|---|---|
+| `start` | string | ❌ | 一年前 | `YYYY-MM-DD` |
+| `end` | string | ❌ | 今天 | `YYYY-MM-DD` |
 
-错误：`UNSUPPORTED`(422)、`NOT_FOUND`(404)
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `effective_start` | string \| null | 所有可用成分都有数据的第一天 |
+| `components_used` | array | 参与合成的成分，`[{name, weight, kind}]` |
+| `components_dropped` | string[] | 取不到历史的成分名，如中债系列 |
+| `coverage` | number | 可用权重 / 100 |
+| `series` | array | `[{date, value}]`，首日归一为 1 |
+
+**错误**：`UNSUPPORTED`(422，无基准)、`NOT_FOUND`(404)
 
 #### `GET /v1/estimate`
 
-`data`：`change_pct`、`nav`、`basis`(`index`/`holdings`/`none`)、`coverage`、`as_of`、`explanation`、`benchmark_assumption{equity,non_equity,unclassified}`
+**参数**：无。
 
-**输入过期时返回 `basis:"none"` 而非错误**（HTTP 200）。
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `change_pct` | number \| null | 估算涨跌；`basis=none` 时为 `null`，货币基金为 `0` |
+| `basis` | enum | `index` / `holdings` / `none` |
+| `coverage` | number \| null | 估算覆盖的仓位比例 |
+| `as_of` | string \| null | 行情观测时刻 |
+| `explanation` | string | 说明这次怎么算的 |
+| `benchmark_assumption` | object \| null | `{equity, non_equity, unclassified}`，各为成分名数组 |
+
+**输入过期或缺失时返回 `basis="none"` 与 `change_pct=null`，仍是 HTTP 200。**
+
+**错误**：`UNSUPPORTED`(422，非基金)
 
 #### `GET /v1/fx`
 
-| 参数 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `base` / `quote` | string | ✅ | ISO 货币码 |
+**参数**
 
-`data`：`base`、`quote`、`rate`(string)、`source`、`as_of`、`derived`、`stale`
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|---|---|---|---|---|
+| `base` | string | ✅ | — | 源货币，ISO 代码 |
+| `quote` | string | ✅ | — | 目标货币，ISO 代码 |
 
-错误：`UNSUPPORTED`(422，不支持的币种)
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `base` | string | 源货币 |
+| `quote` | string | 目标货币 |
+| `rate` | string | 汇率，十进制字符串 |
+| `source` | string | 实际提供数据的源 |
+| `as_of` | string | 观测时刻 |
+| `derived` | boolean | 是否由交叉换算得到 |
+
+**错误**：`UNSUPPORTED`(422，不支持的币种)
+
+#### `GET /v1/instruments`
+
+**参数**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|---|---|---|---|---|
+| `asset_class` | enum | ✅ | — | 要枚举的市场类别 |
+| `market` | enum | ✅ | — | 交易场所 |
+| `listed` | boolean | ❌ | — | 基金专用：`true` 场内 / `false` 场外 / 不传两者都要 |
+| `page` | int | ❌ | 1 | 页码，从 1 开始 |
+| `page_size` | int | ❌ | 100 | 每页条数，上限 500 |
+| `tradable_only` | boolean | ❌ | `true` | 跳过无价格标的（美股权证、停牌） |
+
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `items` | array | 本页条目 |
+| `page` | int | 回显当前页 |
+| `page_size` | int | 回显每页条数 |
+| `has_more` | boolean | 是否还有下一页 |
+| `next_page` | int \| null | 下一页页码，没有更多时为 `null` |
+
+`items[]` 的字段见 [7.5](#75-全市场列表) 的 `InstrumentSummary` 表——与库方法
+返回的是同一个结构，不重复描述。
+
+**列表不含行情字段**（价格、市值），理由见 7.5。
+
+**错误**：`UNSUPPORTED`(422，该市场无列表源)
 
 #### `GET /v1/healthz`
 
-`data`：`status`(`ok`/`degraded`)、`config`（当前生效的 ttl / proxy）、`sources{name→状态}`、`cache{能力→条目数}`、`recent_schema_changes[]`
+**参数**：无。
+
+**响应 `data`**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `status` | enum | `ok` / `degraded` |
+| `config` | object | 当前生效的 ttl 与 proxy |
+| `sources` | object | 各源状态、冷却剩余、超时 |
+| `cache` | object | 各能力的条目数 |
+| `recent_schema_changes` | string[] | 近期结构变更的源 |
+
+**错误**：无（永远返回 200）
 
 **不做**：逐接口的完整 JSON 示例。完整 schema 在 M6 由 FastAPI 生成到 `docs/api/openapi.yaml`，避免 Markdown 与代码各写一份、彼此漂移。
 

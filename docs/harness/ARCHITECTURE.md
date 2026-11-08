@@ -65,7 +65,7 @@ models ← errors ← identity ← cache
 **规则**：
 
 | 禁止 | 原因 |
-|---|---|
+| --- | --- |
 | `sources` import `client` | 源不该知道编排逻辑 |
 | `models` import 任何上层 | 模型必须是最底层 |
 | `identity` 发起网络请求 | 解析必须是纯函数 |
@@ -148,7 +148,7 @@ client.iter_instruments(STOCK, CN)
 ## 5. 四个实现层面的坑
 
 | 坑 | 位置 | 后果 |
-|---|---|---|
+| --- | --- | --- |
 | 东财价格是小数字放大 | `eastmoney._to_quote` | 用错小数位，ETF 差 10 倍 |
 | 东财涨跌幅单位固定 0.01% | `_PCT_DIVISOR` | 按 `10^f1` 缩放，美股错 10 倍 |
 | 东财 K 线是 O-C-H-L | `_to_bar` | high/low 互换，不报错 |
@@ -175,7 +175,7 @@ v1|nav|CN:FUND:166002
 ## 7. 文件规模现状
 
 | 文件 | 行数 | 说明 |
-|---|---|---|
+| --- | --- | --- |
 | `client/__init__.py` | 1028 | 11 个公开方法 + 编排，20% 是 docstring |
 | `sources/tiantian.py` | 603 | 净值、列表、持仓、画像、配置 |
 | `cli.py` | 298 | 5 个命令 |
@@ -187,14 +187,14 @@ v1|nav|CN:FUND:166002
 **不设行数上限。** 拆分只看一个标准：**拆出来的东西有没有自己的名字和职责**。
 
 | 拆开 | 理由 |
-|---|---|
+| --- | --- |
 | `client/fetch.py` | 缓存三态 + 单飞 + 降级是**可独立测试的机制**，不属于公开 API |
 | `benchmark.py` / `indexes.py` / `estimate.py` | 纯函数，无状态，可离线测试 |
 | `sources/eastmoney/*` | 三个端点族各有载荷怪癖，解析层可共用 |
 | `candidates()` 在 `routing.py` | 它决定"试哪些源"，属于路由 |
 
 | 不拆 | 理由 |
-|---|---|
+| --- | --- |
 | `client/__init__.py` | `MarketData` 是唯一的公开入口，拆开会让读者跳多个文件 |
 | `sources/tiantian.py` | 五个方法都打同一个域名、同一套 GBK/JS 解析习惯 |
 
@@ -228,7 +228,7 @@ tests/
 ## 9. 快速定位
 
 | 我要改… | 去这里 |
-|---|---|
+| --- | --- |
 | 新增数据源 | `sources/` + `sources/routing.py` 登记 |
 | 改代码 → secid 规则 | `identity/rules.py` |
 | 改 TTL / max_stale | `cache/base.py` 的 `_DEFAULT_TTL` / `_DEFAULT_MAX_STALE` |
