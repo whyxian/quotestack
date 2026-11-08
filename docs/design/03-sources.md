@@ -3,6 +3,7 @@
 > quotestack 设计决议 · 第 3 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
 > **实现状态**：✅ 五个源全部接入；OKX / CoinGecko 需代理，尚未实现
+> 能力表与代码由 `tests/test_docs.py` 自动校验，改代码不改文档会让测试失败。
 
 所有结论均来自真实接口探测，复现命令见 [实测证据](11-evidence.md)。
 
@@ -10,14 +11,15 @@
 
 ## 1. 选型结果
 
-| 市场 | 主源 | 兜底 | 能力 |
+按数据源列出各自声明的能力（`SourceMeta.capabilities`）：
+
+| 数据源 | 覆盖市场 | 能力 | 说明 |
 |---|---|---|---|
-| A股 / 场内基金 | 东方财富 | 腾讯 | `QUOTE` `HISTORY` |
-| 美股 | 东方财富 | 腾讯 | `QUOTE` `HISTORY` |
-| 场外基金 | 天天基金 | — | `NAV` `LIST` |
-| 加密 | Binance `data-api.binance.vision` | — | `LIST` |
-| 汇率 | 东财外汇 | — | `FX` |
-| 市场列表 | 东财 / 天天基金 / Binance | — | `LIST` |
+| **东方财富** | A股、场内基金、美股 | `QUOTE` `HISTORY` | 主力源，报价与 K 线 |
+| **腾讯** | A股、场内基金、美股 | `QUOTE` | 实时兜底，补东财缺失的美股 |
+| **天天基金** | 场外基金 | `NAV` `PROFILE` `HOLDINGS` `ESTIMATE` `LIST` | 场外基金的全部能力 |
+| **Binance** | 加密 | `LIST` | 交易对枚举（报价与 K 线待接） |
+| **东财外汇** | 汇率 | `FX` | USD 基准 + 交叉换算 |
 
 **已删除的源**（探测后放弃，不要重加）：
 
@@ -28,6 +30,50 @@
 | Yahoo Finance | 429 限流 |
 | Stooq | JS 挑战，无法直接请求 |
 | CoinGlass | 无 K 线接口 |
+
+---
+
+## 1.1 能力字典
+
+`Capability` 是「调用方想要什么数据」的枚举。它出现在两个地方：
+
+- **`Instrument.capabilities`**——这个标的能取什么
+- **`SourceMeta.capabilities`**——这个源能提供什么
+
+| 能力 | 含义 | 对应库方法 | 数据来自 |
+|---|---|---|---|
+| `RESOLVE` | 代码 → 各源标识 | `resolve()` | 纯规则，**不联网、无源** |
+| `QUOTE` | 实时报价 | `quote()` / `quote_many()` | 东财、腾讯 |
+| `HISTORY` | K 线 / 分钟线 | `history()` | 东财 |
+| `NAV` | 基金每日净值 | `nav()` | 天天基金 |
+| `PROFILE` | 基金画像（类型、基准、经理、规模） | `profile()` | 天天基金 |
+| `HOLDINGS` | 季度前十大持仓 | `holdings()` | 天天基金 |
+| `BENCHMARK` | 业绩基准加权曲线 | `benchmark()` | **客户端合成**：`PROFILE` 的基准 + 各成分指数的 `HISTORY` |
+| `ESTIMATE` | 盘中估算涨跌 | `estimate()` | **客户端合成**：`PROFILE` + `HOLDINGS` + 实时行情 |
+| `FX` | 汇率换算 | `fx()` | 东财外汇 |
+| `LIST` | 全市场标的枚举 | `iter_instruments()` | 东财、天天基金、Binance |
+
+### 两个不在源里的能力
+
+`RESOLVE` 和 `BENCHMARK` **没有任何源声明**，这是设计而非遗漏：
+
+- `RESOLVE` 是纯字符串规则，放在 `identity/`，不该占用网络源
+- `BENCHMARK` 是派生结果——没有哪个源直接提供「加权基准曲线」，它由客户端用
+  `profile.benchmark` 的权重和各成分指数的历史合成
+
+`ESTIMATE` 稍特殊：天天基金声明了它（因为它提供所需的画像与持仓），
+但最终数值仍由客户端计算。
+
+### 不同标的的能力不同
+
+| 标的 | 能力 |
+|---|---|
+| `CN:STOCK:600519` | `QUOTE` `HISTORY` |
+| `CN:FUND:510010`（场内 ETF） | `QUOTE` `HISTORY` `NAV` `PROFILE` `HOLDINGS` `BENCHMARK` `ESTIMATE` |
+| `CN:FUND:022430`（场外联接） | `NAV` `PROFILE` `HOLDINGS` `BENCHMARK` `ESTIMATE`（无行情） |
+| `US:STOCK:AAPL` | `QUOTE` `HISTORY` |
+
+**场内基金既有行情也有净值**，场外基金只有净值——这是两者最本质的区别。
 
 ---
 
