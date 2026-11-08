@@ -533,16 +533,18 @@ class MarketData:
 
     async def _allocation(self, instrument: Instrument) -> Allocation | None:
         source = self._sources.get("tiantian")
-        if source is None:
+        method = getattr(source, "allocation", None)
+        if method is None:
             return None
-        allocation: Allocation | None = await source.allocation(instrument)  # type: ignore[attr-defined]
+        allocation: Allocation | None = await method(instrument)
         return allocation
 
     async def _quotes_by_secid(self, secids: Sequence[str]) -> dict[str, float]:
         source = self._sources.get("eastmoney")
-        if source is None or not secids:
+        method = getattr(source, "quotes_by_secid", None)
+        if method is None or not secids:
             return {}
-        changes: dict[str, float] = await source.quotes_by_secid(list(secids))  # type: ignore[attr-defined]
+        changes: dict[str, float] = await method(list(secids))
         return changes
 
     async def benchmark(
@@ -645,9 +647,10 @@ class MarketData:
 
     async def _resolve_index(self, name: str) -> str | None:
         source = self._sources.get("eastmoney")
-        if source is None:
+        method = getattr(source, "resolve_index", None)
+        if method is None:
             return None
-        secid: str | None = await source.resolve_index(name)  # type: ignore[attr-defined]
+        secid: str | None = await method(name)
         return secid
 
     async def _index_history(
@@ -755,8 +758,11 @@ class MarketData:
                     is_expected=lambda value: isinstance(value, list),
                 )
             except UnavailableError:
-                # A missing year must not fail the whole call; return what we
-                # already have.
+                # A single missing year must not fail the call, but a failure
+                # before anything was collected means no source is serving this
+                # instrument at all, which the caller needs to see.
+                if not collected:
+                    raise
                 break
 
             batch = cast("list[QuarterHoldings]", quarters)
@@ -825,9 +831,10 @@ class MarketData:
             UpstreamError: The source failed.
         """
         source = self._sources.get("fx")
-        if source is None:
+        method = getattr(source, "fx", None)
+        if method is None:
             raise UnsupportedError("no FX source configured", base=base, quote=quote)
-        rate: FxRate = await source.fx(base, quote)  # type: ignore[attr-defined]
+        rate: FxRate = await method(base, quote)
         return rate
 
     async def iter_instruments(

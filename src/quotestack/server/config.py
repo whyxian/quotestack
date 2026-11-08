@@ -157,7 +157,8 @@ def _as_str(name: str, value: object) -> str:
 
 
 def _as_port(value: object) -> int:
-    if not isinstance(value, (int, str)):
+    # bool is a subclass of int, so `port = true` would otherwise become 1.
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
         raise ConfigError("server.port must be an integer")
     try:
         port = int(value)

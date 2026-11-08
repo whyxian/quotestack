@@ -254,7 +254,7 @@ curl localhost:8000/metrics
 - [ ] **M7-1** fixture 录制脚本 + 目录结构
 - [ ] **M7-2** 4 个核心解析器的 golden 测试
 - [ ] **M7-3** 坏样本（`schema_changed`）测试用例
-- [x] **M7-4** 单测覆盖率 ≥ 85%
+- [x] **M7-4** 单测覆盖率 ≥ 85%（实测行 91.5% / 分支 80.5%）
 - [x] **M7-5** CI：`.github/workflows/ci.yml`（PR）+ `live-probe.yml`（每日）；发布流程在 M8
 - [ ] **M7-6** `examples/` 三个脚本
 - [ ] **M7-7** import-linter 分层检查

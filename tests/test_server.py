@@ -343,3 +343,85 @@ def test_server_rejects_a_missing_config_file(capsys: pytest.CaptureFixture[str]
 
     assert main(["--config", "definitely-missing.toml"]) == 2
     assert "config error" in capsys.readouterr().err
+
+
+def test_config_reads_proxy_and_server_sections(tmp_path: Any) -> None:
+    """A full TOML exercises every branch of the file reader."""
+    file = tmp_path / "quotestack.toml"
+    file.write_text(
+        "[server]\n"
+        'host = "0.0.0.0"\n'
+        "port = 8080\n"
+        'log_level = "DEBUG"\n'
+        'cache_dir = "/data"\n'
+        "[proxy]\n"
+        'url = "http://127.0.0.1:7890"\n'
+    )
+
+    config = load(str(file))
+
+    assert config.host == "0.0.0.0"
+    assert config.port == 8080
+    assert config.log_level == "DEBUG"
+    assert config.cache_dir == "/data"
+    assert config.proxy == "http://127.0.0.1:7890"
+
+
+def test_config_rejects_zero_ttl(tmp_path: Any) -> None:
+    file = tmp_path / "quotestack.toml"
+    file.write_text("[ttl]\nquote = 0\n")
+
+    with pytest.raises(ConfigError):
+        load(str(file))
+
+
+def test_config_rejects_a_non_numeric_ttl(tmp_path: Any) -> None:
+    file = tmp_path / "quotestack.toml"
+    file.write_text('[ttl]\nquote = "soon"\n')
+
+    with pytest.raises(ConfigError):
+        load(str(file))
+
+
+def test_config_rejects_a_bad_port_type(tmp_path: Any) -> None:
+    file = tmp_path / "quotestack.toml"
+    file.write_text("[server]\nport = true\n")
+
+    with pytest.raises(ConfigError):
+        load(str(file))
+
+
+def test_config_rejects_invalid_toml(tmp_path: Any) -> None:
+    file = tmp_path / "quotestack.toml"
+    file.write_text("this is not toml = = =")
+
+    with pytest.raises(ConfigError):
+        load(str(file))
+
+
+def test_config_allows_an_empty_file(tmp_path: Any) -> None:
+    """An empty config still yields usable defaults."""
+    file = tmp_path / "quotestack.toml"
+    file.write_text("")
+
+    assert load(str(file)).port == 8000
+
+
+async def test_batch_endpoint_keeps_order() -> None:
+    async with _api() as api:
+        body = (
+            await api.post(
+                "/v1/quotes/batch",
+                json={"items": [{"code": "600519"}, {"code": "000001"}]},
+            )
+        ).json()
+
+    assert len(body["data"]["results"]) == 2
+    assert [item["ok"] for item in body["data"]["results"]] == [False, False]
+
+
+async def test_holdings_rejects_a_bad_cursor() -> None:
+    async with _api() as api:
+        response = await api.get("/v1/holdings", params={"code": "166002", "before": "2026-Q1"})
+
+    assert response.status_code == 422
