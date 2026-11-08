@@ -138,6 +138,78 @@ def check_stale_numbers() -> list[str]:
     return problems
 
 
+# Which milestone delivers each design page. A page cannot claim it is not
+# started once the milestone that implements it is fully checked off; the
+# status column mirrors the page, so both would agree on something untrue.
+PAGE_MILESTONES = {
+    "02-identity.md": ("M1",),
+    "03-sources.md": ("M2", "M3"),
+    "04-cache.md": ("M1", "M2"),
+    "05-api.md": ("M1", "M6"),
+    "06-errors.md": ("M1", "M6"),
+    "07-funds.md": ("M4", "M5"),
+    "08-adapters.md": ("M2", "M3"),
+    "09-deployment.md": ("M6",),
+    "10-open-source.md": ("M8",),
+    "12-observability.md": ("M6",),
+    "13-runtime-model.md": ("M2", "M6"),
+    "14-testing.md": ("M7",),
+    "15-code-style.md": ("M0",),
+}
+
+
+def _milestone_completion() -> dict[str, int]:
+    """Count unfinished items per milestone."""
+    text = (ROOT / "docs/ROADMAP.md").read_text(encoding="utf-8")
+    remaining = {}
+    for match in re.finditer(r"^## (M[\d.]+)\b(.*?)(?=^## |\Z)", text, re.M | re.S):
+        remaining[match.group(1)] = len(re.findall(r"^- \[ \]", match.group(2), re.M))
+    return remaining
+
+
+def check_status_against_roadmap() -> list[str]:
+    """A page cannot be 'not started' if its milestone is done."""
+    remaining = _milestone_completion()
+    problems = []
+    for name, milestones in PAGE_MILESTONES.items():
+        page = ROOT / "docs" / "design" / name
+        if not page.exists():
+            problems.append(f"docs/design/{name}: listed but missing")
+            continue
+        status = re.search(r"^> \*\*实现状态\*\*：(.+)$", page.read_text(encoding="utf-8"), re.M)
+        if status is None:
+            problems.append(f"docs/design/{name}: no status line")
+            continue
+        claimed = status.group(1)
+        if "⬜" not in claimed:
+            continue
+        finished = [m for m in milestones if remaining.get(m, 1) == 0]
+        if finished:
+            problems.append(
+                f"docs/design/{name}: says not started, but {'/'.join(finished)} is complete"
+            )
+    return problems
+
+
+def check_code_map_covers_modules() -> list[str]:
+    """Every module must be mentioned somewhere in the code map.
+
+    The map shipped without a server/ chapter: seven files and the entire HTTP
+    layer were absent, and nothing noticed.
+    """
+    code_map = (ROOT / "docs/CODE_MAP_ZH.md").read_text(encoding="utf-8")
+    headings = " ".join(re.findall(r"^#{2,3} (.+)$", code_map, re.M))
+
+    units = set()
+    for path in (ROOT / "src/quotestack").rglob("*.py"):
+        if path.name == "__init__.py":
+            continue
+        relative = path.relative_to(ROOT / "src/quotestack")
+        units.add(relative.parts[0] if len(relative.parts) > 1 else path.stem)
+
+    return [f"CODE_MAP does not mention '{unit}'" for unit in sorted(units) if unit not in headings]
+
+
 def check_guide_is_standalone() -> list[str]:
     """The guide must not link outside itself, or hosting it breaks."""
     problems = []
@@ -164,6 +236,8 @@ def main() -> int:
         "code blocks parse": check_code_blocks,
         "guide is standalone": check_guide_is_standalone,
         "no hand-typed counts": check_stale_numbers,
+        "status matches roadmap": check_status_against_roadmap,
+        "code map covers modules": check_code_map_covers_modules,
     }
 
     failed = False
