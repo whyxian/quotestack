@@ -63,6 +63,12 @@ quotestack-server --dump-openapi     # 重新生成 OpenAPI（改接口后必做
 | 代码规范 | [15-code-style](docs/design/15-code-style.md) |
 | 术语表 | [16-glossary](docs/design/16-glossary.md) |
 
+**用户文档（面向使用者，可独立托管）**
+
+| 主题 | 文件 |
+|---|---|
+| 使用指南（中文，10 篇） | [guide/](guide/README.md) |
+
 **参与开发**
 
 | 主题 | 文件 |

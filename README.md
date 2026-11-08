@@ -82,10 +82,11 @@ The contract is generated from code: [`docs/api/openapi.yaml`](docs/api/openapi.
 
 ## Documentation
 
-**Using it**
+**Using it** — start with the [guide](guide/README.md)（中文，自成一体，可单独托管）
 
 | Topic | File |
 |---|---|
+| 安装、概念、五种用法、错误处理、实战配方 | [guide/](guide/README.md) |
 | API surface and field semantics | [05-api](docs/design/05-api.md) |
 | OpenAPI spec | [docs/api](docs/api/README.md) |
 | Glossary | [16-glossary](docs/design/16-glossary.md) |
