@@ -94,6 +94,7 @@ ignore = [
 "src/quotestack/cli.py" = ["T20"]
 "src/quotestack/server/__main__.py" = ["T20"]  # a server entry point reports to stderr
 "benchmarks/*.py" = ["T20"]  # a CLI exists to print
+"examples/*.py" = ["T20"]    # examples exist to print
 
 [tool.mypy]
 python_version = "3.11"
@@ -117,6 +118,7 @@ exclude_lines = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = ["live: hits real data sources, opt in with QUOTESTACK_LIVE=1"]

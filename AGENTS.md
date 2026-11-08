@@ -13,7 +13,7 @@
 
 ## 2. 当前阶段
 
-**M6 已完成**：库、CLI、HTTP 服务、Docker 均可用。下一步 M7 工程质量。
+**M7 已完成**：库、CLI、HTTP 服务、CI、分层检查全部就位。下一步 M8 开源发布。
 
 进度见 [docs/ROADMAP.md](docs/ROADMAP.md)，每完成一项会勾选。
 

@@ -10,8 +10,8 @@
 ## 当前进度
 
 ```
-阶段：M7 进行中（4/7）→ 剩余 fixture 目录、golden、examples、import-linter
-已完成：11 / 11（累计 69 / 84 项）
+阶段：M7 完成 ✅ → 下一步 M8 开源发布
+已完成：11 / 11（累计 74 / 84 项）
 下一项：M7-1 fixture 目录
 ```
 
@@ -251,13 +251,13 @@ curl localhost:8000/metrics
 
 > 目标：达到可开源的质量门槛。
 
-- [ ] **M7-1** fixture 录制脚本 + 目录结构
-- [ ] **M7-2** 4 个核心解析器的 golden 测试
-- [ ] **M7-3** 坏样本（`schema_changed`）测试用例
+- [x] **M7-1** `tests/fixtures/` 目录 + 加载器 + 录制约定（README）
+- [x] **M7-2** golden 测试（样本驱动的解析断言）
+- [x] **M7-3** 坏样本目录 + `SchemaChanged` 断言
 - [x] **M7-4** 单测覆盖率 ≥ 85%（实测行 91.5% / 分支 80.5%）
 - [x] **M7-5** CI：`.github/workflows/ci.yml`（PR）+ `live-probe.yml`（每日）；发布流程在 M8
-- [ ] **M7-6** `examples/` 三个脚本
-- [ ] **M7-7** import-linter 分层检查
+- [x] **M7-6** `examples/` 三个脚本
+- [x] **M7-7** 分层检查（`tests/test_architecture.py`，AST 实现，不引入新依赖）
 
 **完成标准**
 
