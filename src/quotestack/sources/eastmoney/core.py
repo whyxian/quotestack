@@ -21,7 +21,7 @@ SEARCH_TOKEN = "D43BF722C8E33BDC906FB84D85E326E8"
 
 SOURCE_META = SourceMeta(
     name="eastmoney",
-    capabilities=frozenset({Capability.QUOTE, Capability.HISTORY}),
+    capabilities=frozenset({Capability.QUOTE, Capability.HISTORY, Capability.LIST}),
     markets=frozenset(
         {
             (AssetClass.STOCK, Market.CN),

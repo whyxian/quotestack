@@ -92,3 +92,22 @@ def test_documented_instrument_capabilities_match_the_resolver() -> None:
         expected = {c.value for c in resolve(code, asset_class, market).capabilities}
         documented = set(re.findall(r"`([A-Z]+)`", cells[1]))
         assert documented == expected, f"{identifier} drifted"
+
+
+def test_sources_declare_list_when_they_implement_it() -> None:
+    """A source that can enumerate a market must say so.
+
+    The capability list is what routing and health reporting read, so a source
+    that implements ``list_instruments`` but hides the capability looks, from
+    the outside, like it cannot list anything.
+    """
+    for source in (
+        EastMoneySource(),
+        TencentSource(),
+        TiantianSource(),
+        BinanceSource(),
+        FxSource(),
+    ):
+        implements = hasattr(source, "list_instruments")
+        declares = Capability.LIST in source.meta.capabilities
+        assert implements == declares, f"{source.meta.name} disagrees with itself"
