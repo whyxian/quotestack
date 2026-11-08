@@ -142,7 +142,7 @@ test(estate): cover the missing-alias branch
 |---|---|
 | 能力声明 / 数据源 | `docs/design/03-sources.md`（有测试校验） |
 | HTTP 接口 | 重新生成 `docs/api/openapi.yaml`（有测试校验） |
-| 模块结构 | `docs/harness/ARCHITECTURE.md` + `CODE_MAP_ZH.md` |
+| 模块结构 | `docs/harness/ARCHITECTURE.md`（AI 读）+ `docs/CODE_MAP_ZH.md`（人读） |
 | 测试数量 / 覆盖率 | `docs/design/14-testing.md` |
 | 完成里程碑 | `docs/ROADMAP.md` + 相关篇的「实现状态」 |
 

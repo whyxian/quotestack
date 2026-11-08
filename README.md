@@ -105,7 +105,7 @@ maintains this repository.
 |---|---|
 | Setup, workflow, conventions | [CONTRIBUTING](CONTRIBUTING.md) |
 | Module structure and data flow | [ARCHITECTURE](docs/harness/ARCHITECTURE.md) |
-| Commented code map (中文) | [CODE_MAP_ZH](docs/harness/CODE_MAP_ZH.md) |
+| Commented code map (中文) | [CODE_MAP_ZH](docs/CODE_MAP_ZH.md) |
 | Design decisions and why | [docs/design](docs/design/README.md) |
 | API surface and field semantics | [05-api](docs/design/05-api.md) |
 | Measured evidence behind every claim | [11-evidence](docs/design/11-evidence.md) |

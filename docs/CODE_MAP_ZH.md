@@ -1,5 +1,8 @@
 # 代码导读（中文）
 
+> **这是给人看的文档，不属于 `docs/harness/`。** harness 是 AI 的上下文，
+> 这份是维护者的代码导读。
+>
 > 代码注释是英文的（面向开源社区），这份文档负责让你**不用读注释也能看懂代码**。
 > 每个文件一张表：职责 + 关键成员 + 容易踩的点。
 > 更新于 2026-11-08，对应 M5 完成状态（45 个文件 / 6,000 行）。
@@ -9,9 +12,9 @@
 ## 怎么用这份文档
 
 1. **想知道某文件干什么** → 查对应小节
-2. **想知道某个函数怎么用** → [05-api](../design/05-api.md)
-3. **想知道 HTTP 长什么样** → [openapi.yaml](../api/openapi.yaml)
-4. **想改某处** → 先看这里，再看 [ARCHITECTURE.md](ARCHITECTURE.md) 的依赖方向
+2. **想知道某个函数怎么用** → [05-api](design/05-api.md)
+3. **想知道 HTTP 长什么样** → [openapi.yaml](api/openapi.yaml)
+4. **想改某处** → 先看这里，再看 [ARCHITECTURE.md](harness/ARCHITECTURE.md) 的依赖方向
 
 ---
 

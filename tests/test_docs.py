@@ -223,3 +223,33 @@ def test_sources_listed_in_the_docs_match_the_code() -> None:
     assert "OKX+CoinGecko" not in index, "removed sources still listed as active"
     for name in real:
         assert f"`{name}`" in index
+
+
+def test_harness_documents_are_reachable_from_the_entry_point() -> None:
+    """AGENTS.md is an index; every harness file must be reachable from it."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    entry = (root / "AGENTS.md").read_text(encoding="utf-8")
+    harness = sorted((root / "docs/harness").glob("*.md"))
+
+    assert harness, "no harness documents"
+    for path in harness:
+        if path.name == "README.md":
+            continue
+        assert f"harness/{path.stem}" in entry, f"{path.name} is not linked from AGENTS.md"
+
+
+def test_harness_does_not_hold_human_only_documents() -> None:
+    """harness is AI context; a human code guide belongs elsewhere."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    names = {path.name for path in (root / "docs/harness").glob("*.md")}
+
+    assert "CODE_MAP_ZH.md" not in names, "the Chinese code map is human-facing"
+    assert (root / "docs/CODE_MAP_ZH.md").exists()
+
+
+def test_entry_point_stays_an_index() -> None:
+    """AGENTS.md should point at rules, not restate them."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    lines = len((root / "AGENTS.md").read_text(encoding="utf-8").splitlines())
+
+    assert lines < 130, f"AGENTS.md grew to {lines} lines; move detail into harness/"
