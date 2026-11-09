@@ -109,3 +109,77 @@ def test_bucket_rejects_invalid_configuration() -> None:
         TokenBucket(rate=0)
     with pytest.raises(ValueError, match="capacity"):
         TokenBucket(capacity=0)
+
+
+async def test_every_source_call_takes_a_token() -> None:
+    """Rate limiting must be a property of the client, not of one code path.
+
+    fx(), the listing walk and the estimate pipeline all called a source
+    directly, so a full-market scan or a burst of estimates ignored the bucket
+    that quote() respected - and 514 is the source's answer to exactly that.
+    """
+    from quotestack import AssetClass, Market, MarketData
+    from quotestack.models import Capability
+    from quotestack.resilience import TokenBucket
+    from quotestack.sources.base import SourceMeta
+
+    class Counting(TokenBucket):
+        def __init__(self) -> None:
+            super().__init__(rate=1000.0, capacity=1)
+            self.taken = 0
+
+        async def acquire(self) -> None:
+            self.taken += 1
+            await super().acquire()
+
+    class Source:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.FX, Capability.LIST}),
+            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        )
+
+        async def fx(self, base: str, quote: str) -> object:
+            import datetime as dt
+
+            from quotestack.models import FxRate
+
+            return FxRate(
+                base=base,
+                quote=quote,
+                rate="1",
+                source="fake",
+                as_of=dt.datetime(2026, 11, 10, tzinfo=dt.UTC),
+                derived=False,
+            )
+
+        async def list_instruments(self, *args: object, **kwargs: object) -> object:
+            from quotestack.models import InstrumentSummary
+
+            yield [
+                InstrumentSummary(
+                    code="600519",
+                    name="A",
+                    asset_class=AssetClass.STOCK,
+                    market=Market.CN,
+                    currency="CNY",
+                )
+            ]
+
+        async def aclose(self) -> None:
+            return None
+
+    bucket = Counting()
+    client = MarketData(
+        sources={"eastmoney": Source(), "fx": Source()},
+        bucket=bucket,
+        source_priority={"FX": ["fx"], "LIST": ["eastmoney"]},
+    )
+    try:
+        await client.fx("USD", "CNY")
+        async for _ in client.iter_instruments(AssetClass.STOCK, Market.CN):
+            break
+    finally:
+        await client.aclose()
+
+    assert bucket.taken >= 2, f"only {bucket.taken} tokens taken"

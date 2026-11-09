@@ -94,27 +94,28 @@ class TencentSource:
             instruments: Instruments carrying a ``tencent`` alias.
 
         Returns:
-            One quote per instrument, in the same order.
+            A quote for every instrument the payload covered, in request order.
+            An instrument with no row is omitted rather than failing the batch.
 
         Raises:
-            EmptyResponseError: The source returned no row for an instrument.
+            EmptyResponseError: No instrument in the batch had a row.
             SchemaChangedError: The payload no longer has the expected shape.
             UpstreamError: The request failed.
         """
         codes = [self._code_of(instrument) for instrument in instruments]
         rows = await self._fetch(codes)
 
-        missing = [code for code in codes if code not in rows]
-        if missing:
+        quotes = [
+            self._to_quote(instrument, rows[code])
+            for instrument, code in zip(instruments, codes, strict=True)
+            if code in rows
+        ]
+        if not quotes:
             raise EmptyResponseError(
-                "tencent returned no data for some instruments",
+                "tencent returned no data for any instrument in the batch",
                 source=self.meta.name,
-                missing=missing,
+                missing=[code for code in codes if code not in rows],
             )
-
-        quotes: list[Quote] = []
-        for instrument, code in zip(instruments, codes, strict=True):
-            quotes.append(self._to_quote(instrument, rows[code]))
         return quotes
 
     async def _fetch(self, codes: Sequence[str]) -> dict[str, list[str]]:

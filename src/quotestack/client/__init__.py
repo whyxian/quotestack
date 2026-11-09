@@ -560,6 +560,7 @@ class MarketData:
         method = getattr(source, "allocation", None)
         if method is None:
             return None
+        await self._bucket.acquire()
         allocation: Allocation | None = await method(instrument)
         return allocation
 
@@ -568,6 +569,7 @@ class MarketData:
         method = getattr(source, "quotes_by_secid", None)
         if method is None or not secids:
             return {}
+        await self._bucket.acquire()
         changes: dict[str, float] = await method(list(secids))
         return changes
 
@@ -674,6 +676,7 @@ class MarketData:
         method = getattr(source, "resolve_index", None)
         if method is None:
             return None
+        await self._bucket.acquire()
         secid: str | None = await method(name)
         return secid
 
@@ -858,6 +861,7 @@ class MarketData:
         method = getattr(source, "fx", None)
         if method is None:
             raise UnsupportedError("no FX source configured", base=base, quote=quote)
+        await self._bucket.acquire()
         rate: FxRate = await method(base, quote)
         return rate
 
@@ -933,6 +937,10 @@ class MarketData:
             stream = source.list_instruments(page_size=page_size)  # type: ignore[attr-defined]
 
         async for batch in stream:
+            # The listing walks many pages; each one is a request, so each one
+            # takes a token. Without this a full-market scan ignored the rate
+            # limit the rest of the client respects.
+            await self._bucket.acquire()
             yield batch
 
     def cache_stats(self) -> dict[str, int]:
@@ -983,31 +991,48 @@ class MarketData:
         group: list[tuple[int, Instrument]],
         results: list[QuoteResult | None],
     ) -> None:
-        instruments = [instrument for _, instrument in group]
-        asset_class = instruments[0].asset_class
-        market = instruments[0].market
+        """Fill one market group, letting each source cover what it can.
 
-        for name in self._priority.get(
+        Sources answer with the quotes they found. Anything still missing moves
+        to the next source, so one delisted or suspended code no longer decides
+        the fate of every other instrument in the same call.
+        """
+        remaining = list(group)
+        candidates = self._priority.get(
             Capability.QUOTE.value,
-            route(asset_class, market, Capability.QUOTE),
-        ):
+            route(remaining[0][1].asset_class, remaining[0][1].market, Capability.QUOTE),
+        )
+
+        for name in candidates:
             source = self._sources.get(name)
-            if source is None or self._cooldown.is_cooling(name):
+            if source is None or self._cooldown.is_cooling(name) or not remaining:
                 continue
             await self._bucket.acquire()
             try:
-                quotes = await source.quote(instruments)  # type: ignore[attr-defined]
-            except UpstreamError:
-                self._cooldown.mark_failed(name)
+                quotes = await source.quote(  # type: ignore[attr-defined]
+                    [instrument for _, instrument in remaining]
+                )
+            except UpstreamError as exc:
+                # Only a retryable failure says something about the source.
+                # Cooling it because one instrument had no row took the whole
+                # source down for everything else.
+                if exc.retryable:
+                    self._cooldown.mark_failed(name)
                 continue
 
             self._cooldown.mark_ok(name)
-            for (index, instrument), quote in zip(group, quotes, strict=True):
+            by_id = {quote.instrument_id: quote for quote in quotes}
+            still_missing: list[tuple[int, Instrument]] = []
+            for index, instrument in remaining:
+                quote = by_id.get(instrument.id)
+                if quote is None:
+                    still_missing.append((index, instrument))
+                    continue
                 results[index] = QuoteResult(instrument=instrument, quote=quote)
                 self._cache.set(make_key(Capability.QUOTE, instrument.id), quote, name)
-            return
+            remaining = still_missing
 
-        for index, instrument in group:
+        for index, instrument in remaining:
             results[index] = QuoteResult(
                 instrument=instrument,
                 error=f"UNAVAILABLE: no source served {instrument.id}",

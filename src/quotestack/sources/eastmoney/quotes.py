@@ -77,10 +77,13 @@ class QuotesMixin(CoreMixin):
             instruments: Instruments carrying an ``eastmoney`` alias.
 
         Returns:
-            One quote per instrument, in the same order.
+            A quote for every instrument the payload covered, in request order.
+            An instrument with no row is omitted rather than failing the batch:
+            one delisted or suspended code used to take down every other quote
+            in the same call.
 
         Raises:
-            EmptyResponseError: The source returned no row for an instrument.
+            EmptyResponseError: No instrument in the batch had a row.
             SchemaChangedError: The payload no longer has the expected shape.
             UpstreamError: The request failed.
         """
@@ -97,9 +100,9 @@ class QuotesMixin(CoreMixin):
                 continue
             quotes.append(self._to_quote(instrument, row))
 
-        if missing:
+        if not quotes:
             raise EmptyResponseError(
-                "eastmoney returned no data for some instruments",
+                "eastmoney returned no data for any instrument in the batch",
                 source=self.meta.name,
                 missing=missing,
             )

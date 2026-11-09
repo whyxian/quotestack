@@ -47,7 +47,7 @@ sorted(c.value for c in instrument.capabilities)   # ['HISTORY', 'QUOTE']
 | `CN:STOCK:600519` | 报价、K 线 |
 | `CN:FUND:510010`（场内 ETF） | 报价、K 线、净值、画像、持仓、基准、估值 |
 | `CN:FUND:022430`（场外联接） | 净值、画像、持仓、基准、估值（**没有报价**） |
-| `CN:CRYPTO:BTCUSDT` | 报价、K 线 |
+| `CRYPTO:CRYPTO:BTC` | 只有全市场列表（加密报价与 K 线尚未接入） |
 
 查了不支持的会抛 `UnsupportedError`，**告诉你它能查什么**：
 

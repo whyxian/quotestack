@@ -24,6 +24,11 @@ _CN_OFFEXCHANGE = "offexchange"
 _EM_MARKET_ID = {"sh": "1", "sz": "0", "bj": "0"}
 
 _CAPABILITIES_LISTED = frozenset({Capability.QUOTE, Capability.HISTORY})
+# Crypto can be enumerated but not yet priced: Binance is wired only for the
+# universe listing. Declaring QUOTE/HISTORY here made resolve() promise
+# something no source serves, and the failure surfaced as UNAVAILABLE - which
+# tells the caller to retry a call that can never succeed.
+_CAPABILITIES_CRYPTO = frozenset({Capability.LIST})
 # Every fund publishes NAV, a profile, quarterly holdings and a
 # benchmark; only listed ones also trade intraday.
 _CAPABILITIES_OFFEXCHANGE_FUND = frozenset(
@@ -144,6 +149,20 @@ def _resolve_us(code: str, asset_class: AssetClass) -> Instrument:
     )
 
 
+_QUOTE_SUFFIXES = ("USDT", "USDC", "BUSD", "FDUSD", "TUSD", "BTC", "ETH")
+
+
+def _binance_symbol(upper: str) -> str:
+    """Return the Binance pair for a symbol, without appending twice.
+
+    A caller who passes ``BTCUSDT`` already named the pair; appending another
+    ``USDT`` produced ``BTCUSDTUSDT``, which Binance does not know.
+    """
+    if any(upper.endswith(suffix) and len(upper) > len(suffix) for suffix in _QUOTE_SUFFIXES):
+        return upper
+    return f"{upper}USDT"
+
+
 def _resolve_crypto(code: str, asset_class: AssetClass) -> Instrument:
     upper = code.upper()
     if not upper.isalnum():
@@ -160,8 +179,8 @@ def _resolve_crypto(code: str, asset_class: AssetClass) -> Instrument:
         market=Market.CRYPTO,
         currency=guess_currency(asset_class, Market.CRYPTO),
         confidence=Confidence.INFERRED,
-        aliases={"binance": f"{upper}USDT"},
-        capabilities=_CAPABILITIES_LISTED,
+        aliases={"binance": _binance_symbol(upper)},
+        capabilities=_CAPABILITIES_CRYPTO,
     )
 
 

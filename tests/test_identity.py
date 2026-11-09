@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from quotestack import MarketData
 from quotestack.errors import InvalidArgumentError
 from quotestack.identity import resolve
 from quotestack.models import AssetClass, Capability, Confidence, Market
@@ -108,3 +109,30 @@ def test_resolve_rejects_invalid_input(
     """Malformed codes raise InvalidArgumentError rather than guessing."""
     with pytest.raises(InvalidArgumentError):
         resolve(code, asset_class, market)
+
+
+async def test_crypto_declares_only_what_a_source_can_serve() -> None:
+    """Declaring QUOTE for crypto made resolve() promise an impossibility.
+
+    Nothing routes crypto quotes, so the call failed with UNAVAILABLE, which
+    tells a caller to retry something that can never succeed.
+    """
+    from quotestack.errors import UnsupportedError
+
+    async with MarketData() as client:
+        instrument = client.resolve("BTC", AssetClass.CRYPTO, Market.CRYPTO)
+        assert {c.value for c in instrument.capabilities} == {"LIST"}
+
+        with pytest.raises(UnsupportedError):
+            await client.quote("BTC", AssetClass.CRYPTO, Market.CRYPTO)
+
+
+async def test_crypto_symbol_is_not_suffixed_twice() -> None:
+    """BTCUSDT already names the pair; appending another USDT breaks the alias."""
+    async with MarketData() as client:
+        for symbol in ("BTC", "BTCUSDT", "ETHBTC"):
+            instrument = client.resolve(symbol, AssetClass.CRYPTO, Market.CRYPTO)
+            assert instrument.aliases["binance"] in {"BTCUSDT", "ETHBTC"}
+        assert client.resolve("BTC", AssetClass.CRYPTO, Market.CRYPTO).aliases["binance"] == (
+            "BTCUSDT"
+        )
