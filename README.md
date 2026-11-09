@@ -68,7 +68,7 @@ async for batch in client.iter_instruments(AssetClass.STOCK, Market.CN):
 
 Five sources back this: Eastmoney (primary), Tencent (realtime fallback),
 Tiantian Fund (open-end funds), Binance Vision (crypto), Eastmoney FX (rates).
-Routing and fallback are automatic; see [03-sources](docs/design/03-sources.md).
+Routing and fallback are automatic; see [03-sources](https://github.com/whyxian/quotestack/blob/main/docs/design/03-sources.md).
 
 ## Run as a service
 
@@ -78,7 +78,7 @@ curl 'http://127.0.0.1:8000/v1/quote?code=600519'
 ```
 
 Twelve endpoints, unified `{data, error}` envelope, Prometheus metrics at `/metrics`.
-The contract is generated from code: [`docs/api/openapi.yaml`](docs/api/openapi.yaml).
+The contract is generated from code: [`docs/api/openapi.yaml`](https://github.com/whyxian/quotestack/blob/main/docs/api/openapi.yaml).
 
 ## Documentation
 
@@ -86,14 +86,14 @@ Two separate bodies of documentation, for two different readers.
 
 ### If you want to use it
 
-Start at the [**guide**](guide/README.md) — 中文，十篇，自成一体，可单独托管。
+Start at the [**guide**](https://github.com/whyxian/quotestack/blob/main/guide/README.md) — 中文，十篇，自成一体，可单独托管。
 It never links back into this repository, so it works as a standalone site.
 
 | Topic | File |
 |---|---|
-| 安装、概念、行情、基金、估值、服务、错误、配方 | [guide/](guide/README.md) |
-| Runnable examples | [examples/](examples/) |
-| OpenAPI spec | [docs/api](docs/api/README.md) |
+| 安装、概念、行情、基金、估值、服务、错误、配方 | [guide/](https://github.com/whyxian/quotestack/blob/main/guide/README.md) |
+| Runnable examples | [examples/](https://github.com/whyxian/quotestack/tree/main/examples) |
+| OpenAPI spec | [docs/api](https://github.com/whyxian/quotestack/blob/main/docs/api/README.md) |
 
 ### If you want to change it
 
@@ -103,16 +103,16 @@ maintains this repository.
 
 | Topic | File |
 |---|---|
-| Setup, workflow, conventions | [CONTRIBUTING](CONTRIBUTING.md) |
-| Module structure and data flow | [ARCHITECTURE](docs/harness/ARCHITECTURE.md) |
-| Commented code map (中文) | [CODE_MAP_ZH](docs/CODE_MAP_ZH.md) |
-| Design decisions and why | [docs/design](docs/design/README.md) |
-| API surface and field semantics | [05-api](docs/design/05-api.md) |
-| Measured evidence behind every claim | [11-evidence](docs/design/11-evidence.md) |
+| Setup, workflow, conventions | [CONTRIBUTING](https://github.com/whyxian/quotestack/blob/main/CONTRIBUTING.md) |
+| Module structure and data flow | [ARCHITECTURE](https://github.com/whyxian/quotestack/blob/main/docs/harness/ARCHITECTURE.md) |
+| Commented code map (中文) | [CODE_MAP_ZH](https://github.com/whyxian/quotestack/blob/main/docs/CODE_MAP_ZH.md) |
+| Design decisions and why | [docs/design](https://github.com/whyxian/quotestack/blob/main/docs/design/README.md) |
+| API surface and field semantics | [05-api](https://github.com/whyxian/quotestack/blob/main/docs/design/05-api.md) |
+| Measured evidence behind every claim | [11-evidence](https://github.com/whyxian/quotestack/blob/main/docs/design/11-evidence.md) |
 
 ## Project status
 
-Built in milestones, tracked in [docs/ROADMAP.md](docs/ROADMAP.md):
+Built in milestones, tracked in [docs/ROADMAP.md](https://github.com/whyxian/quotestack/blob/main/docs/ROADMAP.md):
 
 ```
 M0 scaffold    M1 MVP        M2 resilience   M3 multi-source
@@ -121,7 +121,7 @@ M8 release     M9 integration
 ```
 
 Estimate accuracy is not a claim, it is measured — see
-[11-evidence](docs/design/11-evidence.md#46-估值回测m5-6): correlation 0.958 and
+[11-evidence](https://github.com/whyxian/quotestack/blob/main/docs/design/11-evidence.md#46-估值回测m5-6): correlation 0.958 and
 mean absolute error 0.41pp on an active fund, 0.02pp on an ETF feeder.
 
 ## License

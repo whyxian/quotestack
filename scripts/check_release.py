@@ -85,6 +85,24 @@ def check_version() -> list[str]:
     return problems
 
 
+def check_readme_links_are_absolute() -> list[str]:
+    """The README becomes the PyPI project page, where relative links die.
+
+    PyPI renders the long description as-is and does not resolve repository
+    paths, so every relative link on it becomes a 404 for someone arriving from
+    the package index.
+    """
+    import re
+
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    problems = []
+    for target in re.findall(r"\]\(([^)]+)\)", text):
+        if target.startswith(("http://", "https://", "#", "mailto:")):
+            continue
+        problems.append(f"README links to '{target}', which PyPI cannot resolve")
+    return problems
+
+
 def check_placeholders() -> list[str]:
     """Unresolved placeholders must not reach a release.
 
@@ -140,6 +158,7 @@ def main() -> int:
         "version": check_version,
         "placeholders": check_placeholders,
         "url consistency": check_urls_agree,
+        "readme links": check_readme_links_are_absolute,
         "required files": check_required_files,
     }
 

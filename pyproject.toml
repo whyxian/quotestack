@@ -8,7 +8,8 @@ version = "0.1.0"
 description = "Multi-source market data adapter for A-shares, US stocks, mutual funds and crypto."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "whyxian" }]
 keywords = ["market-data", "stock", "fund", "crypto", "finance", "a-share"]
 classifiers = [
@@ -27,9 +28,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-browser = ["playwright>=1.40"]
 server = ["fastapi>=0.115", "uvicorn>=0.30", "prometheus-client>=0.20"]
-cache = ["aiosqlite>=0.20"]
 dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.24",
@@ -47,13 +46,22 @@ quotestack = "quotestack.cli:main"
 quotestack-server = "quotestack.server.__main__:main"
 
 [project.urls]
+Homepage = "https://github.com/whyxian/quotestack#readme"
 Repository = "https://github.com/whyxian/quotestack"
+Issues = "https://github.com/whyxian/quotestack/issues"
+Changelog = "https://github.com/whyxian/quotestack/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/whyxian/quotestack/blob/main/guide/README.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/quotestack"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/quotestack", "tests", "README.md", "LICENSE"]
+# hatchling force-includes every file named README.md, which dragged the index
+# pages in on their own: their links all point at siblings that are not in the
+# archive, so a reader got four broken tables of contents. The docs live on
+# GitHub; a source archive is for building.
+exclude = ["/docs", "/guide"]
 
 [tool.ruff]
 line-length = 100
