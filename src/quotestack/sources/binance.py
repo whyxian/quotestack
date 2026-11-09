@@ -14,6 +14,7 @@ import httpx
 from quotestack.errors import SchemaChangedError, UpstreamError
 from quotestack.models import AssetClass, Capability, InstrumentSummary, Market
 from quotestack.sources.base import SourceMeta
+from quotestack.sources.transport import send
 
 __all__ = ["BinanceSource"]
 
@@ -79,7 +80,7 @@ class BinanceSource:
                 yield chunk
 
     async def _fetch_symbols(self) -> list[dict[str, object]]:
-        response = await self._client.get(_EXCHANGE_INFO)
+        response = await send(self._client, "GET", _EXCHANGE_INFO, source=self.meta.name)
         if response.status_code >= 400:
             raise UpstreamError(
                 f"binance responded with {response.status_code}",

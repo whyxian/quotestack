@@ -21,6 +21,7 @@ import httpx
 from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
 from quotestack.models import AssetClass, Capability, Instrument, Market, Quote
 from quotestack.sources.base import SourceMeta
+from quotestack.sources.transport import send
 
 __all__ = ["TencentSource"]
 
@@ -117,7 +118,9 @@ class TencentSource:
         return quotes
 
     async def _fetch(self, codes: Sequence[str]) -> dict[str, list[str]]:
-        response = await self._client.get(_QUOTE_URL + ",".join(codes))
+        response = await send(
+            self._client, "GET", _QUOTE_URL + ",".join(codes), source=self.meta.name
+        )
         if response.status_code >= 400:
             raise UpstreamError(
                 f"tencent responded with {response.status_code}",

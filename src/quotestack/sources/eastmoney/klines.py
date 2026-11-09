@@ -8,6 +8,7 @@ from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamEr
 from quotestack.models import Adjust, AssetClass, Bar, Capability, Instrument, Interval, Market
 from quotestack.sources.eastmoney.core import SOURCE_META, CoreMixin
 from quotestack.sources.eastmoney.parsing import _to_bar
+from quotestack.sources.transport import send
 
 __all__ = ["HISTORY_FIELDS1", "HISTORY_FIELDS2", "HISTORY_URL", "KlinesMixin"]
 
@@ -67,8 +68,11 @@ class KlinesMixin(CoreMixin):
             SchemaChangedError: The payload no longer has the expected shape.
             UpstreamError: The request failed.
         """
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             HISTORY_URL,
+            source=self.meta.name,
             params={
                 "secid": await self._secid_for(instrument),
                 "fields1": HISTORY_FIELDS1,
@@ -150,8 +154,11 @@ class KlinesMixin(CoreMixin):
             UpstreamError: The request failed.
             SchemaChangedError: The payload lost its shape.
         """
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             HISTORY_URL,
+            source=self.meta.name,
             params={
                 "secid": secid,
                 "fields1": HISTORY_FIELDS1,

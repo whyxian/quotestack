@@ -13,6 +13,7 @@ from quotestack.errors import (
 from quotestack.indexes import KNOWN_INDEXES, candidate_names
 from quotestack.models import AssetClass, Capability, Instrument, Market
 from quotestack.sources.base import SourceMeta
+from quotestack.sources.transport import send
 
 __all__ = ["SEARCH_TOKEN", "SEARCH_URL", "SOURCE_META", "CoreMixin"]
 
@@ -86,8 +87,11 @@ class CoreMixin:
                 return known
         cleaned = names[-1]
 
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             SEARCH_URL,
+            source=self.meta.name,
             params={"input": cleaned, "type": "14", "token": SEARCH_TOKEN, "count": "10"},
         )
         if response.status_code >= 400:
@@ -142,8 +146,11 @@ class CoreMixin:
 
     async def _search_us(self, instrument: Instrument) -> str:
         """Resolve a US ticker to a secid via the search endpoint."""
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             SEARCH_URL,
+            source=self.meta.name,
             params={
                 "input": instrument.code,
                 "type": "14",

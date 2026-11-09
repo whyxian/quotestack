@@ -19,6 +19,7 @@ import httpx
 from quotestack.errors import SchemaChangedError, UnsupportedError, UpstreamError
 from quotestack.models import Capability, FxRate
 from quotestack.sources.base import SourceMeta
+from quotestack.sources.transport import send
 
 __all__ = ["FxSource"]
 
@@ -120,8 +121,11 @@ class FxSource:
         )
 
     async def _fetch_pairs(self) -> dict[str, Decimal]:
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             _URL,
+            source=self.meta.name,
             params={"secids": ",".join(_SECIDS.values()), "fields": "f1,f2,f12,f14"},
         )
         if response.status_code >= 400:

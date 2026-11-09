@@ -1,7 +1,12 @@
 name: live probe
 
-# Fixtures are snapshots: if a source changes shape they still pass. Only a
-# real request notices, so this runs on a schedule instead of on every push.
+# Fixtures are snapshots: if a source changes shape they still pass. Only a real
+# request notices, so this runs on a schedule instead of on every push.
+#
+# Runners are hosted outside mainland China, and the sources this library
+# targets may refuse or never answer a datacenter IP. The tests therefore skip
+# on transport failures and fail only on structural ones: a probe that goes red
+# because of where it runs teaches people to ignore it.
 on:
   schedule:
     # 01:00 UTC, which is 09:00 in Shanghai.
@@ -17,7 +22,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --extra dev --extra server
-      - name: Probe every source
+      - name: Probe the parsing of live payloads
         env:
           QUOTESTACK_LIVE: "1"
         run: uv run pytest tests/test_smoke.py -q

@@ -8,6 +8,7 @@ from quotestack.errors import SchemaChangedError, UnsupportedError, UpstreamErro
 from quotestack.models import AssetClass, InstrumentSummary, Market
 from quotestack.sources.eastmoney.core import SOURCE_META, CoreMixin
 from quotestack.sources.eastmoney.parsing import _as_date, _board_of, _has_price
+from quotestack.sources.transport import send
 
 __all__ = ["LIST_FIELDS", "LIST_FILTERS", "LIST_URL", "MAX_PAGE", "ListingsMixin"]
 
@@ -92,8 +93,11 @@ class ListingsMixin(CoreMixin):
         page: int,
         page_size: int,
     ) -> tuple[list[dict[str, object]], int | None]:
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             LIST_URL,
+            source=self.meta.name,
             params={
                 "pn": str(page),
                 "pz": str(page_size),

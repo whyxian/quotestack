@@ -43,6 +43,7 @@ from quotestack.models import (
     QuarterHoldings,
 )
 from quotestack.sources.base import SourceMeta
+from quotestack.sources.transport import send
 
 __all__ = ["TiantianSource"]
 
@@ -129,8 +130,11 @@ class TiantianSource:
                 instrument=instrument.id,
             )
 
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             _PROFILE_URL.format(code=code),
+            source=self.meta.name,
             headers={
                 "User-Agent": "Mozilla/5.0",
                 "Referer": f"https://fundf10.eastmoney.com/ccmx_{code}.html",
@@ -240,8 +244,11 @@ class TiantianSource:
                 instrument=instrument.id,
             )
 
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             _HOLDINGS_URL,
+            source=self.meta.name,
             params={"type": "jjcc", "code": code, "topline": "10", "year": str(year)},
             headers={
                 "User-Agent": "Mozilla/5.0",
@@ -344,8 +351,11 @@ class TiantianSource:
                 instrument=instrument.id,
             )
 
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             _URL.format(code=code),
+            source=self.meta.name,
             headers={"User-Agent": "Mozilla/5.0"},
         )
         if response.status_code >= 400:
@@ -385,8 +395,11 @@ class TiantianSource:
             SchemaChangedError: The list payload lost its shape.
             UpstreamError: The request failed.
         """
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             _LIST_URL,
+            source=self.meta.name,
             headers={"User-Agent": "Mozilla/5.0"},
         )
         if response.status_code >= 400:
@@ -474,8 +487,11 @@ class TiantianSource:
                 instrument=instrument.id,
             )
 
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             _URL.format(code=code),
+            source=self.meta.name,
             headers={"User-Agent": "Mozilla/5.0"},
         )
         if response.status_code >= 400:

@@ -200,13 +200,13 @@ M4/M5 新增的 `profile` / `holdings` / `benchmark` / `estimate`。若继续增
 | 文件 | 行数 |
 |---|---|
 | `quotestack/client/__init__.py` | 1044 |
-| `quotestack/sources/tiantian.py` | 618 |
+| `quotestack/sources/tiantian.py` | 634 |
 | `quotestack/server/app.py` | 601 |
 | `quotestack/server/schemas.py` | 312 |
 | `quotestack/cli.py` | 298 |
-| 其余 47 个文件 | < 263 |
+| 其余 48 个文件 | < 263 |
 
-**合计**：7,464 行 / 52 文件。
+**合计**：7,571 行 / 53 文件。
 
 <!-- generated:end -->
 

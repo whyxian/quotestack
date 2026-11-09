@@ -14,6 +14,7 @@ from quotestack.sources.eastmoney.parsing import (
     _as_timestamp,
     _scaled,
 )
+from quotestack.sources.transport import send
 
 __all__ = ["MAX_BATCH", "QUOTE_FIELDS", "QUOTE_URL", "QuotesMixin"]
 
@@ -35,8 +36,11 @@ class QuotesMixin(CoreMixin):
         return rows
 
     async def _fetch_chunk(self, secids: Sequence[str]) -> list[dict[str, object]]:
-        response = await self._client.get(
+        response = await send(
+            self._client,
+            "GET",
             QUOTE_URL,
+            source=self.meta.name,
             params={"secids": ",".join(secids), "fields": QUOTE_FIELDS},
         )
         if response.status_code >= 400:
