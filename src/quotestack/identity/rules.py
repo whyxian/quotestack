@@ -43,7 +43,7 @@ def cn_exchange(code: str) -> str:
         Exchange short name.
 
     Raises:
-        ValueError: The code does not match any known exchange prefix.
+        InvalidArgumentError: The code does not match any known exchange prefix.
     """
     # 92x must be checked before the broader single-digit 9 prefix.
     if code.startswith("92"):

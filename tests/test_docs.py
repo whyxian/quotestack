@@ -350,3 +350,28 @@ def test_documentation_fragments_and_links() -> None:
     )
 
     assert result.returncode == 0, f"documentation checks failed:\n{result.stdout}"
+
+
+def test_guide_does_not_promise_crypto_quotes() -> None:
+    """The guide said crypto has quotes; no route or source serves them."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    concepts = (root / "guide/02-concepts.md").read_text(encoding="utf-8")
+
+    assert "只有全市场列表" in concepts
+    # The stock row may say "报价、K 线"; the crypto row must not.
+    crypto_rows = [line for line in concepts.splitlines() if "CRYPTO:" in line]
+    assert crypto_rows
+    assert not any("报价、K 线" in line for line in crypto_rows)
+
+
+def test_guide_rate_limit_matches_the_configured_bucket() -> None:
+    """A claim about throughput has to agree with the limiter we ship."""
+    from quotestack.resilience import TokenBucket
+
+    bucket = TokenBucket()
+    root = pathlib.Path(__file__).resolve().parents[1]
+    universe = (root / "guide/06-universe.md").read_text(encoding="utf-8")
+
+    assert f"{bucket._rate:g} 次/秒" in universe, (
+        f"guide states a rate that is not the bucket's {bucket._rate:g}/s"
+    )
