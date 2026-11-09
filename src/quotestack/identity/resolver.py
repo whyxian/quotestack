@@ -6,6 +6,8 @@ Rule-based only: no network calls. Cases that require a search request
 
 from __future__ import annotations
 
+import re
+
 from quotestack.errors import InvalidArgumentError
 from quotestack.identity.rules import classify_cn_fund, cn_exchange, guess_currency
 from quotestack.models import (
@@ -126,11 +128,17 @@ def _resolve_listed(code: str, asset_class: AssetClass) -> Instrument:
     )
 
 
+# US tickers are mostly letters, but share classes carry a separator:
+# BRK.B, BF.B, and some preferreds use a dash. Rejecting those turned a valid
+# ticker into "invalid argument", which reads like a caller mistake.
+_US_TICKER = re.compile(r"^[A-Z]{1,6}(?:[.-][A-Z]{1,2})?$")
+
+
 def _resolve_us(code: str, asset_class: AssetClass) -> Instrument:
     upper = code.upper()
-    if not upper.isalpha():
+    if not _US_TICKER.match(upper):
         raise InvalidArgumentError(
-            "US tickers must be alphabetic",
+            "US tickers are 1-6 letters, optionally with a class suffix",
             code=code,
             market=Market.US.value,
         )

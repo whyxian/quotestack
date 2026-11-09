@@ -155,3 +155,14 @@ def test_status_is_derived_from_the_observation_time() -> None:
     assert status_for(now - timedelta(minutes=4), now=now) is QuoteStatus.REALTIME
     assert status_for(now - timedelta(minutes=6), now=now) is QuoteStatus.HISTORICAL
     assert status_for(now - timedelta(days=90), now=now) is QuoteStatus.HISTORICAL
+
+
+def test_us_tickers_with_a_class_suffix_are_valid() -> None:
+    """BRK.B and BF-B are real tickers; isalpha() rejected them."""
+    for symbol in ("AAPL", "BRK.B", "BF-B", "bf.b"):
+        instrument = resolve(symbol, AssetClass.STOCK, Market.US)
+        assert instrument.code == symbol.upper()
+
+    for bad in ("TOOLONGNAME", "AA BB", ""):
+        with pytest.raises(InvalidArgumentError):
+            resolve(bad, AssetClass.STOCK, Market.US)

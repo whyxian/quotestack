@@ -12,18 +12,12 @@ from fastapi import FastAPI
 from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 
-__all__ = ["EVENT_COUNTER", "REQUEST_COUNTER", "install"]
+__all__ = ["EVENT_COUNTER", "install"]
 
 EVENT_COUNTER = Counter(
     "quotestack_events_total",
     "Library events by name and level",
     labelnames=("event", "level"),
-)
-
-REQUEST_COUNTER = Counter(
-    "quotestack_requests_total",
-    "HTTP requests by route and status",
-    labelnames=("route", "status"),
 )
 
 

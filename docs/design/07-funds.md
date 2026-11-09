@@ -177,7 +177,6 @@ profile.fund_type 以「货币型」开头
   "change_pct": null,
   "basis": "none",
   "reason": "input_stale",
-  "stale_inputs": ["profile(age=8d)"],
   "explanation": "基金画像已 8 天未更新，超过 7 天上限，估值不可用"
 }
 ```

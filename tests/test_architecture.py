@@ -59,7 +59,7 @@ _RULES: dict[str, set[str]] = {
     },
     "server": {"models", "errors", "client", "logging", "server"},
     "cli": {"models", "errors", "client", "cli"},
-    "sync": {"models", "errors", "client", "sync"},
+    "sync": {"models", "errors", "client", "logging", "sync"},
     # The package root re-exports the public surface, so it may reach into
     # the client; it must not reach into sources or the server.
     "__init__": {"models", "errors", "client", "__init__"},

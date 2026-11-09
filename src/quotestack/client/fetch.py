@@ -66,10 +66,22 @@ class FetchPolicy:
         self._bucket = bucket
         self._inflight: dict[str, asyncio.Task[object]] = {}
 
-    def cancel_inflight(self) -> None:
-        """Cancel every in-flight fetch."""
-        for task in self._inflight.values():
+    async def cancel_inflight(self) -> None:
+        """Cancel every in-flight fetch and wait for it to stop.
+
+        ``Task.cancel()`` only schedules the cancellation; returning straight
+        away let the caller close the HTTP client while a request was still
+        unwinding, and left the cancelled tasks' exceptions unretrieved. Both
+        show up as noise during shutdown, not as a clean exit.
+        """
+        tasks = list(self._inflight.values())
+        for task in tasks:
             task.cancel()
+        if tasks:
+            # return_exceptions swallows CancelledError and any error the task
+            # raised, which also marks them retrieved.
+            await asyncio.gather(*tasks, return_exceptions=True)
+        self._inflight.clear()
         self._inflight.clear()
 
     async def get(

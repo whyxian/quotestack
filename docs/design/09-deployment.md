@@ -53,7 +53,6 @@ uv run quotestack-server --host 127.0.0.1 --port 8000
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    QUOTESTACK_CACHE_DIR=/data \
     QUOTESTACK_PORT=8000
 
 WORKDIR /app
@@ -83,7 +82,6 @@ docker build -t quotestack:0.1.0 .
 docker run -d \
   --name quotestack \
   -p 8000:8000 \
-  -v quotestack-cache:/data \
   --restart unless-stopped \
   quotestack:0.1.0
 ```
@@ -91,7 +89,6 @@ docker run -d \
 | 参数 | 作用 |
 |---|---|
 | `-p 8000:8000` | 暴露 HTTP 端口 |
-| `-v quotestack-cache:/data` | 缓存持久化，容器重建不丢 |
 | `--restart unless-stopped` | 宿主重启后自动拉起 |
 
 #### 联网与代理
@@ -133,10 +130,11 @@ docker logs quotestack 2>&1 | grep '"event":"schema_changed"'
 ```bash
 docker build -t quotestack:0.2.0 .
 docker rm -f quotestack
-docker run -d --name quotestack -p 8000:8000 -v quotestack-cache:/data quotestack:0.2.0
+docker run -d --name quotestack -p 8000:8000 quotestack:0.1.0
 ```
 
-缓存在命名卷里，升级不丢。回滚同理，用旧 tag 重跑即可。
+回滚用旧 tag 重跑即可。**注意缓存是进程内的**：容器重建后从冷启动开始，
+第一次请求会全部回源。
 
 ---
 

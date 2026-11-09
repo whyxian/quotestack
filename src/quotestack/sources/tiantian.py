@@ -17,6 +17,7 @@ import json
 import re
 from collections.abc import AsyncIterator
 from datetime import datetime
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -179,13 +180,19 @@ class TiantianSource:
         scale, as_of = _split_scale(labels.get("净资产规模", ""))
         inception, _ = _split_date(labels.get("成立日期/规模", ""))
 
+        company = self._value(labels.get("基金管理人"))
+        manager = self._value(labels.get("基金经理人"))
+        custodian = self._value(labels.get("基金托管人"))
+        # Every field that can be absent belongs in this list. `company` was
+        # omitted, so a profile with no 基金管理人 still reported partial=False.
         missing = tuple(
             field
             for field, value in (
                 ("fund_type", fund_type),
                 ("benchmark", benchmark_text),
-                ("manager", labels.get("基金经理人")),
-                ("custodian", labels.get("基金托管人")),
+                ("company", company),
+                ("manager", manager),
+                ("custodian", custodian),
                 ("scale", scale),
                 ("inception_date", inception),
             )
@@ -197,9 +204,9 @@ class TiantianSource:
             fund_class=classify_fund_type(fund_type),
             tracking_index=tracking if tracking and "无" not in tracking else None,
             benchmark=parse_benchmark(benchmark_text) if benchmark_text else None,
-            company=self._value(labels.get("基金管理人")),
-            manager=self._value(labels.get("基金经理人")),
-            custodian=self._value(labels.get("基金托管人")),
+            company=company,
+            manager=manager,
+            custodian=custodian,
             scale=scale,
             inception_date=inception,
             as_of=as_of,
@@ -505,7 +512,7 @@ class TiantianSource:
             if not isinstance(stamp, (int, float)) or value is None:
                 continue
             day = datetime.fromtimestamp(stamp / 1000, _CN_TZ)
-            points.append(NavPoint(date=day.date(), nav=str(value)))
+            points.append(NavPoint(date=day.date(), nav=_format_nav(value)))
         return points
 
 
@@ -536,6 +543,25 @@ def _split_date(raw: str) -> tuple[dt.date | None, str | None]:
         return None, raw or None
     rest = raw[match.end() :].lstrip(" /").strip()
     return found, rest or None
+
+
+def _format_nav(value: object) -> str:
+    """Render a NAV with the four decimals the fund publishes.
+
+    The payload sends a JSON number, so ``1.0690`` arrives as ``1.069`` and
+    ``str(value)`` dropped the trailing zero. Funds quote NAV to four places and
+    the string is what callers display and compare, so the precision is restored
+    rather than left to float formatting.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise SchemaChangedError(
+            "tiantian NAV is not a number",
+            source="tiantian",
+            capability="nav",
+            assertion="y is a number",
+            sample=repr(value)[:200],
+        )
+    return f"{Decimal(str(value)):.4f}"
 
 
 def _split_scale(raw: str) -> tuple[str | None, dt.date | None]:

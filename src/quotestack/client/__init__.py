@@ -158,8 +158,11 @@ class MarketData:
         sources: Source registry keyed by name. Defaults to the built-ins.
         proxy: Outbound proxy passed to the default sources.
         source_priority: Overrides the routing order per capability.
-        cooldown: Cooldown policy. Defaults to 30s after one failure.
-        bucket: Rate limiter. Defaults to 5 req/s with a burst of 10.
+        cooldown: Cooldown policy. Defaults to 30s after two consecutive
+            failures; one failure is not enough, because a single blip
+            would take the source down for every other instrument.
+        bucket: Rate limiter. Defaults to 4 requests per second with no
+            burst, which is the rate the fund pages tolerate.
 
     Example:
         >>> async with MarketData() as client:
@@ -215,7 +218,7 @@ class MarketData:
 
     async def aclose(self) -> None:
         """Release resources held by the underlying source."""
-        self._fetch.cancel_inflight()
+        await self._fetch.cancel_inflight()
         for source in self._sources.values():
             close = getattr(source, "aclose", None)
             if close is not None:

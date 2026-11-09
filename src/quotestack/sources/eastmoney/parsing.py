@@ -128,6 +128,32 @@ def _to_bar(row: str, instrument: Instrument) -> Bar:
     # Intraday rows look like "2026-11-06 09:35"; daily rows have no time part.
     stamp = parts[0]
     clock = stamp[11:16] if len(stamp) >= 16 else None
+
+    # The column order is not documented anywhere; it was established by
+    # observation. If the source reorders them, the numbers still parse and the
+    # bars are silently wrong, so the invariant is asserted instead.
+    try:
+        numbers = [float(value) for value in (open_price, close_price, high, low)]
+    except ValueError as exc:
+        raise SchemaChangedError(
+            "eastmoney kline row has a non-numeric price",
+            source="eastmoney",
+            capability="history",
+            assertion="open, close, high and low are numbers",
+            sample=row[:200],
+            instrument=instrument.id,
+        ) from exc
+    if min(numbers) < 0 or numbers[2] < numbers[3]:
+        raise SchemaChangedError(
+            "eastmoney kline row violates OHLC",
+            source="eastmoney",
+            capability="history",
+            assertion="high >= low and no negative price",
+            sample=row[:200],
+            instrument=instrument.id,
+            hint="the column order may have changed; check against the fixture",
+        )
+
     return Bar(
         date=day,
         open=open_price,

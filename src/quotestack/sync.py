@@ -11,10 +11,12 @@ import asyncio
 import datetime as dt
 import threading
 from collections.abc import Coroutine, Iterator, Mapping, Sequence
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from types import TracebackType
 from typing import Any, TypeVar, cast
 
 from quotestack.client import MarketData
+from quotestack.logging import get_logger
 from quotestack.models import (
     Adjust,
     AssetClass,
@@ -35,6 +37,9 @@ from quotestack.models import (
 )
 
 __all__ = ["SyncMarketData"]
+
+# A source that hangs on close must not keep the process alive forever.
+_CLOSE_TIMEOUT = 10.0
 
 T = TypeVar("T")
 
@@ -62,7 +67,14 @@ class SyncMarketData:
         max_stale: Mapping[Capability, float] | None = None,
         **kwargs: Any,
     ) -> None:
-        """Start the background loop and build the async client."""
+        """Build the async client, then start the loop that will run it.
+
+        The order matters: starting the thread first meant a client that failed
+        to construct left a daemon loop running with nobody to stop it.
+        """
+        # Construction happens before the thread exists, so a failure here
+        # leaves nothing behind.
+        self._client = MarketData(ttl=ttl, max_stale=max_stale, **kwargs)
         self._loop = asyncio.new_event_loop()
         self._closed = False
         self._thread = threading.Thread(
@@ -71,15 +83,39 @@ class SyncMarketData:
             daemon=True,
         )
         self._thread.start()
-        self._client = MarketData(ttl=ttl, max_stale=max_stale, **kwargs)
 
     def _run_loop(self) -> None:
         asyncio.set_event_loop(self._loop)
+        self._loop.set_exception_handler(self._on_loop_error)
         self._loop.run_forever()
 
-    def _call(self, coro: Coroutine[Any, Any, T]) -> T:
+    @staticmethod
+    def _on_loop_error(loop: asyncio.AbstractEventLoop, context: dict[str, Any]) -> None:
+        """Report an unhandled loop exception instead of dropping it silently.
+
+        Without a handler, an exception raised by a task nobody awaits vanishes
+        and the thread keeps running as if nothing happened.
+        """
+        get_logger("sync").error(
+            "event loop error: %s",
+            context.get("message"),
+            extra={"event": "loop_error", **{"exception": context.get("exception")}},
+        )
+
+    def _call(self, coro: Coroutine[Any, Any, T], *, timeout: float | None = None) -> T:
+        """Run a coroutine on the background loop and wait for it.
+
+        Args:
+            coro: Work to run.
+            timeout: Seconds to wait. ``None`` waits forever, which is the right
+                default for data calls but not for shutdown, where a hung source
+                would keep the process alive.
+
+        Returns:
+            The coroutine's result.
+        """
         future = asyncio.run_coroutine_threadsafe(coro, self._loop)
-        return future.result()
+        return future.result(timeout)
 
     def __enter__(self) -> SyncMarketData:
         """Enter the context manager."""
@@ -105,10 +141,20 @@ class SyncMarketData:
             return
         self._closed = True
         try:
-            self._call(self._client.aclose())
+            # A source that will not close must not hold the process open; the
+            # loop is stopped either way.
+            self._call(self._client.aclose(), timeout=_CLOSE_TIMEOUT)
+        except FuturesTimeoutError:
+            get_logger("sync").warning(
+                "client did not close within %ss",
+                _CLOSE_TIMEOUT,
+                extra={"event": "close_timeout"},
+            )
         finally:
             self._loop.call_soon_threadsafe(self._loop.stop)
             self._thread.join(timeout=5.0)
+            if not self._thread.is_alive():
+                self._loop.close()
 
     def resolve(
         self,

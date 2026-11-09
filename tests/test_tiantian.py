@@ -37,7 +37,7 @@ async def test_nav_parses_js_globals() -> None:
 
     assert len(points) == 2
     assert points[0].nav == "1.0799"
-    assert points[-1].nav == "1.069"
+    assert points[-1].nav == "1.0690"
     assert points[0].date < points[-1].date
 
 
@@ -54,7 +54,7 @@ async def test_nav_respects_limit() -> None:
         await source.aclose()
 
     assert len(points) == 1
-    assert points[0].nav == "1.069"
+    assert points[0].nav == "1.0690"
 
 
 @respx.mock
@@ -208,3 +208,28 @@ async def test_profile_throttle_is_rate_limited_not_an_outage() -> None:
         await source.aclose()
 
     assert excinfo.value.retryable is False
+
+
+def test_profile_counts_a_missing_company_as_partial() -> None:
+    """`company` was omitted from the missing list, so partial was false."""
+    from quotestack.sources.tiantian import TiantianSource
+
+    source = TiantianSource()
+    try:
+        profile = source._parse_profile("<html></html>")
+    finally:
+        import asyncio
+
+        asyncio.run(source.aclose())
+
+    assert "company" in profile.missing
+    assert profile.partial is True
+
+
+def test_nav_keeps_four_decimals() -> None:
+    """A JSON number loses the trailing zero the fund publishes."""
+    from quotestack.sources.tiantian import _format_nav
+
+    assert _format_nav(1.069) == "1.0690"
+    assert _format_nav(1.0) == "1.0000"
+    assert _format_nav(3.4567) == "3.4567"

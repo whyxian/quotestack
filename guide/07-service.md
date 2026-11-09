@@ -245,9 +245,11 @@ quotestack_events_total{event="resolve",level="DEBUG"} 18.0
 
 ```bash
 docker build -t quotestack:0.1.0 .
-docker run -d --name quotestack -p 8000:8000 \
-  -v quotestack-cache:/data quotestack:0.1.0
+docker run -d --name quotestack -p 8000:8000 quotestack:0.1.0
 ```
+
+> 缓存是**进程内**的，容器重建后从冷启动开始，第一次请求会全部回源。
+> 想要跨重启的缓存，得在调用方或网关层做。
 
 **容器不继承宿主机的代理**。要访问境外源得显式传：
 

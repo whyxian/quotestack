@@ -356,7 +356,6 @@ def test_config_reads_proxy_and_server_sections(tmp_path: Any) -> None:
         'host = "0.0.0.0"\n'
         "port = 8080\n"
         'log_level = "DEBUG"\n'
-        'cache_dir = "/data"\n'
         "[proxy]\n"
         'url = "http://127.0.0.1:7890"\n'
     )
@@ -366,7 +365,6 @@ def test_config_reads_proxy_and_server_sections(tmp_path: Any) -> None:
     assert config.host == "0.0.0.0"
     assert config.port == 8080
     assert config.log_level == "DEBUG"
-    assert config.cache_dir == "/data"
     assert config.proxy == "http://127.0.0.1:7890"
 
 
@@ -545,3 +543,15 @@ async def test_holdings_has_more_comes_from_the_extra_quarter() -> None:
     assert len(body["quarters"]) <= 2
     if not body["has_more"]:
         assert body["next_before"] is None
+
+
+def test_every_capability_can_be_configured_from_the_environment() -> None:
+    """_TTL_NAMES decide which TTLs an operator can override.
+
+    RESOLVE and LIST were missing, so their TTLs were reachable from a TOML file
+    but not from the environment, which is how a container is configured.
+    """
+    from quotestack.models import Capability
+    from quotestack.server.config import _TTL_NAMES
+
+    assert {c.value for c in Capability} == set(_TTL_NAMES)

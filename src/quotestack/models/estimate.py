@@ -39,11 +39,10 @@ class Estimate:
             unchanged.
         basis: Which formula produced the number.
         coverage: Share of the fund the estimate explains, between 0 and 1.
-        as_of: When the underlying quotes were observed.
+        as_of: When the estimate was computed.
         explanation: A sentence describing the calculation, suitable for
             showing to a user.
         benchmark_assumption: Classification used for benchmark components.
-        stale_inputs: Inputs that exceeded their freshness limits.
     """
 
     change_pct: float | None
@@ -52,4 +51,3 @@ class Estimate:
     as_of: dt.datetime | None = None
     explanation: str = ""
     benchmark_assumption: BenchmarkAssumption | None = None
-    stale_inputs: tuple[str, ...] = ()

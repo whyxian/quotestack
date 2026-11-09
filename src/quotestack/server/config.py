@@ -27,7 +27,6 @@ class Config:
         host: Bind address.
         port: Bind port.
         log_level: Python logging level name.
-        cache_dir: Where a persistent cache would live.
         proxy: Outbound proxy for every source.
         ttl: Per-capability TTL overrides, in seconds.
     """
@@ -35,7 +34,6 @@ class Config:
     host: str = "127.0.0.1"
     port: int = 8000
     log_level: str = "INFO"
-    cache_dir: str = ""
     proxy: str | None = None
     ttl: dict[str, float] = field(default_factory=dict)
 
@@ -46,7 +44,6 @@ _ENV = {
     "host": "QUOTESTACK_SERVER_HOST",
     "port": "QUOTESTACK_SERVER_PORT",
     "log_level": "QUOTESTACK_LOG_LEVEL",
-    "cache_dir": "QUOTESTACK_CACHE_DIR",
     "proxy": "QUOTESTACK_PROXY_URL",
 }
 
@@ -59,6 +56,8 @@ _TTL_NAMES = (
     "BENCHMARK",
     "ESTIMATE",
     "FX",
+    "RESOLVE",
+    "LIST",
 )
 
 
@@ -80,7 +79,7 @@ def load(path: str | None = None) -> Config:
     values: dict[str, object] = {}
 
     if isinstance(server, dict):
-        for name in ("host", "log_level", "cache_dir"):
+        for name in ("host", "log_level"):
             if name in server:
                 values[name] = _as_str(name, server[name])
         if "port" in server:
