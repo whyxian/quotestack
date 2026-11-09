@@ -48,7 +48,26 @@
 
 ---
 
-## 4. 改设计决策
+## 4. 验证上游还能用
+
+GitHub 的 runner 在境外，定时探测只会测出 runner 的位置。所以在**能访问源的网络**上手动跑：
+
+```bash
+QUOTESTACK_LIVE=1 uv run pytest tests/test_smoke.py -q -rs
+```
+
+判定规则：
+
+| 结果 | 含义 | 该做什么 |
+|---|---|---|
+| `passed` | 载荷结构没变 | 无事 |
+| `skipped` | 连不上源 | 换网络重跑，不是代码问题 |
+| `failed` | **载荷结构变了** | 改解析器 + 重录 fixture |
+
+或在 GitHub 上手动触发：Actions → live probe → Run workflow。
+勾 `strict` 会让"全部跳过"也算失败，用来确认网络真能连通。
+
+## 5. 改设计决策
 
 ```
 1. 先改 docs/design/ 对应文件（记录新决策与理由）
@@ -60,7 +79,7 @@
 
 ---
 
-## 5. 完成一个里程碑
+## 6. 完成一个里程碑
 
 ```
 1. 勾 docs/ROADMAP.md

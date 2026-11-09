@@ -157,7 +157,7 @@ quotestack = "quotestack.cli:main"
 |---|---|---|
 | 1 | Python 最低版本 | **`>=3.11`**，CI 跑 3.11 / 3.12 / 3.13 |
 | 2 | PyPI 发布 | 尽快发 `0.0.1` 占名，README 标 pre-alpha |
-| 3 | CI | 三段式：PR 离线 / 每日真实探测 / tag 发布 |
+| 3 | CI | PR 离线 / 手动真实探测 / tag 发布 |
 | 4 | 分钟线 | 合并进 `history(interval)`，不单独暴露 |
 | 5 | 估值精度 | 写回测脚本出报告，不作 CI 门槛 |
 
@@ -181,7 +181,7 @@ quotestack = "quotestack.cli:main"
 | Job   | 触发        | 内容                                      | 失败影响            |
 | ----- | --------- | --------------------------------------- | --------------- |
 | PR CI | push / PR | `ruff` + `mypy` + `pytest`（全离线，fixture） | 阻塞合并            |
-| 定时探测  | 每天        | 真实请求各源，验证结构断言                           | 开 issue，**不阻塞** |
+| 真实探测  | 手动        | 真实请求各源，验证结构断言                           | 开 issue，**不阻塞** |
 | 发布    | tag       | 构建 → TestPyPI → PyPI                    | —               |
 
 **必须有"定时探测"**：fixture 是历史快照，源改版后测试照样绿；只有真实探测能发现漂移，这正是 `SchemaChanged` 断言的用途。

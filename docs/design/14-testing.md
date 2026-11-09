@@ -15,9 +15,10 @@
 | **解析器单元测试** | 一段真实响应 → 结构化结果 | ❌ | ms |
 | **适配器测试** | 请求构造、响应解析、错误映射 | ❌ mock | ms |
 | **客户端集成** | `resolve → quote → history` 全链路 | ❌ fixture | 百 ms |
-| **真实探测** | 各源结构断言是否仍成立 | ✅ | 秒级，每日 |
+| **真实探测** | 各源结构断言是否仍成立 | ✅ | 秒级，手动触发 |
 
-前三层在 CI 里离线跑，第四层是每日定时任务（见 [10-open-source](10-open-source.md) 的 CI 三段式）。
+前三层在 CI 里离线跑。第四层是手动触发的工作流（见 [10-open-source](10-open-source.md)）——
+GitHub 的 runner 在境外，定时跑只会测出 runner 的位置，不会测出源的结构。
 
 ---
 
@@ -103,7 +104,7 @@ tests/fixtures/
 fixture 是「过去的真实」，今天能过不代表明天源没变。
 
 1. `manifest.json` 记 `recorded_at`，超过 **90 天**标记 stale
-2. 每日真实探测 job 跑各源结构断言
+2. 手动触发真实探测，跑各源结构断言
 3. 探测失败且连续 2 天 → 更新固定的追踪 issue；恢复时在同一 issue 下评论
 
 ---
@@ -157,7 +158,7 @@ uv run python scripts/record_fixtures.py --source eastmoney --capability history
 
 | 不测 | 原因 |
 |---|---|
-| 上游真实可用性 | 属于每日探测，不是单元测试 |
+| 上游真实可用性 | 属于手动探测，不是单元测试 |
 | 网络抖动 | 用 mock 模拟，不真跑 |
 | CLI 的彩色输出 | 收益低，靠人工看 |
 | 性能 | 单独基准脚本，不进 CI |

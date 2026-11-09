@@ -1,17 +1,26 @@
 name: live probe
 
-# Fixtures are snapshots: if a source changes shape they still pass. Only a real
-# request notices, so this runs on a schedule instead of on every push.
+# Fixtures are snapshots: if a source changes shape they still pass. Only a
+# real request notices, so this needs to run against the live endpoints.
 #
-# Runners are hosted outside mainland China, and the sources this library
-# targets may refuse or never answer a datacenter IP. The tests therefore skip
-# on transport failures and fail only on structural ones: a probe that goes red
-# because of where it runs teaches people to ignore it.
+# It is manual-only on purpose. GitHub's runners sit outside mainland China,
+# and the sources this library targets routinely refuse a datacenter IP, so a
+# scheduled run would report the runner's location rather than the payloads.
+# Run it from a network where the sources are actually reachable:
+#
+#   GitHub UI   -> Actions -> live probe -> Run workflow
+#   CLI         -> gh workflow run live-probe.yml
+#   Local       -> QUOTESTACK_LIVE=1 uv run pytest tests/test_smoke.py -q
+#
+# Transport failures skip; a payload that stops parsing fails. That difference
+# is the whole signal.
 on:
-  schedule:
-    # 01:00 UTC, which is 09:00 in Shanghai.
-    - cron: "0 1 * * *"
   workflow_dispatch:
+    inputs:
+      strict:
+        description: "把跳过也当成失败（用于确认真能连通）"
+        type: boolean
+        default: false
 
 jobs:
   probe:
@@ -25,4 +34,15 @@ jobs:
       - name: Probe the parsing of live payloads
         env:
           QUOTESTACK_LIVE: "1"
-        run: uv run pytest tests/test_smoke.py -q
+        run: |
+          set -o pipefail
+          uv run pytest tests/test_smoke.py -q -rs | tee /tmp/probe.txt
+      - name: Fail when nothing could be reached
+        if: inputs.strict
+        run: |
+          # A run where every test skipped proves nothing. Leaving a green tick
+          # over an empty result is how a probe becomes decoration.
+          if ! grep -q "passed" /tmp/probe.txt; then
+            echo "::error::every probe skipped; this runner cannot reach the sources"
+            exit 1
+          fi
