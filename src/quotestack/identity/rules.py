@@ -6,6 +6,7 @@ handled by the resolver in a later milestone.
 
 from __future__ import annotations
 
+from quotestack.errors import InvalidArgumentError
 from quotestack.models import AssetClass, Market
 
 __all__ = [
@@ -53,8 +54,11 @@ def cn_exchange(code: str) -> str:
         return "sh"
     if code.startswith(_CN_SZ_PREFIXES):
         return "sz"
-    msg = f"unrecognised mainland code: {code!r}"
-    raise ValueError(msg)
+    raise InvalidArgumentError(
+        "unrecognised mainland code prefix",
+        code=code,
+        market="CN",
+    )
 
 
 def classify_cn_fund(code: str) -> str:

@@ -107,14 +107,7 @@ def _resolve_cn_fund(code: str) -> Instrument:
 
 
 def _resolve_listed(code: str, asset_class: AssetClass) -> Instrument:
-    try:
-        venue = cn_exchange(code)
-    except ValueError as exc:
-        raise InvalidArgumentError(
-            "unrecognised mainland code prefix",
-            code=code,
-            market=Market.CN.value,
-        ) from exc
+    venue = cn_exchange(code)
 
     return Instrument(
         id=Instrument.make_id(code, asset_class, Market.CN),

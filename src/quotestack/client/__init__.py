@@ -504,7 +504,9 @@ class MarketData:
         for holding in latest.holdings:
             try:
                 venue = cn_exchange(holding.code)
-            except ValueError:
+            except MarketDataError:
+                # A holding whose code we cannot place is skipped rather than
+                # failing the whole estimate.
                 continue
             stock_secids.append((f"{_EM_MARKET_ID[venue]}.{holding.code}", holding.weight))
 
