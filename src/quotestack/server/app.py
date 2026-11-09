@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib.util
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
@@ -17,6 +18,7 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, Query, Request
 
 from quotestack.client import MarketData
+from quotestack.logging import event, get_logger
 from quotestack.models import (
     Adjust,
     AssetClass,
@@ -62,6 +64,8 @@ from quotestack.server.schemas import (
     QuoteResultModel,
 )
 
+_log = get_logger("server")
+
 __all__ = ["ERROR_RESPONSES", "create_app"]
 
 # Declared on every data route so the generated contract tells a client which
@@ -101,6 +105,13 @@ def create_app(config: Config | None = None, client: MarketData | None = None) -
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if client is None:
             app.state.client = _build_client(settings)
+        event(
+            _log,
+            logging.INFO,
+            "startup",
+            sources=len(getattr(app.state.client, "_sources", {})),
+            hint="service ready",
+        )
         try:
             yield
         finally:

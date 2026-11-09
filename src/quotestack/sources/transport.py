@@ -11,11 +11,15 @@ One boundary, one mapping: everything that fails below HTTP becomes a
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
 
 from quotestack.errors import TimeoutError, UpstreamError
+from quotestack.logging import event
+
+log = logging.getLogger("quotestack")
 
 __all__ = ["send"]
 
@@ -45,6 +49,7 @@ async def send(
         TimeoutError: The request timed out.
         UpstreamError: Any other transport failure.
     """
+    event(log, logging.DEBUG, "upstream_request", source=source, method=method, url=url)
     try:
         return await client.request(method, url, **kwargs)
     except httpx.TimeoutException as exc:

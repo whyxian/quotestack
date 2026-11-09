@@ -31,7 +31,18 @@ _RULES: dict[str, set[str]] = {
     "benchmark": {"benchmark"},
     "indexes": {"indexes"},
     "estimate": {"models", "benchmark", "estimate"},
-    "sources": {"models", "errors", "identity", "indexes", "benchmark", "funds", "sources"},
+    # logging is a dependency-free leaf, like benchmark and funds; adapters
+    # need it to report a request they are about to make.
+    "sources": {
+        "models",
+        "errors",
+        "identity",
+        "indexes",
+        "benchmark",
+        "funds",
+        "logging",
+        "sources",
+    },
     "client": {
         "models",
         "errors",
@@ -46,7 +57,7 @@ _RULES: dict[str, set[str]] = {
         "sources",
         "client",
     },
-    "server": {"models", "errors", "client", "server"},
+    "server": {"models", "errors", "client", "logging", "server"},
     "cli": {"models", "errors", "client", "cli"},
     "sync": {"models", "errors", "client", "sync"},
     # The package root re-exports the public surface, so it may reach into

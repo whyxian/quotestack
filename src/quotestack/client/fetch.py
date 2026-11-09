@@ -17,7 +17,7 @@ import logging
 from collections.abc import Awaitable, Callable
 
 from quotestack.cache import Cache, CacheEntry, CacheState, classify, is_fresh
-from quotestack.errors import UnavailableError, UpstreamError
+from quotestack.errors import SchemaChangedError, UnavailableError, UpstreamError
 from quotestack.logging import event, get_logger
 from quotestack.models import Capability, Instrument
 from quotestack.resilience import Cooldown, TokenBucket
@@ -153,8 +153,32 @@ class FetchPolicy:
                 continue
 
             await self._bucket.acquire()
+            if attempts:
+                # Reaching here with a recorded attempt means the previous
+                # source failed; that switch is worth counting.
+                event(
+                    _log,
+                    logging.DEBUG,
+                    "fallback",
+                    capability=capability.value,
+                    from_source=attempts[-1].get("source"),
+                    to_source=name,
+                    hint=f"trying {name} after {attempts[-1].get('source')} failed",
+                )
             try:
                 value = await fetch(source)
+            except SchemaChangedError as exc:
+                event(
+                    _log,
+                    logging.ERROR,
+                    "schema_changed",
+                    capability=capability.value,
+                    source=name,
+                    assertion=exc.context.get("assertion"),
+                    hint="the upstream payload changed shape; the parser needs updating",
+                )
+                attempts.append({"source": name, "reason": exc.code})
+                continue
             except UpstreamError as exc:
                 # Cooling a whole source because one instrument is missing
                 # would take the other instruments down with it.
@@ -209,6 +233,16 @@ class FetchPolicy:
                 hint=f"serving cached value because {reason}",
             )
             return stale_value
+        event(
+            _log,
+            logging.ERROR,
+            "all_sources_failed",
+            capability=capability.value,
+            key=key,
+            reason=reason,
+            attempts=len(attempts or []),
+            hint="every configured source failed; see attempts for per-source reasons",
+        )
         raise UnavailableError(reason, attempts=attempts or [])
 
     def fresh_entry(self, key: str, capability: Capability) -> CacheEntry | None:

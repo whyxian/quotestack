@@ -297,6 +297,13 @@ class MarketData:
             pending.append((index, instrument))
 
         for group in self._group_by_market(pending):
+            event(
+                _log,
+                logging.DEBUG,
+                "batch",
+                count=len(group),
+                hint="one request covers this group",
+            )
             await self._fetch_group(group, results)
 
         return [
