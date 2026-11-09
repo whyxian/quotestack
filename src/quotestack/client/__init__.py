@@ -394,10 +394,29 @@ class MarketData:
 
         Raises:
             UnsupportedError: The instrument is not a fund.
-            UpstreamError: A required request failed.
+            InvalidArgumentError: The code is not a fund code.
+
+        An upstream failure never escapes: it becomes the same ``None`` result
+        as a missing input, with the stage named in the explanation. That is the
+        difference between "this fund has no estimate today" and "the library is
+        broken", and a caller rendering a watchlist needs the former.
         """
         instrument = self.resolve(code, asset_class, market)
         self._require(instrument, Capability.ESTIMATE)
+        try:
+            return await self._estimate_for(instrument)
+        except UpstreamError as exc:
+            return Estimate(
+                change_pct=None,
+                basis=EstimateBasis.NONE,
+                explanation=f"估算中断：{exc.message}",
+            )
+
+    async def _estimate_for(self, instrument: Instrument) -> Estimate:
+        """Compute the estimate, letting upstream failures bubble to the caller."""
+        code = instrument.code
+        asset_class = instrument.asset_class
+        market = instrument.market
 
         try:
             profile = await self.profile(code, asset_class, market)

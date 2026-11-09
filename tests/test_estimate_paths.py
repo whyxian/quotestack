@@ -151,3 +151,68 @@ async def test_estimate_reports_the_benchmark_assumption() -> None:
     assert estimate.benchmark_assumption is not None
     assert estimate.benchmark_assumption.equity == ("中证800",)
     assert estimate.benchmark_assumption.non_equity == ("中证全债",)
+
+
+async def test_estimate_degrades_when_the_index_lookup_fails() -> None:
+    """The contract says an estimate never raises on an upstream failure.
+
+    It did: a failing index lookup escaped as UnavailableError, so a watchlist
+    rendering ten funds lost all ten because one source was down.
+    """
+    from quotestack import AssetClass, Market, MarketData
+    from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
+    from quotestack.errors import UnavailableError
+    from quotestack.models import Allocation, Capability, Profile
+    from quotestack.sources.base import SourceMeta
+
+    class Fund:
+        meta = SourceMeta(
+            name="tiantian",
+            capabilities=frozenset({Capability.PROFILE, Capability.ESTIMATE}),
+            markets=frozenset({(AssetClass.FUND, Market.CN)}),
+        )
+
+        async def profile(self, instrument: Any) -> Profile:
+            return Profile(
+                fund_type="指数型-股票",
+                tracking_index="中证A500指数",
+                benchmark=Benchmark(
+                    text="中证A500*100%",
+                    components=[
+                        BenchmarkComponent(name="中证A500", weight=100.0, kind=ComponentKind.EQUITY)
+                    ],
+                    coverage=1.0,
+                ),
+            )
+
+        async def allocation(self, instrument: Any) -> Allocation:
+            return Allocation(stock=94.0, bond=0.0, cash=6.0)
+
+        async def aclose(self) -> None:
+            return None
+
+    class Down:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.QUOTE}),
+            markets=frozenset({(AssetClass.FUND, Market.CN)}),
+        )
+
+        async def resolve_index(self, name: str) -> str:
+            raise UnavailableError("down", attempts=[])
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(
+        sources={"tiantian": Fund(), "eastmoney": Down()},
+        source_priority={"PROFILE": ["tiantian"]},
+    )
+    try:
+        estimate = await client.estimate("022430")
+    finally:
+        await client.aclose()
+
+    assert estimate.change_pct is None
+    assert estimate.basis.value == "none"
+    assert "估算中断" in estimate.explanation
