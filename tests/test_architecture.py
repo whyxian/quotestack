@@ -122,3 +122,45 @@ def test_models_stay_free_of_io() -> None:
             if isinstance(node, ast.ImportFrom)
         }
         assert not (names & forbidden), f"{path.name} imports {sorted(names & forbidden)}"
+
+
+def test_sources_never_call_http_directly() -> None:
+    """Every request must go through sources/transport.send.
+
+    This is the seam where httpx exceptions are translated into the library's
+    error model. Adapters used to call the client directly, so a refused
+    connection escaped as httpx.ConnectError: callers catching MarketDataError
+    caught nothing, the failover loop never saw the failure and could not try
+    the next source, and the HTTP layer answered 500 instead of 502.
+    """
+    forbidden = {"get", "post", "put", "patch", "delete", "request", "stream"}
+    offenders = []
+
+    for path in (p for p in _files() if _module_of(p) == "sources"):
+        if path.name == "transport.py":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            if node.func.attr not in forbidden:
+                continue
+            target = node.func.value
+            if isinstance(target, ast.Attribute) and target.attr == "_client":
+                offenders.append(f"{path.name}:{node.lineno} calls _client.{node.func.attr}()")
+
+    assert not offenders, (
+        "use sources/transport.send instead of calling the HTTP client directly:\n  "
+        + "\n  ".join(offenders)
+    )
+
+
+def test_transport_is_the_only_place_that_calls_request() -> None:
+    """The conversion must stay in one file, not spread across adapters."""
+    hits = []
+    for path in (p for p in _files() if _module_of(p) == "sources"):
+        text = path.read_text(encoding="utf-8")
+        if "client.request(" in text:
+            hits.append(path.name)
+
+    assert hits == ["transport.py"], f"client.request used in {hits}"
