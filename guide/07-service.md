@@ -67,13 +67,14 @@ curl 'http://127.0.0.1:8000/v1/quote?code=600519'
 
 | 状态 | 错误码 | 含义 |
 |---|---|---|
-| 400 | `INVALID_ARGUMENT` | 参数不合法 |
+| 400 | `INVALID_ARGUMENT` | 参数不合法（含校验失败，不是 FastAPI 默认的 422） |
 | 404 | `NOT_FOUND` | 代码不存在 |
 | 409 | `AMBIGUOUS` | 有多个候选，需指定 `asset_class` |
 | 410 | `DELISTED` | 已退市 |
 | 422 | `UNSUPPORTED` | 该标的没这个能力 |
 | 429 | `RATE_LIMITED` | 触发上游限流 |
 | 502 | `UNAVAILABLE` / `SCHEMA_CHANGED` / `EMPTY_RESPONSE` | 上游失败 |
+| 500 | `INTERNAL` | 服务内部错误，重试无效 |
 | 503 | `CLIENT_BROKEN` | 所有源结构都变了，需升级库 |
 | 504 | `TIMEOUT` | 上游超时 |
 

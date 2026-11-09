@@ -33,6 +33,7 @@ MarketDataError
 | `SchemaChanged` | ❌ | ✅ + 告警 | 502 |
 | `Unauthorized` | ❌ | ✅ | 502 |
 | `ClientBroken` | ❌ | — | 503 |
+| `Internal` | ❌ | — | 500 |
 
 **`EmptyResponse` 与 `Unavailable` 必须分开**：东财对 `560000` 返回 `{"rc":0,"data":null}`——HTTP 200、结构正常、就是没这只票。当 `Unavailable` 重试是白等。
 

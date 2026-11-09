@@ -181,6 +181,7 @@ iter_instruments(asset_class, market, *,
 | `UNAUTHORIZED` | 502 | ❌ |
 | `TIMEOUT` | 504 | ✅ |
 | `CLIENT_BROKEN` | 503 | ❌ 该升级 |
+| `INTERNAL` | 500 | ❌ 库/服务自身出错 |
 
 另有 `UPSTREAM_ERROR` 作为基类，一般不单独出现。
 

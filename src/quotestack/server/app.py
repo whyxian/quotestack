@@ -75,6 +75,7 @@ ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     422: {"model": ErrorResponse, "description": "该标的不支持此能力"},
     429: {"model": ErrorResponse, "description": "触发上游限流"},
     502: {"model": ErrorResponse, "description": "上游失败"},
+    500: {"model": ErrorResponse, "description": "服务内部错误"},
     503: {"model": ErrorResponse, "description": "所有源结构变更，需升级"},
     504: {"model": ErrorResponse, "description": "上游超时"},
 }

@@ -421,7 +421,41 @@ async def test_batch_endpoint_keeps_order() -> None:
 
 
 async def test_holdings_rejects_a_bad_cursor() -> None:
+    """A malformed cursor is an invalid argument, not an unsupported capability.
+
+    FastAPI defaults validation errors to 422, but this contract reserves 422
+    for UNSUPPORTED, so 422 would mean two different things.
+    """
     async with _api() as api:
         response = await api.get("/v1/holdings", params={"code": "166002", "before": "2026-Q1"})
 
-    assert response.status_code == 422
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_ARGUMENT"
+
+
+@pytest.mark.parametrize(
+    ("url", "status", "code"),
+    [
+        ("/v1/history?code=600519&limit=abc", 400, "INVALID_ARGUMENT"),
+        ("/v1/quote", 400, "INVALID_ARGUMENT"),
+        ("/v1/instruments?asset_class=NOPE&market=CN", 400, "INVALID_ARGUMENT"),
+        ("/v1/does-not-exist", 404, "NOT_FOUND"),
+        ("/v1/quote?code=022430&asset_class=FUND", 422, "UNSUPPORTED"),
+    ],
+)
+async def test_every_failure_uses_the_same_envelope(url: str, status: int, code: str) -> None:
+    """One shape for every failure, including the framework's own errors.
+
+    Validation errors and unknown routes used to answer ``{"detail": ...}``,
+    which a client written against the documented envelope cannot read: it looks
+    for ``error``, finds nothing, and treats a 400 as a successful empty result.
+    """
+    async with _api() as api:
+        response = await api.get(url)
+
+    body = response.json()
+    assert response.status_code == status
+    assert set(body) == {"data", "error"}
+    assert body["data"] is None
+    assert body["error"]["code"] == code
+    assert body["error"]["message"]

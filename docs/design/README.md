@@ -12,13 +12,13 @@
 <!-- generated:begin -->
 <!-- 由 scripts/sync_docs.py 生成，不要手改 -->
 
-**当前事实**（版本 0.1.0，源码 53 文件 / 7,571 行）
+**当前事实**（版本 0.1.0，源码 53 文件 / 7,628 行）
 
 | 项 | 数量 | 明细 |
 |---|---|---|
 | 公开取数方法 | 11 | `benchmark`, `estimate`, `fx`, `history`, `holdings`, `iter_instruments`, `nav`, `profile`, `quote`, `quote_many`, `resolve` |
 | HTTP 路由 | 12 | `/v1/benchmark`, `/v1/estimate`, `/v1/fx`, `/v1/healthz`, `/v1/history`, `/v1/holdings`, `/v1/instruments`, `/v1/nav`, `/v1/profile`, `/v1/quote`, `/v1/quotes/batch`, `/v1/resolve` |
-| 错误类型 | 12 | `AMBIGUOUS`, `CLIENT_BROKEN`, `DELISTED`, `EMPTY_RESPONSE`, `INVALID_ARGUMENT`, `NOT_FOUND`, `RATE_LIMITED`, `SCHEMA_CHANGED`, `TIMEOUT`, `UNAUTHORIZED`, `UNAVAILABLE`, `UNSUPPORTED` |
+| 错误类型 | 13 | `AMBIGUOUS`, `CLIENT_BROKEN`, `DELISTED`, `EMPTY_RESPONSE`, `INTERNAL`, `INVALID_ARGUMENT`, `NOT_FOUND`, `RATE_LIMITED`, `SCHEMA_CHANGED`, `TIMEOUT`, `UNAUTHORIZED`, `UNAVAILABLE`, `UNSUPPORTED` |
 | 错误基类 | 1 | `UPSTREAM_ERROR` |
 | 数据源 | 5 | `binance`, `eastmoney`, `eastmoney-fx`, `tencent`, `tiantian` |
 | 能力（Capability） | 10 | `RESOLVE`, `QUOTE`, `HISTORY`, `NAV`, `PROFILE`, `HOLDINGS`, `BENCHMARK`, `ESTIMATE`, `FX`, `LIST` |

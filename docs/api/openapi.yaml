@@ -81,6 +81,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 所有源结构变更，需升级
           content:
@@ -179,6 +185,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 所有源结构变更，需升级
           content:
@@ -249,6 +261,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
           description: 上游失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
           content:
             application/json:
               schema:
@@ -372,6 +390,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 所有源结构变更，需升级
           content:
@@ -479,6 +503,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 所有源结构变更，需升级
           content:
@@ -564,6 +594,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
           description: 上游失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
           content:
             application/json:
               schema:
@@ -675,6 +711,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 所有源结构变更，需升级
           content:
@@ -782,6 +824,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 所有源结构变更，需升级
           content:
@@ -871,6 +919,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 所有源结构变更，需升级
           content:
@@ -950,6 +1004,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
           description: 上游失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
           content:
             application/json:
               schema:
@@ -1061,6 +1121,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
           description: 上游失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务内部错误
           content:
             application/json:
               schema:

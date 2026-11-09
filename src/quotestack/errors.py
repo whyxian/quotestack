@@ -15,6 +15,7 @@ __all__ = [
     "ClientBrokenError",
     "DelistedError",
     "EmptyResponseError",
+    "InternalError",
     "InvalidArgumentError",
     "MarketDataError",
     "NotFoundError",
@@ -153,6 +154,18 @@ class UnavailableError(UpstreamError):
     """The source is temporarily unavailable (down or cooling down)."""
 
     code = "UNAVAILABLE"
+
+
+class InternalError(MarketDataError):
+    """The library-or-service invariant broke; the caller can do nothing.
+
+    Exists so that the service can answer a request that failed unexpectedly
+    with the same envelope as every other failure, instead of leaking a
+    framework default shape the client cannot parse.
+    """
+
+    code = "INTERNAL"
+    retryable = False
 
 
 class ClientBrokenError(MarketDataError):
