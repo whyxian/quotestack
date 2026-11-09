@@ -445,7 +445,10 @@ def _register(app: FastAPI) -> None:
     ) -> dict[str, Any]:
         items: list[InstrumentSummaryModel] = []
         skipped = 0
-        target = page * page_size
+        # Collect one past the page boundary: its presence is what says there is
+        # another page. Stopping exactly at the boundary makes `has_more` a
+        # comparison of a list with its own length, which is always false.
+        target = page * page_size + 1
         async for batch in client.iter_instruments(
             asset_class,
             market,

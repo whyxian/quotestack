@@ -295,3 +295,61 @@ async def test_quote_many_falls_back_when_every_source_fails() -> None:
 
     assert results[0].ok is False
     assert "UNAVAILABLE" in (results[0].error or "")
+
+
+async def test_history_limit_changes_the_answer_not_the_cache() -> None:
+    """Two different limits are two different questions.
+
+    The cache key omitted `limit`, so `history(limit=5)` wrote five bars under a
+    key that `history(limit=50)` then read, and the second call returned five.
+    """
+    import datetime as dt
+
+    from quotestack.models import Bar, Capability
+    from quotestack.sources.base import SourceMeta
+
+    class Fake:
+        meta = SourceMeta(
+            name="fake",
+            capabilities=frozenset({Capability.HISTORY}),
+            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        )
+        calls = 0
+
+        async def history(
+            self, instrument: Any, interval: Any, adjust: Any, limit: int
+        ) -> list[Bar]:
+            Fake.calls += 1
+            return [
+                Bar(
+                    date=dt.date(2026, 1, 1) + dt.timedelta(days=index),
+                    open="1",
+                    high="2",
+                    low="0.5",
+                    close="1.5",
+                    volume="100",
+                )
+                for index in range(limit)
+            ]
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(sources={"fake": Fake()}, source_priority={"HISTORY": ["fake"]})
+    try:
+        small = await client.history("600519", limit=5)
+        large = await client.history("600519", limit=50)
+    finally:
+        await client.aclose()
+
+    assert len(small) == 5
+    assert len(large) == 50
+    assert Fake.calls == 2
+
+
+async def test_history_rejects_a_non_positive_limit() -> None:
+    from quotestack.errors import InvalidArgumentError
+
+    async with MarketData() as client:
+        with pytest.raises(InvalidArgumentError):
+            await client.history("600519", limit=0)

@@ -11,7 +11,7 @@ quotestack-server --dump-openapi > docs/api/openapi.yaml
 
 ## 这是什么
 
-一份 OpenAPI 3.1 文档，描述 quotestack 服务化后的 12 个接口。
+一份 OpenAPI 3.1 文档，描述 quotestack 服务化后的全部接口。
 
 它由 FastAPI 从代码生成，所以**不可能和实现不一致**。
 
@@ -30,7 +30,7 @@ quotestack-server --dump-openapi > docs/api/openapi.yaml
 
 ---
 
-## 12 个接口
+## 接口清单
 
 | 方法 | 路径 | 说明 | 状态 |
 |---|---|---|---|
@@ -47,7 +47,7 @@ quotestack-server --dump-openapi > docs/api/openapi.yaml
 | GET | `/v1/benchmark` | 基准曲线 | ✅ |
 | GET | `/v1/estimate` | 基金估值 | ✅ |
 
-全部 12 条路由已实现并可用。
+全部路由已实现并可用。
 
 ---
 

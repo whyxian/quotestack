@@ -35,7 +35,8 @@
 R3 的机械化版本：`tests/test_architecture.py` 用 AST 检查 import 方向，
 `sources/` import `client` 会让测试失败。
 R8/R9 由 `docs/harness/WORKFLOWS.md` 的流程约束，没有自动化。
-R10 由 `check_docs.py` 的数字黑名单检查。
+R10 由 `check_docs.py` 检查：事实类文档（AGENTS / ARCHITECTURE / CODE_MAP /
+design 索引 / API 契约）里出现手写计数就失败，生成块内除外。
 
 ---
 

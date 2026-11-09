@@ -12,29 +12,11 @@
 | 包名 | `quotestack`（PyPI 可用，npm 空） |
 | 许可 | MIT |
 | 仓库 | monorepo 内，零内部依赖 |
-| 目录 | 见下 |
+| 目录 | 见 [ARCHITECTURE](../harness/ARCHITECTURE.md) |
 
-> ⚠️ 下面这棵树是**规划时的设想**，与实际仓库不一致：没有 `quotestack_server/`，
-> 没有 okx/coingecko，HTTP 层在 `src/quotestack/server/`。
+> 原计划的目录树（`quote-service/`、`src/quotestack_server/`、OKX/CoinGecko 源）
+> 已被实现取代：HTTP 层在 `src/quotestack/server/`，源只有五个，包布局是 `src/quotestack/`。
 > 当前结构见 [ARCHITECTURE](../harness/ARCHITECTURE.md)。
-
-```
-quote-service/
-├── pyproject.toml
-├── README.md                 快速开始 + 支持矩阵 + 合规声明
-├── LICENSE
-├── src/quotestack/
-│   ├── client.py             10 个入口
-│   ├── identity/             resolve + 各市场规则
-│   ├── sources/              东财/腾讯/天天基金/binance/okx/coingecko
-│   ├── models/               Instrument/Quote/Bar/Profile
-│   ├── cache/                Memory/SQLite + TTL + 单飞
-│   └── errors.py
-├── src/quotestack_server/    FastAPI 壳
-└── tests/
-    ├── fixtures/             录制的真实响应
-    └── test_*.py
-```
 
 **依赖拆分**
 

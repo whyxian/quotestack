@@ -1,9 +1,9 @@
 # 架构（as-built）
 
-> 反映 **M5 完成时**的真实代码，不是设计意图。
+> 反映**当前代码**的真实结构，不是设计意图；阶段见 [ROADMAP](../ROADMAP.md)。
 > 设计理由见 `docs/design/`；本文件只描述"代码现在长什么样"。
 > 逐文件、逐函数的中文说明见 [CODE_MAP_ZH](../CODE_MAP_ZH.md)（人类文档，不在 harness 下）。
-> 更新于 2026-11-08。
+> 更新于 2026-11-10。
 
 ---
 
@@ -11,13 +11,13 @@
 
 ```
 src/quotestack/
-├── __init__.py            对外导出 24 个符号
+├── __init__.py            对外导出公开 API
 ├── client/
 │   ├── __init__.py        ★ MarketData：全部公开方法
 │   └── fetch.py           FetchPolicy：三态缓存、单飞、降级、限流
-├── cli.py                 命令行 5 个命令
+├── cli.py                 命令行入口
 ├── sync.py                同步包装
-├── errors.py              14 个错误类
+├── errors.py              错误类型
 ├── logging.py             结构化事件
 ├── resilience.py          冷却 + 令牌桶
 ├── funds.py               基金类型 → FundClass
@@ -189,8 +189,8 @@ v1|nav|CN:FUND:166002
 | `client/__init__.py` | `MarketData` 是唯一的公开入口，拆开会让读者跳多个文件 |
 | `sources/tiantian.py` | 五个方法都打同一个域名、同一套 GBK/JS 解析习惯 |
 
-**已知观察**：`client/__init__.py` 从 M3.6 的 550 行增长到 1028 行，主要是
-M4/M5 新增的 `profile` / `holdings` / `benchmark` / `estimate`。若继续增长，
+**已知观察**：`client/__init__.py` 在 M4/M5 加入 `profile` / `holdings` /
+`benchmark` / `estimate` 后增长明显（当前规模见本节末尾的生成表）。若继续增长，
 可把基金分析流程抽成模块级函数（如 `fund_ops.py(estimate(client, ...))`），
 让类方法只做委托。**现在还没到那个程度。**
 
@@ -199,14 +199,14 @@ M4/M5 新增的 `profile` / `holdings` / `benchmark` / `estimate`。若继续增
 
 | 文件 | 行数 |
 |---|---|
-| `quotestack/client/__init__.py` | 1053 |
-| `quotestack/server/app.py` | 613 |
+| `quotestack/client/__init__.py` | 1059 |
+| `quotestack/server/app.py` | 616 |
 | `quotestack/sources/tiantian.py` | 594 |
 | `quotestack/server/schemas.py` | 312 |
 | `quotestack/cli.py` | 298 |
 | 其余 48 个文件 | < 263 |
 
-**合计**：7,660 行 / 53 文件。
+**合计**：7,669 行 / 53 文件。
 
 <!-- generated:end -->
 

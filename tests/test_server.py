@@ -459,3 +459,61 @@ async def test_every_failure_uses_the_same_envelope(url: str, status: int, code:
     assert body["data"] is None
     assert body["error"]["code"] == code
     assert body["error"]["message"]
+
+
+async def test_instruments_reports_has_more_correctly() -> None:
+    """A full page is not the end of the list.
+
+    The route collected exactly `page_size` items and then asked whether it had
+    more than `page_size`, so `has_more` was false on every page and a client
+    that trusted it saw only the first page.
+    """
+    from quotestack.models import AssetClass, Capability, InstrumentSummary, Market
+    from quotestack.sources.base import SourceMeta
+
+    def item(code: str, name: str) -> InstrumentSummary:
+        return InstrumentSummary(
+            code=code,
+            name=name,
+            asset_class=AssetClass.STOCK,
+            market=Market.CN,
+            currency="CNY",
+        )
+
+    class Listing:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.LIST}),
+            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        )
+
+        async def list_instruments(self, asset_class: Any, market: Any, **kwargs: Any) -> Any:
+            yield [item("600519", "A")]
+            yield [item("000001", "B")]
+
+        async def aclose(self) -> None:
+            return None
+
+    base = MarketData(sources={"eastmoney": Listing()})
+    async with base:
+        app = create_app(client=base)
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as api:
+            first = (
+                await api.get(
+                    "/v1/instruments",
+                    params={"asset_class": "STOCK", "market": "CN", "page": 1, "page_size": 1},
+                )
+            ).json()["data"]
+            second = (
+                await api.get(
+                    "/v1/instruments",
+                    params={"asset_class": "STOCK", "market": "CN", "page": 2, "page_size": 1},
+                )
+            ).json()["data"]
+
+    assert first["has_more"] is True
+    assert first["next_page"] == 2
+    assert [i["code"] for i in first["items"]] == ["600519"]
+    assert second["has_more"] is False
+    assert [i["code"] for i in second["items"]] == ["000001"]

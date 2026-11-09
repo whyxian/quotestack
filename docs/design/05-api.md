@@ -2,10 +2,10 @@
 
 > quotestack 设计决议 · 第 5 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
-> **实现状态**：✅ 11 / 11 方法可用
+> **实现状态**：✅ 方法全部可用
 
 
-## 接口清单（10 个）
+## 接口清单
 
 > 除 `resolve` 外均为 `async def`，调用需 `await`。`resolve` 只做字符串规则，是同步方法。
 > 不写 async 的场景用 `from quotestack.sync import SyncMarketData`，详见 [运行时模型](13-runtime-model.md)。

@@ -89,8 +89,8 @@ def check_code_blocks() -> list[str]:
     return problems
 
 
-# Numbers that were typed by hand once and then stopped being true. Prose must
-# not restate a count; the generated blocks are the only place a number lives.
+# Numbers that were typed by hand once and then stopped being true. These are
+# exact strings from past incidents; the patterns below catch new ones.
 STALE_PHRASES = (
     "6,000 行",
     "45 个文件",
@@ -101,40 +101,65 @@ STALE_PHRASES = (
     "142 个测试",
     "13 种错误",
     "7,292 行",
+    "24 个符号",
+    "1028 行",
+    "14 个错误类",
+)
+
+# Counts describing the current codebase. In these files every such number must
+# come from a generated block; a hand-typed one will drift.
+FACT_DOCS = {
+    "AGENTS.md",
+    "docs/CODE_MAP_ZH.md",
+    "docs/api/README.md",
+    "docs/design/README.md",
+    "docs/harness/ARCHITECTURE.md",
+}
+COUNT_PATTERNS = (
+    re.compile(r"\d[\d,]*\s*(?:个|条)?\s*(?:数据)?\s*(?:方法|入口|路由|接口|错误|符号|测试)"),
+    re.compile(r"\d[\d,]*\s*行"),
 )
 
 
-def _prose_lines(path: pathlib.Path) -> list[tuple[int, str]]:
-    """Lines that are prose: not fenced code, not inside a generated block."""
+def _content_lines(path: pathlib.Path) -> list[tuple[int, str]]:
+    """Every line except the generated blocks.
+
+    Code fences are included on purpose: the stale count that started this
+    check was inside an ASCII tree, not in prose.
+    """
     lines = []
-    in_code = False
     in_generated = False
     for number, line in enumerate(_all_lines(path), start=1):
         stripped = line.strip()
-        if stripped.startswith("```"):
-            in_code = not in_code
-            continue
         if "generated:begin" in stripped:
             in_generated = True
             continue
         if "generated:end" in stripped:
             in_generated = False
             continue
-        if in_code or in_generated:
-            continue
-        lines.append((number, line))
+        if not in_generated:
+            lines.append((number, line))
     return lines
 
 
-def check_stale_numbers() -> list[str]:
-    """A hand-typed count in prose is a future contradiction."""
+def check_hand_typed_counts() -> list[str]:
+    """Counts belong in generated blocks, not typed by hand."""
     problems = []
     for path in _documents():
-        for number, line in _prose_lines(path):
-            for phrase in STALE_PHRASES:
-                if phrase in line:
-                    where = f"{path.relative_to(ROOT)}:{number}"
-                    problems.append(f"{where}: hand-typed count '{phrase}' (delete it)")
+        relative = path.relative_to(ROOT).as_posix()
+        for number, line in _content_lines(path):
+            where = f"{relative}:{number}"
+            stale = next((phrase for phrase in STALE_PHRASES if phrase in line), None)
+            if stale is not None:
+                problems.append(f"{where}: hand-typed count '{stale}' (delete it)")
+                continue
+            if relative not in FACT_DOCS:
+                continue
+            for pattern in COUNT_PATTERNS:
+                match = pattern.search(line)
+                if match is not None:
+                    problems.append(f"{where}: hand-typed count '{match.group(0)}' (delete it)")
+                    break
     return problems
 
 
@@ -191,6 +216,23 @@ def check_status_against_roadmap() -> list[str]:
     return problems
 
 
+def check_roadmap_progress() -> list[str]:
+    """The hand-written progress block must match the checkboxes below it."""
+    text = (ROOT / "docs/ROADMAP.md").read_text(encoding="utf-8")
+    done = len(re.findall(r"^- \[x\]", text, re.M))
+    total = done + len(re.findall(r"^- \[ \]", text, re.M))
+    match = re.search(r"累计：(\d+) / (\d+) 项", text)
+    if match is None:
+        return ["docs/ROADMAP.md: progress block has no '累计：N / M 项'"]
+    claimed = (int(match.group(1)), int(match.group(2)))
+    if claimed != (done, total):
+        return [
+            f"docs/ROADMAP.md: progress says {claimed[0]} / {claimed[1]}, "
+            f"checkboxes say {done} / {total}"
+        ]
+    return []
+
+
 def check_code_map_covers_modules() -> list[str]:
     """Every module must be mentioned somewhere in the code map.
 
@@ -235,8 +277,9 @@ def main() -> int:
         "links resolve": check_links,
         "code blocks parse": check_code_blocks,
         "guide is standalone": check_guide_is_standalone,
-        "no hand-typed counts": check_stale_numbers,
+        "no hand-typed counts": check_hand_typed_counts,
         "status matches roadmap": check_status_against_roadmap,
+        "roadmap progress matches checkboxes": check_roadmap_progress,
         "code map covers modules": check_code_map_covers_modules,
     }
 

@@ -26,7 +26,7 @@ src/quotestack/
 ├── client/            ★ 主入口 MarketData + FetchPolicy
 ├── cli.py             命令行
 ├── sync.py            同步包装
-├── errors.py          14 个错误类
+├── errors.py          错误类型
 ├── logging.py         结构化事件
 ├── resilience.py      冷却 + 限流
 ├── funds.py           基金分类
@@ -247,7 +247,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 ---
 
-## `benchmark.py` — 基准解析（约 170 行）
+## `benchmark.py` — 基准解析
 
 把一句中文基准拆成带权重的组件：
 
@@ -267,7 +267,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 ---
 
-## `indexes.py` — 指数名称解析（约 90 行）
+## `indexes.py` — 指数名称解析
 
 | 成员 | 作用 |
 |---|---|
@@ -277,7 +277,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 ---
 
-## `estimate.py` — 估值算式（约 140 行）
+## `estimate.py` — 估值算式
 
 纯函数，无网络，可完全离线测试。
 
@@ -292,7 +292,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 ---
 
-## `errors.py` — 14 个错误类
+## `errors.py` — 错误类型
 
 ```
 MarketDataError                 基类，带 code / retryable / fallback
@@ -344,7 +344,7 @@ MarketDataError                 基类，带 code / retryable / fallback
 
 ## `server/` — HTTP 层
 
-把库包成 12 条路由。**只做协议转换**：解析请求、调客户端、套信封。业务逻辑一律不在这里。
+把库包成 HTTP 服务。**只做协议转换**：解析请求、调客户端、套信封。业务逻辑一律不在这里。
 
 ### `app.py`
 
@@ -352,9 +352,9 @@ MarketDataError                 基类，带 code / retryable / fallback
 |---|---|
 | `create_app(config, client)` | 工厂；把客户端挂到 `app.state` |
 | `lifespan` | 启动建客户端、关闭时 `aclose` |
-| `ERROR_RESPONSES` | 11 条数据路由共享的错误声明，让 OpenAPI 说出会失败 |
+| `ERROR_RESPONSES` | 数据路由共享的错误声明，让 OpenAPI 说出会失败 |
 | `_wrap(...)` | 统一 `{data, error}` 信封 |
-| 12 个路由 | `resolve` `quote` `quotes/batch` `history` `nav` `profile` `holdings` `benchmark` `estimate` `fx` `instruments` `healthz` |
+| 全部路由 | `resolve` `quote` `quotes/batch` `history` `nav` `profile` `holdings` `benchmark` `estimate` `fx` `instruments` `healthz` |
 
 > 路由声明了 `responses=ERROR_RESPONSES`，否则 FastAPI 只文档化 200，
 > 代码生成器会造出无法表达错误的客户端。

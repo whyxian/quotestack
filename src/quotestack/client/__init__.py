@@ -342,13 +342,19 @@ class MarketData:
             UnsupportedError: The instrument has no historical bars.
             UpstreamError: The source failed and no usable cache exists.
         """
+        if limit < 1:
+            raise InvalidArgumentError("limit must be at least 1", limit=limit)
         instrument = self.resolve(code, asset_class, market)
         self._require(instrument, Capability.HISTORY)
+        # ``limit`` belongs in the key: asking for five bars and later for fifty
+        # is two different questions. Keying without it let a small request
+        # satisfy a large one, returning fewer bars than were asked for.
         key = make_key(
             Capability.HISTORY,
             instrument.id,
             interval.value,
             adjust.value,
+            str(limit),
         )
 
         bars = await self._fetch.get(

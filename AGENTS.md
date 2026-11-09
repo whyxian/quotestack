@@ -85,7 +85,7 @@ uv run quotestack-server --dump-openapi > docs/api/openapi.yaml
 
 ---
 
-## 6. 三类文档的边界
+## 6. 四类文档的边界
 
 | 目录 / 文件 | 读者 | 回答 |
 |---|---|---|
