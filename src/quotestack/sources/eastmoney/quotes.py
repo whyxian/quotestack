@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
+from quotestack.errors import EmptyResponseError, SchemaChangedError
 from quotestack.models import Instrument, Quote
 from quotestack.sources.eastmoney.core import SOURCE_META, CoreMixin
 from quotestack.sources.eastmoney.parsing import (
@@ -14,7 +14,7 @@ from quotestack.sources.eastmoney.parsing import (
     _as_timestamp,
     _scaled,
 )
-from quotestack.sources.transport import send
+from quotestack.sources.transport import check_status, send
 
 __all__ = ["MAX_BATCH", "QUOTE_FIELDS", "QUOTE_URL", "QuotesMixin"]
 
@@ -43,12 +43,7 @@ class QuotesMixin(CoreMixin):
             source=self.meta.name,
             params={"secids": ",".join(secids), "fields": QUOTE_FIELDS},
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"eastmoney responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="eastmoney")
 
         payload = response.json()
         if not isinstance(payload, dict) or "data" not in payload:

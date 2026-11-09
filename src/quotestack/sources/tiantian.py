@@ -24,8 +24,6 @@ import httpx
 from quotestack.benchmark import parse_benchmark
 from quotestack.errors import (
     EmptyResponseError,
-    NotFoundError,
-    RateLimitedError,
     SchemaChangedError,
     UpstreamError,
 )
@@ -43,7 +41,7 @@ from quotestack.models import (
     QuarterHoldings,
 )
 from quotestack.sources.base import SourceMeta
-from quotestack.sources.transport import send
+from quotestack.sources.transport import check_status, send
 
 __all__ = ["TiantianSource"]
 
@@ -65,7 +63,6 @@ _DATE_RE = re.compile(r"(\d{4})年(\d{1,2})月(\d{1,2})日")
 _CN_TZ = ZoneInfo("Asia/Shanghai")
 
 # Eastmoney's anti-scraping status: not a standard HTTP code.
-_BLOCKED_STATUS = 514
 
 
 class TiantianSource:
@@ -140,25 +137,15 @@ class TiantianSource:
                 "Referer": f"https://fundf10.eastmoney.com/ccmx_{code}.html",
             },
         )
-        if response.status_code == 404:
-            raise NotFoundError(
-                "tiantian has no profile page for this fund",
-                instrument=instrument.id,
-            )
-        if response.status_code == _BLOCKED_STATUS:
-            raise RateLimitedError(
-                "tiantian answered 514, which is its anti-scraping throttle",
-                source=self.meta.name,
-                instrument=instrument.id,
-                hint="slow the request rate down; the source blocks bursts",
-            )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"tiantian profile responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-                instrument=instrument.id,
-            )
+        check_status(
+            response,
+            source=self.meta.name,
+            what="tiantian profile",
+            not_found="tiantian has no profile page for this fund",
+        )
+        check_status(
+            response, source=self.meta.name, what="tiantian profile", instrument=instrument.id
+        )
         return self._parse_profile(response.text)
 
     @staticmethod
@@ -255,20 +242,9 @@ class TiantianSource:
                 "Referer": f"https://fundf10.eastmoney.com/ccmx_{code}.html",
             },
         )
-        if response.status_code == _BLOCKED_STATUS:
-            raise RateLimitedError(
-                "tiantian answered 514, which is its anti-scraping throttle",
-                source=self.meta.name,
-                instrument=instrument.id,
-                hint="slow the request rate down; the source blocks bursts",
-            )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"tiantian holdings responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-                instrument=instrument.id,
-            )
+        check_status(
+            response, source=self.meta.name, what="tiantian holdings", instrument=instrument.id
+        )
 
         # A money market fund reports no stock positions: the envelope is
         # valid but carries no quarter sections, which is an empty answer
@@ -358,13 +334,7 @@ class TiantianSource:
             source=self.meta.name,
             headers={"User-Agent": "Mozilla/5.0"},
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"tiantian responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-                instrument=instrument.id,
-            )
+        check_status(response, source=self.meta.name, what="tiantian", instrument=instrument.id)
 
         match = _ASSET_RE.search(response.text)
         if match is None:
@@ -402,12 +372,7 @@ class TiantianSource:
             source=self.meta.name,
             headers={"User-Agent": "Mozilla/5.0"},
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"tiantian list responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="tiantian list")
 
         rows = self._parse_list(response.text, response)
         for start in range(0, len(rows), page_size):
@@ -494,12 +459,7 @@ class TiantianSource:
             source=self.meta.name,
             headers={"User-Agent": "Mozilla/5.0"},
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"tiantian responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="tiantian")
 
         points = self._parse(response.text, response)
         if not points:

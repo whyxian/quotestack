@@ -21,7 +21,7 @@ import httpx
 from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
 from quotestack.models import AssetClass, Capability, Instrument, Market, Quote
 from quotestack.sources.base import SourceMeta
-from quotestack.sources.transport import send
+from quotestack.sources.transport import check_status, send
 
 __all__ = ["TencentSource"]
 
@@ -121,12 +121,7 @@ class TencentSource:
         response = await send(
             self._client, "GET", _QUOTE_URL + ",".join(codes), source=self.meta.name
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"tencent responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="tencent")
 
         # Tencent serves GBK regardless of the query.
         text = response.content.decode("gbk", errors="replace")

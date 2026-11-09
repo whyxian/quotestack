@@ -85,3 +85,45 @@ class _Unreachable:
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (429, "RATE_LIMITED"),
+        (514, "RATE_LIMITED"),
+        (401, "UNAUTHORIZED"),
+        (403, "UNAUTHORIZED"),
+        (500, "UPSTREAM_ERROR"),
+        (502, "UPSTREAM_ERROR"),
+    ],
+)
+async def test_status_classifier_maps_every_failure(status: int, expected: str) -> None:
+    """Throttling must not be reported as retryable.
+
+    Only one adapter recognised 514 before; everywhere else a request to slow
+    down became an UpstreamError, which the failover loop treats as retryable -
+    the opposite of what the source asked for.
+    """
+    from quotestack.errors import MarketDataError
+    from quotestack.sources.transport import check_status
+
+    response = httpx.Response(status)
+    with pytest.raises(MarketDataError) as excinfo:
+        check_status(response, source="eastmoney", what="test endpoint")
+
+    assert excinfo.value.code == expected
+
+
+async def test_status_classifier_is_silent_on_success() -> None:
+    from quotestack.sources.transport import check_status
+
+    check_status(httpx.Response(200), source="eastmoney", what="test")
+
+
+async def test_status_classifier_honours_not_found_message() -> None:
+    from quotestack.errors import NotFoundError
+    from quotestack.sources.transport import check_status
+
+    with pytest.raises(NotFoundError):
+        check_status(httpx.Response(404), source="tiantian", what="profile", not_found="no page")

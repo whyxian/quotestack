@@ -11,10 +11,10 @@ from collections.abc import AsyncIterator, Sequence
 
 import httpx
 
-from quotestack.errors import SchemaChangedError, UpstreamError
+from quotestack.errors import SchemaChangedError
 from quotestack.models import AssetClass, Capability, InstrumentSummary, Market
 from quotestack.sources.base import SourceMeta
-from quotestack.sources.transport import send
+from quotestack.sources.transport import check_status, send
 
 __all__ = ["BinanceSource"]
 
@@ -81,12 +81,7 @@ class BinanceSource:
 
     async def _fetch_symbols(self) -> list[dict[str, object]]:
         response = await send(self._client, "GET", _EXCHANGE_INFO, source=self.meta.name)
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"binance responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="binance")
 
         payload = response.json()
         symbols = payload.get("symbols") if isinstance(payload, dict) else None

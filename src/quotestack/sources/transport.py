@@ -16,12 +16,73 @@ from typing import Any
 
 import httpx
 
-from quotestack.errors import TimeoutError, UpstreamError
+from quotestack.errors import (
+    NotFoundError,
+    RateLimitedError,
+    TimeoutError,
+    UnauthorizedError,
+    UpstreamError,
+)
 from quotestack.logging import event
 
 log = logging.getLogger("quotestack")
 
-__all__ = ["send"]
+__all__ = ["check_status", "send"]
+
+# A source answers 429 or 514 when it wants you to slow down. Treating those as
+# plain upstream errors marks them retryable, which is the opposite of what the
+# source asked for.
+_RATE_LIMIT_STATUSES = frozenset({429, 514})
+
+
+def check_status(
+    response: httpx.Response,
+    *,
+    source: str,
+    what: str,
+    instrument: str | None = None,
+    not_found: str | None = None,
+) -> None:
+    """Raise the right error for a failed response, or return quietly.
+
+    Status handling was copy-pasted at every call site, and the copies drifted:
+    only one adapter recognised the throttle status, so everywhere else a
+    request to slow down was reported as retryable.
+
+    Args:
+        response: The response to inspect.
+        source: Adapter name, for the error context.
+        what: Human description of the endpoint, e.g. ``"eastmoney profile"``.
+        instrument: Instrument id, when the call was about one.
+        not_found: Message to use for a 404, when a 404 means "absent" rather
+            than "something is wrong".
+
+    Raises:
+        NotFoundError: ``not_found`` was given and the status is 404.
+        RateLimitedError: The status asks for backoff.
+        UnauthorizedError: The status asks for credentials.
+        UpstreamError: Any other failure status.
+    """
+    status = response.status_code
+    if status < 400:
+        return
+
+    context: dict[str, Any] = {"status_code": status}
+    if instrument is not None:
+        context["instrument"] = instrument
+
+    if status == 404 and not_found is not None:
+        raise NotFoundError(not_found, source=source, **context)
+    if status in _RATE_LIMIT_STATUSES:
+        raise RateLimitedError(
+            f"{what} answered {status}, which asks for backoff",
+            source=source,
+            hint="lower the request rate; the source is throttling",
+            **context,
+        )
+    if status in {401, 403}:
+        raise UnauthorizedError(f"{what} answered {status}", source=source, **context)
+    raise UpstreamError(f"{what} responded with {status}", source=source, **context)
 
 
 async def send(

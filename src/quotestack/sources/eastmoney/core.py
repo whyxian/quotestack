@@ -13,7 +13,7 @@ from quotestack.errors import (
 from quotestack.indexes import KNOWN_INDEXES, candidate_names
 from quotestack.models import AssetClass, Capability, Instrument, Market
 from quotestack.sources.base import SourceMeta
-from quotestack.sources.transport import send
+from quotestack.sources.transport import check_status, send
 
 __all__ = ["SEARCH_TOKEN", "SEARCH_URL", "SOURCE_META", "CoreMixin"]
 
@@ -94,12 +94,7 @@ class CoreMixin:
             source=self.meta.name,
             params={"input": cleaned, "type": "14", "token": SEARCH_TOKEN, "count": "10"},
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"eastmoney search responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="eastmoney search")
 
         payload = response.json()
         table = payload.get("QuotationCodeTable") if isinstance(payload, dict) else None
@@ -158,12 +153,7 @@ class CoreMixin:
                 "count": "10",
             },
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"eastmoney search responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="eastmoney search")
 
         payload = response.json()
         table = payload.get("QuotationCodeTable") if isinstance(payload, dict) else None

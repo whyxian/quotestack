@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from quotestack.errors import SchemaChangedError, UnsupportedError, UpstreamError
+from quotestack.errors import SchemaChangedError, UnsupportedError
 from quotestack.models import AssetClass, InstrumentSummary, Market
 from quotestack.sources.eastmoney.core import SOURCE_META, CoreMixin
 from quotestack.sources.eastmoney.parsing import _as_date, _board_of, _has_price
-from quotestack.sources.transport import send
+from quotestack.sources.transport import check_status, send
 
 __all__ = ["LIST_FIELDS", "LIST_FILTERS", "LIST_URL", "MAX_PAGE", "ListingsMixin"]
 
@@ -110,12 +110,7 @@ class ListingsMixin(CoreMixin):
                 "fields": LIST_FIELDS,
             },
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"eastmoney listing responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="eastmoney listing")
 
         payload = response.json()
         data = payload.get("data") if isinstance(payload, dict) else None

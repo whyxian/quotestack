@@ -175,3 +175,24 @@ def test_transport_is_the_only_place_that_calls_request() -> None:
             hits.append(path.name)
 
     assert hits == ["transport.py"], f"client.request used in {hits}"
+
+
+def test_status_handling_lives_in_one_place() -> None:
+    """Adapters must not compare status codes themselves.
+
+    The check was copy-pasted at fourteen sites and the copies drifted: only one
+    of them recognised the throttle status, so thirteen reported "slow down" as
+    "retry now".
+    """
+    offenders = []
+    for path in (p for p in _files() if _module_of(p) == "sources"):
+        if path.name == "transport.py":
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "status_code >=" in line or "status_code ==" in line:
+                offenders.append(f"{path.name}:{number}: {line.strip()}")
+
+    assert not offenders, (
+        "use sources/transport.check_status instead of comparing status codes:\n  "
+        + "\n  ".join(offenders)
+    )

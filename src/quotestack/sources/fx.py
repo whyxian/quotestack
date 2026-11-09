@@ -16,10 +16,10 @@ from decimal import Decimal
 
 import httpx
 
-from quotestack.errors import SchemaChangedError, UnsupportedError, UpstreamError
+from quotestack.errors import SchemaChangedError, UnsupportedError
 from quotestack.models import Capability, FxRate
 from quotestack.sources.base import SourceMeta
-from quotestack.sources.transport import send
+from quotestack.sources.transport import check_status, send
 
 __all__ = ["FxSource"]
 
@@ -128,12 +128,7 @@ class FxSource:
             source=self.meta.name,
             params={"secids": ",".join(_SECIDS.values()), "fields": "f1,f2,f12,f14"},
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"eastmoney fx responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="eastmoney fx")
 
         payload = response.json()
         data = payload.get("data") if isinstance(payload, dict) else None

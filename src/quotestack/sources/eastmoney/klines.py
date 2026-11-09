@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import datetime as dt
 
-from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
+from quotestack.errors import EmptyResponseError, SchemaChangedError
 from quotestack.models import Adjust, AssetClass, Bar, Capability, Instrument, Interval, Market
 from quotestack.sources.eastmoney.core import SOURCE_META, CoreMixin
 from quotestack.sources.eastmoney.parsing import _to_bar
-from quotestack.sources.transport import send
+from quotestack.sources.transport import check_status, send
 
 __all__ = ["HISTORY_FIELDS1", "HISTORY_FIELDS2", "HISTORY_URL", "KlinesMixin"]
 
@@ -84,12 +84,7 @@ class KlinesMixin(CoreMixin):
                 "ut": "fa5fd1943c7b386f172d6893dbfba10b",
             },
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"eastmoney responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="eastmoney")
 
         payload = response.json()
         data = payload.get("data") if isinstance(payload, dict) else None
@@ -170,12 +165,7 @@ class KlinesMixin(CoreMixin):
                 "lmt": str(limit),
             },
         )
-        if response.status_code >= 400:
-            raise UpstreamError(
-                f"eastmoney responded with {response.status_code}",
-                source=self.meta.name,
-                status_code=response.status_code,
-            )
+        check_status(response, source=self.meta.name, what="eastmoney")
 
         payload = response.json()
         data = payload.get("data") if isinstance(payload, dict) else None
