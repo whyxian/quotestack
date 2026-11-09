@@ -93,6 +93,8 @@ class FxSource:
                 quote=quote,
                 rate="1",
                 source=self.meta.name,
+                # The rate payload carries no timestamp, so the observation time is
+                # the only honest answer. This is not a fallback for a failed parse.
                 as_of=datetime.now(UTC),
             )
 
@@ -116,6 +118,8 @@ class FxSource:
             quote=quote,
             rate=_format_rate(rate),
             source=self.meta.name,
+            # The rate payload carries no timestamp, so the observation time is
+            # the only honest answer. This is not a fallback for a failed parse.
             as_of=datetime.now(UTC),
             derived=base_key != "USD" or quote_key != "USD",
         )

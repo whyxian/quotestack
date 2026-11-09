@@ -33,9 +33,22 @@ def _scaled(value: object, scale: int) -> str | None:
     return f"{value / scale:.{decimals}f}"
 
 
-def _as_timestamp(value: object) -> datetime:
+def _as_timestamp(value: object, *, source: str = "eastmoney") -> datetime:
+    """Parse the observation time, or report that the payload changed.
+
+    This used to fall back to ``now()``, which turned an unparseable stamp into
+    a claim that the data was just observed. A quote that is three years old
+    would have looked realtime, and nothing downstream could tell.
+    """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return datetime.now(_CN_TZ)
+        raise SchemaChangedError(
+            "eastmoney timestamp is not a number",
+            source=source,
+            capability="quote",
+            assertion="f124 is a unix timestamp",
+            sample=repr(value)[:200],
+            hint="the observation time cannot be inferred; do not substitute now()",
+        )
     return datetime.fromtimestamp(float(value), _CN_TZ)
 
 

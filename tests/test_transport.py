@@ -127,3 +127,41 @@ async def test_status_classifier_honours_not_found_message() -> None:
 
     with pytest.raises(NotFoundError):
         check_status(httpx.Response(404), source="tiantian", what="profile", not_found="no page")
+
+
+@pytest.mark.parametrize(("header", "expected"), [("120", 120.0), ("0", 0.0)])
+async def test_retry_after_seconds_is_carried_into_the_error(header: str, expected: float) -> None:
+    """A source that says when to come back knows better than our default."""
+    from quotestack.errors import RateLimitedError
+    from quotestack.sources.transport import check_status
+
+    response = httpx.Response(429, headers={"Retry-After": header})
+    with pytest.raises(RateLimitedError) as excinfo:
+        check_status(response, source="eastmoney", what="test")
+
+    assert excinfo.value.context["retry_after"] == expected
+
+
+async def test_retry_after_accepts_an_http_date() -> None:
+    import datetime as dt
+    from email.utils import format_datetime
+
+    from quotestack.errors import RateLimitedError
+    from quotestack.sources.transport import check_status
+
+    when = dt.datetime.now(dt.UTC) + dt.timedelta(seconds=90)
+    response = httpx.Response(429, headers={"Retry-After": format_datetime(when, usegmt=True)})
+    with pytest.raises(RateLimitedError) as excinfo:
+        check_status(response, source="eastmoney", what="test")
+
+    assert 80 <= excinfo.value.context["retry_after"] <= 90
+
+
+async def test_absent_retry_after_is_not_invented() -> None:
+    from quotestack.errors import RateLimitedError
+    from quotestack.sources.transport import check_status
+
+    with pytest.raises(RateLimitedError) as excinfo:
+        check_status(httpx.Response(429), source="eastmoney", what="test")
+
+    assert "retry_after" not in excinfo.value.context

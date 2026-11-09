@@ -17,7 +17,12 @@ import logging
 from collections.abc import Awaitable, Callable
 
 from quotestack.cache import Cache, CacheEntry, CacheState, classify, is_fresh
-from quotestack.errors import SchemaChangedError, UnavailableError, UpstreamError
+from quotestack.errors import (
+    ClientBrokenError,
+    SchemaChangedError,
+    UnavailableError,
+    UpstreamError,
+)
 from quotestack.logging import event, get_logger
 from quotestack.models import Capability, Instrument
 from quotestack.resilience import Cooldown, TokenBucket
@@ -180,6 +185,11 @@ class FetchPolicy:
                 attempts.append({"source": name, "reason": exc.code})
                 continue
             except UpstreamError as exc:
+                retry_after = exc.context.get("retry_after")
+                if isinstance(retry_after, (int, float)) and retry_after > 0:
+                    self._cooldown.cool_for(name, float(retry_after))
+                    attempts.append({"source": name, "reason": exc.code})
+                    continue
                 # Cooling a whole source because one instrument is missing
                 # would take the other instruments down with it.
                 if exc.retryable and self._cooldown.mark_failed(name):
@@ -198,6 +208,26 @@ class FetchPolicy:
             self._cooldown.mark_ok(name)
             self._cache.set(key, value, name)
             return value
+
+        # Every source answered with a payload we could not parse. That is not
+        # a transient outage: retrying will fail identically until the parser
+        # is updated, and the caller needs a different instruction than
+        # "try again later".
+        if attempts and all(attempt["reason"] == "SCHEMA_CHANGED" for attempt in attempts):
+            event(
+                _log,
+                logging.ERROR,
+                "all_sources_failed",
+                capability=capability.value,
+                key=key,
+                reason="schema_changed",
+                attempts=len(attempts),
+                hint="every source changed shape; the parser needs updating",
+            )
+            raise ClientBrokenError(
+                "every source changed shape; the parser needs updating",
+                attempts=attempts,
+            )
 
         reason = "all sources failed"
         return self._fallback(

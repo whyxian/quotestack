@@ -201,13 +201,29 @@ def _parse_cn_timestamp(raw: str) -> datetime:
     """Parse Tencent's compact ``YYYYMMDDHHMMSS`` stamp as Shanghai time."""
     try:
         return datetime.strptime(raw, "%Y%m%d%H%M%S").replace(tzinfo=_CN_TZ)
-    except ValueError:
-        return datetime.now(_CN_TZ)
+    except ValueError as exc:
+        # Falling back to now() would report an unparseable stamp as fresh.
+        raise SchemaChangedError(
+            "tencent timestamp did not parse",
+            source="tencent",
+            capability="quote",
+            assertion="timestamp is %Y%m%d%H%M%S",
+            sample=raw[:200],
+            hint="substituting now() would make stale data look realtime",
+        ) from exc
 
 
 def _parse_us_timestamp(raw: str) -> datetime:
     """Parse Tencent's ``YYYY-MM-DD HH:MM:SS`` stamp as New York time."""
     try:
         return datetime.strptime(raw, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_US_TZ)
-    except ValueError:
-        return datetime.now(_US_TZ)
+    except ValueError as exc:
+        # Falling back to now() would report an unparseable stamp as fresh.
+        raise SchemaChangedError(
+            "tencent timestamp did not parse",
+            source="tencent",
+            capability="quote",
+            assertion="timestamp is %Y-%m-%d %H:%M:%S",
+            sample=raw[:200],
+            hint="substituting now() would make stale data look realtime",
+        ) from exc

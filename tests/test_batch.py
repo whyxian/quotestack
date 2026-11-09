@@ -11,6 +11,8 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
+import pytest
+
 from quotestack import AssetClass, Market, MarketData
 from quotestack.errors import EmptyResponseError
 from quotestack.models import Capability, Quote
@@ -134,3 +136,74 @@ async def test_a_total_miss_still_reports_unavailable() -> None:
 
     assert results[0].ok is False
     assert "UNAVAILABLE" in (results[0].error or "")
+
+
+async def test_every_source_changing_shape_is_client_broken() -> None:
+    """All sources unparseable is not an outage; retrying cannot help."""
+    from quotestack.errors import ClientBrokenError, SchemaChangedError
+
+    class Moved:
+        def __init__(self, name: str) -> None:
+            self.meta = SourceMeta(
+                name=name,
+                capabilities=frozenset({Capability.QUOTE}),
+                markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+            )
+
+        async def quote(self, instruments: list[Any]) -> list[Quote]:
+            raise SchemaChangedError(
+                "payload moved",
+                source=self.meta.name,
+                capability="quote",
+                assertion="data.diff is a list",
+                sample="{}",
+            )
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(
+        sources={"eastmoney": Moved("eastmoney"), "tencent": Moved("tencent")},
+        source_priority={"QUOTE": ["eastmoney", "tencent"]},
+    )
+    try:
+        with pytest.raises(ClientBrokenError):
+            await client.quote("600519", AssetClass.STOCK, Market.CN)
+    finally:
+        await client.aclose()
+
+
+async def test_one_source_moving_is_not_client_broken() -> None:
+    """A single source changing shape is what the fallback chain is for."""
+
+    class Moved:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.QUOTE}),
+            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        )
+
+        async def quote(self, instruments: list[Any]) -> list[Quote]:
+            from quotestack.errors import SchemaChangedError
+
+            raise SchemaChangedError(
+                "payload moved",
+                source="eastmoney",
+                capability="quote",
+                assertion="a",
+                sample="b",
+            )
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(
+        sources={"eastmoney": Moved(), "tencent": _Backup()},
+        source_priority={"QUOTE": ["eastmoney", "tencent"]},
+    )
+    try:
+        quote = await client.quote("600519", AssetClass.STOCK, Market.CN)
+    finally:
+        await client.aclose()
+
+    assert quote.source == "tencent"

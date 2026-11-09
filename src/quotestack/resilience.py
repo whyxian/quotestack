@@ -60,6 +60,14 @@ class Cooldown:
         self._until[source] = self._now() + self.duration
         return True
 
+    def cool_for(self, source: str, seconds: float) -> None:
+        """Skip the source for as long as it asked, not for the default.
+
+        A source that answers ``Retry-After: 120`` knows better than our fixed
+        30 seconds; retrying sooner is how a throttle turns into a block.
+        """
+        self._until[source] = self._now() + max(0.0, seconds)
+
     def mark_ok(self, source: str) -> None:
         """Clear the failure count and any cooldown."""
         self._failures.pop(source, None)

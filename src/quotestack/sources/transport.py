@@ -12,6 +12,8 @@ One boundary, one mapping: everything that fails below HTTP becomes a
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
@@ -33,6 +35,30 @@ __all__ = ["check_status", "send"]
 # plain upstream errors marks them retryable, which is the opposite of what the
 # source asked for.
 _RATE_LIMIT_STATUSES = frozenset({429, 514})
+
+
+def _retry_after(response: httpx.Response) -> float | None:
+    """Read ``Retry-After``, in either of the forms the header allows.
+
+    The design called for honouring the source's own backoff request; without
+    this the cooldown used its fixed default and could retry long before the
+    source said it was ready.
+    """
+    raw = response.headers.get("Retry-After")
+    if raw is None:
+        return None
+    raw = raw.strip()
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        pass
+    try:
+        when = parsedate_to_datetime(raw)
+    except (TypeError, ValueError):
+        return None
+    if when.tzinfo is None:
+        return None
+    return max(0.0, (when - datetime.now(UTC)).total_seconds())
 
 
 def check_status(
@@ -70,6 +96,10 @@ def check_status(
     context: dict[str, Any] = {"status_code": status}
     if instrument is not None:
         context["instrument"] = instrument
+    # Any status may carry Retry-After; it is the source saying when to return.
+    retry_after = _retry_after(response)
+    if retry_after is not None:
+        context["retry_after"] = retry_after
 
     if status == 404 and not_found is not None:
         raise NotFoundError(not_found, source=source, **context)
