@@ -136,3 +136,22 @@ async def test_crypto_symbol_is_not_suffixed_twice() -> None:
         assert client.resolve("BTC", AssetClass.CRYPTO, Market.CRYPTO).aliases["binance"] == (
             "BTCUSDT"
         )
+
+
+def test_status_is_derived_from_the_observation_time() -> None:
+    """`status` defaulted to REALTIME and no source ever set it.
+
+    A quote from a three-month-old close therefore reported itself as live; the
+    three-state cache is built on this distinction being true.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from quotestack.models import QuoteStatus
+    from quotestack.models.quote import status_for
+
+    now = datetime(2026, 11, 10, 2, 0, tzinfo=UTC)
+
+    assert status_for(now, now=now) is QuoteStatus.REALTIME
+    assert status_for(now - timedelta(minutes=4), now=now) is QuoteStatus.REALTIME
+    assert status_for(now - timedelta(minutes=6), now=now) is QuoteStatus.HISTORICAL
+    assert status_for(now - timedelta(days=90), now=now) is QuoteStatus.HISTORICAL

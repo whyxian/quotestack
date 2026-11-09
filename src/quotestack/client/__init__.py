@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from functools import partial
 from types import TracebackType
 from typing import Self, cast
+from urllib.parse import urlparse
 
 from quotestack.benchmark import BenchmarkComponent
 from quotestack.cache import MemoryCache, default_max_stale, make_key, merge_ttl
@@ -99,6 +100,37 @@ _LISTING_PLAN: dict[tuple[AssetClass, Market, bool | None], tuple[str, ...]] = {
     (AssetClass.FUND, Market.CN, False): ("tiantian",),
     (AssetClass.CRYPTO, Market.CRYPTO, None): ("binance",),
 }
+
+
+def _configured_proxy() -> str | None:
+    """Return the proxy in effect, if any."""
+    return (
+        os.environ.get("QUOTESTACK_PROXY_URL")
+        or os.environ.get("HTTPS_PROXY")
+        or os.environ.get("https_proxy")
+        or None
+    )
+
+
+def _redact_proxy(url: str | None) -> str | None:
+    """Strip credentials from a proxy URL before it is reported.
+
+    Proxies are commonly written as ``http://user:secret@host:port``. `/healthz`
+    is unauthenticated and often scraped, so echoing the setting verbatim
+    published the password. The host and port are what an operator needs to
+    check; the credentials are not.
+    """
+    if not url:
+        return url
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return "<unparseable>"
+    if parsed.username is None and parsed.password is None:
+        return url
+    host = parsed.hostname or ""
+    port = f":{parsed.port}" if parsed.port else ""
+    return f"{parsed.scheme}://<redacted>@{host}{port}"
 
 
 def _holds_no_equity(allocation: Allocation | None) -> bool:
@@ -848,6 +880,8 @@ class MarketData:
             UnsupportedError: The instrument is not an open-end fund.
             UpstreamError: The source failed and no usable cache exists.
         """
+        if limit < 1:
+            raise InvalidArgumentError("limit must be at least 1", limit=limit)
         instrument = self.resolve(code, asset_class, market)
         self._require(instrument, Capability.NAV)
         key = make_key(Capability.NAV, instrument.id)
@@ -912,7 +946,12 @@ class MarketData:
 
         Raises:
             UnsupportedError: No source can enumerate this market.
+            InvalidArgumentError: ``page_size`` is below one. Without this the
+                sources disagreed: one raised a bare ``ValueError`` from
+                ``range()``, another silently clamped to 1.
         """
+        if page_size < 1:
+            raise InvalidArgumentError("page_size must be at least 1", page_size=page_size)
         names = _LISTING_PLAN.get((asset_class, market, listed))
         if not names:
             raise UnsupportedError(
@@ -962,6 +1001,10 @@ class MarketData:
             await self._bucket.acquire()
             yield batch
 
+    def source_for(self, capability: Capability, instrument_id: str) -> str | None:
+        """Return the source that produced the cached value, if any."""
+        return self._fetch.source_for(make_key(capability, instrument_id))
+
     def cache_stats(self) -> dict[str, int]:
         """Return a snapshot of cache occupancy."""
         return {"entries": len(self._cache)}
@@ -987,9 +1030,7 @@ class MarketData:
 
         return {
             "status": "degraded" if degraded else "ok",
-            "proxy": os.environ.get("QUOTESTACK_PROXY_URL")
-            or os.environ.get("HTTPS_PROXY")
-            or None,
+            "proxy": _redact_proxy(_configured_proxy()),
             "sources": sources,
             "cache": self.cache_stats(),
         }

@@ -275,6 +275,15 @@ class FetchPolicy:
         )
         raise UnavailableError(reason, attempts=attempts or [])
 
+    def source_for(self, key: str) -> str | None:
+        """Return which source produced the value currently cached for ``key``.
+
+        Routes used to hard-code the source name, so a response claimed
+        "eastmoney" even when Tencent answered or the value came from cache.
+        """
+        entry = self._cache.get(key)
+        return entry.source if entry is not None else None
+
     def fresh_entry(self, key: str, capability: Capability) -> CacheEntry | None:
         entry = self._cache.get(key)
         if entry is None or not is_fresh(entry, self._ttl[capability]):

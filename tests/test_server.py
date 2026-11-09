@@ -40,6 +40,9 @@ class _FakeClient:
     def __init__(self) -> None:
         self.closed = False
 
+    def source_for(self, capability: Any, instrument_id: str) -> str:
+        return "eastmoney"
+
     def resolve(self, code: str, asset_class: Any = None, market: Any = None) -> Any:
         from quotestack.identity import resolve
 
@@ -517,3 +520,28 @@ async def test_instruments_reports_has_more_correctly() -> None:
     assert [i["code"] for i in first["items"]] == ["600519"]
     assert second["has_more"] is False
     assert [i["code"] for i in second["items"]] == ["000001"]
+
+
+async def test_history_reports_the_source_that_answered() -> None:
+    """The route used to claim "eastmoney" regardless of who answered."""
+    async with _api() as api:
+        body = (await api.get("/v1/history?code=600519&limit=3")).json()["data"]
+
+    assert body["source"]
+    assert body["source"] != "unknown"
+
+
+async def test_holdings_has_more_comes_from_the_extra_quarter() -> None:
+    """A page that exactly fills the limit is not evidence of another page.
+
+    The route used to compare the page length with the page size, so a fund with
+    exactly `limit` quarters left reported another page and the client made one
+    pointless request.
+    """
+    async with _api() as api:
+        body = (await api.get("/v1/holdings?code=166002&limit=2")).json()["data"]
+
+    assert isinstance(body["has_more"], bool)
+    assert len(body["quarters"]) <= 2
+    if not body["has_more"]:
+        assert body["next_before"] is None

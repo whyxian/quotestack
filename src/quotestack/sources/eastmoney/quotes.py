@@ -6,6 +6,7 @@ from collections.abc import Sequence
 
 from quotestack.errors import EmptyResponseError, SchemaChangedError
 from quotestack.models import Instrument, Quote
+from quotestack.models.quote import status_for
 from quotestack.sources.eastmoney.core import SOURCE_META, CoreMixin
 from quotestack.sources.eastmoney.parsing import (
     PCT_DIVISOR,
@@ -120,6 +121,7 @@ class QuotesMixin(CoreMixin):
                 instrument=instrument.id,
             )
 
+        ts = _as_timestamp(row.get("f124"))
         # f4 is scaled like the price; f3 is always percent x 100 regardless
         # of how many decimals the price carries (US quotes use 3).
         return Quote(
@@ -127,9 +129,10 @@ class QuotesMixin(CoreMixin):
             price=price,
             currency=instrument.currency,
             source="eastmoney",
-            ts=_as_timestamp(row.get("f124")),
+            ts=ts,
             change=_scaled(row.get("f4"), scale),
             change_pct=_as_float(row.get("f3"), PCT_DIVISOR),
+            status=status_for(ts),
         )
 
     async def quotes_by_secid(self, secids: Sequence[str]) -> dict[str, float]:

@@ -353,3 +353,25 @@ async def test_history_rejects_a_non_positive_limit() -> None:
     async with MarketData() as client:
         with pytest.raises(InvalidArgumentError):
             await client.history("600519", limit=0)
+
+
+async def test_nav_and_page_size_reject_non_positive_values() -> None:
+    from quotestack.errors import InvalidArgumentError
+
+    async with MarketData() as client:
+        with pytest.raises(InvalidArgumentError):
+            await client.nav("022430", limit=0)
+        with pytest.raises(InvalidArgumentError):
+            async for _ in client.iter_instruments(AssetClass.STOCK, Market.CN, page_size=0):
+                break
+
+
+def test_proxy_credentials_are_redacted_in_health() -> None:
+    """`/healthz` is unauthenticated; a proxy password must not appear there."""
+    from quotestack.client import _redact_proxy
+
+    assert _redact_proxy("http://user:secret@proxy.local:7890") == (
+        "http://<redacted>@proxy.local:7890"
+    )
+    assert _redact_proxy("http://proxy.local:7890") == "http://proxy.local:7890"
+    assert _redact_proxy(None) is None

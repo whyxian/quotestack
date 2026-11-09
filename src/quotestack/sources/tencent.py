@@ -20,6 +20,7 @@ import httpx
 
 from quotestack.errors import EmptyResponseError, SchemaChangedError, UpstreamError
 from quotestack.models import AssetClass, Capability, Instrument, Market, Quote
+from quotestack.models.quote import status_for
 from quotestack.sources.base import SourceMeta
 from quotestack.sources.transport import check_status, send
 
@@ -187,6 +188,7 @@ class TencentSource:
             ts=ts,
             change=fields[_IDX_CHANGE] or None,
             change_pct=_as_float(fields[_IDX_CHANGE_PCT]),
+            status=status_for(ts),
         )
 
 

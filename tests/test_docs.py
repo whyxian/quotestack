@@ -271,7 +271,8 @@ def test_sync_wrapper_covers_every_public_method() -> None:
         return {
             name
             for name, value in inspect.getmembers(cls, predicate=inspect.isfunction)
-            if not name.startswith("_") and name not in {"aclose", "close", "cache_stats", "health"}
+            if not name.startswith("_")
+            and name not in {"aclose", "close", "cache_stats", "health", "source_for"}
         }
 
     missing = public(MarketData) - public(SyncMarketData)

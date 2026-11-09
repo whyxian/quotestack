@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from quotestack.models.enums import QuoteStatus
 
 __all__ = ["Quote"]
+
+# A quote is called realtime while its observation time is this close to now.
+# Everything older is the last known trade, which is what a quote looks like
+# outside market hours, after a suspension, or when the source is serving a
+# cached close.
+REALTIME_WINDOW = timedelta(minutes=5)
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,3 +49,13 @@ class Quote:
     def is_usable(self) -> bool:
         """Whether the quote carries an actual price."""
         return self.status is not QuoteStatus.UNAVAILABLE
+
+
+def status_for(ts: datetime, *, now: datetime | None = None) -> QuoteStatus:
+    """Classify a quote by how old its observation time is.
+
+    ``status`` used to default to REALTIME at construction and was never set by
+    any source, so a quote from a three-month-old close reported itself as live.
+    """
+    reference = now or datetime.now(ts.tzinfo)
+    return QuoteStatus.REALTIME if reference - ts <= REALTIME_WINDOW else QuoteStatus.HISTORICAL

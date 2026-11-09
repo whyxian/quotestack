@@ -256,7 +256,9 @@ def _register(app: FastAPI) -> None:
                 "bars": [_bar(bar) for bar in bars],
                 "interval": interval.value,
                 "adjust": adjust.value,
-                "source": bars[0].source if hasattr(bars[0], "source") else "eastmoney",
+                "source": client.source_for(
+                    Capability.HISTORY, client.resolve(code, asset_class, market).id
+                ),
                 "fetched_at": _now(),
             }
         }
@@ -283,7 +285,9 @@ def _register(app: FastAPI) -> None:
             "data": {
                 "points": [_nav_point(point) for point in points],
                 "latest": _nav_point(latest),
-                "source": "tiantian",
+                "source": client.source_for(
+                    Capability.NAV, client.resolve(code, asset_class, market).id
+                ),
                 "fetched_at": _now(),
             }
         }
@@ -321,8 +325,13 @@ def _register(app: FastAPI) -> None:
         before: Annotated[str | None, Query(pattern=r"^\d{4}Q[1-4]$")] = None,
         limit: Annotated[int, Query(ge=1, le=40)] = 4,
     ) -> dict[str, Any]:
-        quarters = await client.holdings(code, asset_class, market, before=before, limit=limit)
-        has_more = len(quarters) == limit
+        # Ask for one more than the page so its existence answers `has_more`.
+        # Comparing the page length with the page size reported a next page
+        # whenever the result happened to fill the page exactly, so a client
+        # following the cursor made one pointless request per fund.
+        fetched = await client.holdings(code, asset_class, market, before=before, limit=limit + 1)
+        has_more = len(fetched) > limit
+        quarters = fetched[:limit]
         return {
             "data": {
                 "quarters": [_quarter(quarter) for quarter in quarters],
