@@ -26,17 +26,24 @@ def test_cache_rejects_a_zero_bound() -> None:
         MemoryCache(max_entries=0)
 
 
-def test_every_capability_has_a_ttl_and_a_stale_limit() -> None:
-    """The tables are passive lookups: a missing key is a KeyError at runtime.
+def test_the_policy_table_covers_every_capability() -> None:
+    """One row per capability, so nothing can be silently absent.
 
-    LIST was absent from both, so the first caching path to touch a listing
-    would have crashed with KeyError instead of using a default.
+    The table used to be two: a TTL dict and a "not cached" set. They can
+    disagree, and did - LIST sat in NOT_CACHED while carrying a TTL value that
+    existed only to keep indexing from raising.
     """
-    from quotestack.cache.base import default_max_stale, default_ttl
+    from quotestack.cache.base import _CACHE_POLICY, NOT_CACHED, default_ttl
     from quotestack.models import Capability
 
-    assert set(default_ttl()) == set(Capability)
-    assert set(default_max_stale()) == set(Capability)
+    assert set(_CACHE_POLICY) == set(Capability), "every capability needs a row"
+    for capability, policy in _CACHE_POLICY.items():
+        if policy is None:
+            assert capability in NOT_CACHED
+        else:
+            assert capability in default_ttl()
+            assert policy.ttl > 0
+            assert policy.max_stale >= policy.ttl or policy.max_stale == float("inf")
 
 
 async def test_every_capability_that_caches_actually_caches() -> None:

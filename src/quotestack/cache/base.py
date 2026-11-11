@@ -19,6 +19,7 @@ __all__ = [
     "NOT_CACHED",
     "CacheEntry",
     "CacheKey",
+    "CachePolicy",
     "CacheState",
     "classify",
     "default_max_stale",
@@ -28,42 +29,44 @@ __all__ = [
 
 CACHE_VERSION = "v1"
 
-# Capabilities that no code path caches, declared rather than merely absent.
-# Listing streams and never stores; a benchmark curve is composed per request.
-# Anything not listed here must actually populate the cache when called - a
-# test asserts it, because a TTL nobody reads is just a louder kind of silence.
-NOT_CACHED: frozenset[Capability] = frozenset({Capability.LIST, Capability.BENCHMARK})
 
-# Seconds. Chosen per capability, not per source.
-_DEFAULT_TTL: dict[Capability, float] = {
-    Capability.RESOLVE: 7 * 24 * 3600,
-    Capability.QUOTE: 30.0,
-    Capability.HISTORY: 3600.0,
-    Capability.NAV: 6 * 3600.0,
-    Capability.PROFILE: 24 * 3600.0,
-    Capability.HOLDINGS: float("inf"),  # historical quarters never change
-    Capability.BENCHMARK: 6 * 3600.0,
-    Capability.ESTIMATE: 30.0,
-    Capability.FX: 3600.0,
-    # Declared so that indexing the table never raises; LIST is in NOT_CACHED.
-    Capability.LIST: 3600.0,
+@dataclass(frozen=True, slots=True)
+class CachePolicy:
+    """How long a capability stays fresh, and how far it may fall back.
+
+    Args:
+        ttl: Seconds the entry is fresh.
+        max_stale: Seconds an expired entry may still be served when the
+            upstream fails. ``inf`` means "never too old".
+    """
+
+    ttl: float
+    max_stale: float
+
+
+# One row per capability, no defaults and no complement: a capability either
+# carries a policy or says ``None`` with the reason. Two tables (a TTL table and
+# a "not cached" set) can disagree; one total table cannot, and adding a
+# capability fails a test until someone decides which column it belongs in.
+_CACHE_POLICY: dict[Capability, CachePolicy | None] = {
+    Capability.RESOLVE: CachePolicy(7 * 24 * 3600, 30 * 24 * 3600),
+    Capability.QUOTE: CachePolicy(30.0, 24 * 3600),
+    Capability.HISTORY: CachePolicy(3600.0, float("inf")),
+    Capability.NAV: CachePolicy(6 * 3600.0, 7 * 24 * 3600),
+    Capability.PROFILE: CachePolicy(24 * 3600.0, 7 * 24 * 3600),
+    # Historical quarters never change.
+    Capability.HOLDINGS: CachePolicy(float("inf"), float("inf")),
+    Capability.ESTIMATE: CachePolicy(30.0, 300.0),
+    Capability.FX: CachePolicy(3600.0, 7 * 24 * 3600),
+    # Deliberately uncached.
+    Capability.BENCHMARK: None,  # composed per request from component histories
+    Capability.LIST: None,  # a listing streams; storing it has no reader
 }
 
-
-# How long an expired entry may still be served when the upstream fails.
-# ``inf`` means "never expires" (historical data does not change).
-_DEFAULT_MAX_STALE: dict[Capability, float] = {
-    Capability.RESOLVE: 30 * 24 * 3600,
-    Capability.QUOTE: 24 * 3600,  # never show a quote older than a day
-    Capability.HISTORY: float("inf"),
-    Capability.NAV: 7 * 24 * 3600,
-    Capability.PROFILE: 7 * 24 * 3600,
-    Capability.HOLDINGS: float("inf"),
-    Capability.BENCHMARK: 7 * 24 * 3600,
-    Capability.ESTIMATE: 300,  # estimates go stale fast
-    Capability.FX: 7 * 24 * 3600,
-    Capability.LIST: float("inf"),
-}
+# Derived, not declared: the negative fact is a view of the table above.
+NOT_CACHED: frozenset[Capability] = frozenset(
+    capability for capability, policy in _CACHE_POLICY.items() if policy is None
+)
 
 
 class CacheState(StrEnum):
@@ -115,8 +118,10 @@ class Cache(Protocol):
 
 
 def default_ttl() -> dict[Capability, float]:
-    """Return a mutable copy of the built-in TTL table."""
-    return dict(_DEFAULT_TTL)
+    """Return the default fresh-for duration of every cached capability."""
+    return {
+        capability: policy.ttl for capability, policy in _CACHE_POLICY.items() if policy is not None
+    }
 
 
 def make_key(capability: Capability, instrument_id: str, *parts: str) -> CacheKey:
@@ -184,8 +189,12 @@ def classify(
 
 
 def default_max_stale() -> dict[Capability, float]:
-    """Return a mutable copy of the built-in max-stale table."""
-    return dict(_DEFAULT_MAX_STALE)
+    """Return how stale every cached capability may be served."""
+    return {
+        capability: policy.max_stale
+        for capability, policy in _CACHE_POLICY.items()
+        if policy is not None
+    }
 
 
 def merge_ttl(overrides: Mapping[Capability, float] | None) -> dict[Capability, float]:
