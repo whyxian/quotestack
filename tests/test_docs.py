@@ -53,7 +53,10 @@ def test_source_capability_table_matches_the_code() -> None:
         if not line.startswith("| **"):
             continue
         cells = [cell.strip() for cell in line.strip("|").split("|")]
-        source = _NAMES.get(cells[0].strip("* "))
+        # The label may carry the registry name in parentheses, e.g.
+        # "**东财外汇**（`eastmoney-fx`）"; match on the readable part.
+        label = cells[0].split("（")[0].strip("* ")
+        source = _NAMES.get(label)
         if source is None:
             continue
         documented = set(re.findall(r"`([A-Z]+)`", cells[2]))

@@ -139,7 +139,13 @@ def test_cache_stats_reflects_stored_entries() -> None:
 
 def test_health_lists_every_configured_source() -> None:
     client = MarketData()
-    assert set(client.health()["sources"]) == {"eastmoney", "tencent", "tiantian", "fx", "binance"}
+    assert set(client.health()["sources"]) == {
+        "eastmoney",
+        "tencent",
+        "tiantian",
+        "eastmoney-fx",
+        "binance",
+    }
 
 
 def test_health_marks_a_cooling_source_as_degraded() -> None:
@@ -466,3 +472,53 @@ async def test_fx_cache_ignores_case() -> None:
         await client.aclose()
 
     assert Rates.calls == 1
+
+
+def test_a_source_is_registered_under_its_own_name() -> None:
+    """One source, one name.
+
+    The FX adapter was registered as "fx" while calling itself "eastmoney-fx",
+    so the same source appeared under two names: health() said one thing and an
+    error context said another.
+    """
+    from quotestack.client import default_sources
+
+    for key, source in default_sources().items():
+        assert key == source.meta.name, f"registered as {key}, calls itself {source.meta.name}"
+
+
+async def test_fx_is_found_by_capability_not_by_name() -> None:
+    """A second FX provider must work without renaming anything."""
+    import datetime as dt
+
+    from quotestack.models import Capability, FxRate
+    from quotestack.sources.base import SourceMeta
+
+    class Rates:
+        meta = SourceMeta(
+            name="some-other-fx",
+            capabilities=frozenset({Capability.FX}),
+            markets=frozenset(),
+        )
+
+        async def fx(self, base: str, quote: str) -> FxRate:
+            return FxRate(
+                base=base,
+                quote=quote,
+                rate="7.0",
+                source="some-other-fx",
+                as_of=dt.datetime.now(dt.UTC),
+                derived=False,
+            )
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(sources={"some-other-fx": Rates()})
+    try:
+        rate = await client.fx("USD", "CNY")
+    finally:
+        await client.aclose()
+
+    assert rate.rate == "7.0"
+    assert rate.source == "some-other-fx"

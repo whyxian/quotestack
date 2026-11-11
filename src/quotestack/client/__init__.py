@@ -102,6 +102,13 @@ _LISTING_PLAN: dict[tuple[AssetClass, Market, bool | None], tuple[str, ...]] = {
 }
 
 
+def _source_name(source: object) -> str:
+    """Read the adapter's declared name without assuming it is typed."""
+    meta = getattr(source, "meta", None)
+    name = getattr(meta, "name", None)
+    return name if isinstance(name, str) and name else "unknown"
+
+
 def _configured_proxy() -> str | None:
     """Return the proxy in effect, if any."""
     return (
@@ -144,7 +151,7 @@ def default_sources(proxy: str | None = None) -> dict[str, object]:
         "eastmoney": EastMoneySource(proxy=proxy),
         "tencent": TencentSource(proxy=proxy),
         "tiantian": TiantianSource(proxy=proxy),
-        "fx": FxSource(proxy=proxy),
+        "eastmoney-fx": FxSource(proxy=proxy),
         "binance": BinanceSource(proxy=proxy),
     }
 
@@ -937,7 +944,17 @@ class MarketData:
             UnsupportedError: No rate is available for the pair.
             UpstreamError: The source failed.
         """
-        source = self._sources.get("fx")
+        # Resolved by capability, not by a hard-coded registry name: the key used
+        # to be "fx" while the adapter called itself "eastmoney-fx", so the same
+        # source had two names depending on where you looked.
+        source = next(
+            (
+                candidate
+                for candidate in self._sources.values()
+                if Capability.FX in getattr(getattr(candidate, "meta", None), "capabilities", ())
+            ),
+            None,
+        )
         method = getattr(source, "fx", None)
         if method is None:
             raise UnsupportedError("no FX source configured", base=base, quote=quote)
@@ -951,7 +968,7 @@ class MarketData:
 
         await self._bucket.acquire()
         rate: FxRate = await method(base, quote)
-        self._cache.set(key, rate, getattr(getattr(source, "meta", None), "name", "fx"))
+        self._cache.set(key, rate, _source_name(source))
         return rate
 
     async def iter_instruments(
