@@ -54,6 +54,7 @@ uv run quotestack-server --dump-openapi > docs/api/openapi.yaml
 | R8 | 不许为了让测试通过而放宽断言 | 把 `assert x == 5` 改成 `assert x` |
 | R9 | 不许改坏样本让测试通过 | 把 fixture 改小让它不再触发分支 |
 | R10 | 数字只写在生成块里，正文不写数字 | 手写"11 个方法"，之后不再更新 |
+| R11 | 申请权限时，正文先写清「改什么 / 为什么 / 影响 / 撤销」 | 只在 justification 里写一句"需要写缓存目录" |
 
 <!-- generated:end -->
 

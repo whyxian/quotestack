@@ -35,3 +35,6 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# pre-commit 缓存放在仓库内，避免写 ~/.cache
+.pre-commit-home/

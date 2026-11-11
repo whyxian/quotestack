@@ -24,8 +24,8 @@ src/quotestack/
 ├── benchmark.py           基准文本解析 + 权益判定
 ├── indexes.py             指数名称 → secid
 ├── estimate.py            估值算式与措辞
-├── models/                数据模型（13 个文件）
-│   ├── enums.py           8 个枚举
+├── models/                数据模型
+│   ├── enums.py           枚举定义
 │   ├── instrument.py      Instrument
 │   ├── quote.py           Quote
 │   ├── bar.py             Bar
@@ -40,7 +40,7 @@ src/quotestack/
 │   └── estimate.py        Estimate
 ├── identity/              代码 → 各源标识
 ├── cache/                 三态缓存
-└── sources/               五个数据源
+└── sources/               数据源适配器
     ├── base.py            SourceMeta / Quoter / Historian
     ├── routing.py         路由表 + candidates()
     ├── eastmoney/         core / quotes / klines / listings / parsing
@@ -84,14 +84,14 @@ client.quote("600519")
   │
   ├─ _require(QUOTE)                  能力检查，缺则 Unsupported
   │
-  ├─ _cached()                        cache/base.py
+  ├─ FetchPolicy.get()                client/fetch.py
   │    ├─ classify() → FRESH?  → 直接返回
   │    └─ STALE / EXPIRED → 继续
   │
   ├─ _single_flight()                 同 key 并发只回源一次
   │
   └─ _fetch_and_store()
-       ├─ _candidates()               sources/routing.py 决定顺序
+       ├─ candidates()                sources/routing.py 决定顺序
        │    └─ ["eastmoney", "tencent"]
        ├─ cooldown.is_cooling()       冷却中的源跳过
        ├─ bucket.acquire()            令牌桶限流
@@ -112,7 +112,7 @@ client.quote("600519")
 client.estimate("166002")
   ├─ profile()            → fund_class / benchmark / tracking_index
   ├─ _allocation()        → 股票/债券/现金占净比
-  ├─ 货币型？             → change_pct=0.0, basis=none（结束）
+  ├─ 货币型且无权益？     → change_pct=0.0, basis=none（结束）
   ├─ 有跟踪标的？
   │    ├─ resolve_index() → secid
   │    ├─ quotes_by_secid → 当日涨跌
@@ -214,19 +214,18 @@ v1|nav|CN:FUND:166002
 
 ```
 tests/
-├── test_identity.py      解析规则
-├── test_eastmoney.py     行情解析 + 缩放
-├── test_tencent.py       GBK + 双布局
-├── test_tiantian.py      JS 变量解析
-├── test_fx.py            汇率交叉
-├── test_listing.py       三个源的列表
-├── test_funds.py         基金分类
-├── test_routing.py       路由与批量
-├── test_resilience.py    冷却与限流
-├── test_client.py        缓存三态与降级
-├── test_cli_sync.py      CLI 与同步包装
-└── test_smoke.py         真实请求（默认跳过）
+├── 解析与规则      identity / eastmoney / tencent / tiantian / fx / listing
+│                   funds / indexes / parsing / klines / eastmoney_search
+├── 编排与容错      client / client_edges / batch / cache / resilience
+│                   transport / error_paths
+├── 业务链路        estimate / estimate_paths / estimate_edges / benchmark
+├── 服务与入口      server / cli / cli_sync / sync
+├── 元检查          architecture（分层）/ docs（文档对账）/ observability
+│                   fixtures（样本加载）
+└── 真实请求        smoke / smoke_policy（默认跳过）
 ```
+
+文件名带 `_edges` / `_paths` 的，专测错误路径与边界——**不是补覆盖率，是补"没走到的另一侧"**。
 
 测试全离线（respx 拦截 HTTP），少量 live 用例需 `QUOTESTACK_LIVE=1` 才跑，回测脚本在 `benchmarks/`。
 

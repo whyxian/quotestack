@@ -22,6 +22,7 @@
 | R8 | 不许为了让测试通过而放宽断言 | 把 `assert x == 5` 改成 `assert x` |
 | R9 | 不许改坏样本让测试通过 | 把 fixture 改小让它不再触发分支 |
 | R10 | 数字只写在生成块里，正文不写数字 | 手写"11 个方法"，之后不再更新 |
+| R11 | 申请权限时，正文先写清「改什么 / 为什么 / 影响 / 撤销」 | 只在 justification 里写一句"需要写缓存目录" |
 <!-- invariants:end -->
 
 **为什么前五条用 `str` 和结构约束兜底**：
@@ -35,6 +36,10 @@
 R3 的机械化版本：`tests/test_architecture.py` 用 AST 检查 import 方向，
 `sources/` import `client` 会让测试失败。
 R10 的机械化版本：`scripts/check_docs.py` 的数字黑名单。
+
+**R11 为什么必须写在正文里**：权限申请走的是工具的 `justification` 参数，
+那个参数只有一句话的空间。审批的人看到的是正文，所以四件事要写在调用**之前**，
+不是写在参数里。格式见 [BOUNDARY](BOUNDARY.md#申请权限时必须先说清)。
 「源只能有一个名字」由 `test_a_source_is_registered_under_its_own_name` 保证：
 注册表的键必须等于 `meta.name`。
 R8/R9 由 `docs/harness/WORKFLOWS.md` 的流程约束，没有自动化。
