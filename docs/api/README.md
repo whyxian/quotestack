@@ -13,10 +13,11 @@ quotestack-server --dump-openapi > docs/api/openapi.yaml
 
 一份 OpenAPI 3.1 文档，描述 quotestack 服务化后的全部接口。
 
-它由 FastAPI 从代码生成，所以**不可能和实现不一致**。
+它由 FastAPI 从代码生成，所以**内容来自代码而不是手写**。
 
-`tests/test_server.py::test_committed_spec_matches_the_code` 会对比提交的文件与
-重新生成的结果；忘了重新生成，测试就会失败。
+但提交进仓库的这份文件**可能过期**——改了接口却忘了重新生成就会脱节。
+`tests/test_server.py::test_committed_spec_matches_the_code` 重新生成一次并比对，
+忘同步就红。
 
 ---
 

@@ -661,3 +661,38 @@ def test_readme_coverage_table_matches_the_sources() -> None:
     row = [line for line in text.splitlines() if "**Crypto**" in line]
     assert row, "README has no crypto row"
     assert "listing only" in row[0], row[0]
+
+
+def test_security_doc_matches_the_default_bind_address() -> None:
+    """SECURITY says the service listens on loopback only."""
+    from quotestack.server.config import Config
+
+    assert Config().host == "127.0.0.1"
+    text = (ROOT_DIR / "SECURITY.md").read_text(encoding="utf-8")
+    assert "127.0.0.1" in text
+
+
+def test_security_doc_mentions_proxy_redaction() -> None:
+    """/healthz echoes the proxy, so the doc must say the credentials are gone."""
+    from quotestack.client import _redact_proxy
+
+    assert _redact_proxy("http://u:p@h:1") == "http://<redacted>@h:1"
+    text = (ROOT_DIR / "SECURITY.md").read_text(encoding="utf-8")
+    assert "<redacted>" in text
+
+
+def test_api_readme_route_table_matches_the_spec() -> None:
+    """The route table lists every path the contract declares."""
+    import yaml
+
+    spec = yaml.safe_load((ROOT_DIR / "docs/api/openapi.yaml").read_text(encoding="utf-8"))
+    real = set(spec["paths"])
+
+    text = (ROOT_DIR / "docs/api/README.md").read_text(encoding="utf-8")
+    section = text[text.index("| 方法 | 路径 |") :]
+    section = section[: section.index("全部路由已实现")]
+    documented = set(re.findall(r"\| `(/v1/[a-z/]+)` \|", section))
+
+    assert documented == real, (
+        f"doc {sorted(documented - real)} vs spec {sorted(real - documented)}"
+    )
