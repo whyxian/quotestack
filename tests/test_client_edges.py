@@ -389,3 +389,80 @@ async def test_negative_max_age_is_rejected() -> None:
         ):
             with pytest.raises(InvalidArgumentError):
                 await call
+
+
+async def test_fx_rates_are_cached_for_the_configured_ttl() -> None:
+    """A page with ten dollar holdings asked for the same pair ten times."""
+    import datetime as dt
+
+    from quotestack.models import Capability, FxRate
+    from quotestack.sources.base import SourceMeta
+
+    class Rates:
+        meta = SourceMeta(
+            name="fx",
+            capabilities=frozenset({Capability.FX}),
+            markets=frozenset(),
+        )
+
+        calls = 0
+
+        async def fx(self, base: str, quote: str) -> FxRate:
+            Rates.calls += 1
+            return FxRate(
+                base=base,
+                quote=quote,
+                rate="6.6738",
+                source="fx",
+                as_of=dt.datetime.now(dt.UTC),
+                derived=False,
+            )
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(sources={"fx": Rates()})
+    try:
+        first = await client.fx("USD", "CNY")
+        second = await client.fx("USD", "CNY")
+        third = await client.fx("CNY", "USD")
+    finally:
+        await client.aclose()
+
+    assert first.rate == second.rate == "6.6738"
+    assert Rates.calls == 2, f"asked upstream {Rates.calls} times, expected 2"
+    assert third.base == "CNY"
+
+
+async def test_fx_cache_ignores_case() -> None:
+    import datetime as dt
+
+    from quotestack.models import Capability, FxRate
+    from quotestack.sources.base import SourceMeta
+
+    class Rates:
+        meta = SourceMeta(name="fx", capabilities=frozenset({Capability.FX}), markets=frozenset())
+        calls = 0
+
+        async def fx(self, base: str, quote: str) -> FxRate:
+            Rates.calls += 1
+            return FxRate(
+                base=base,
+                quote=quote,
+                rate="1",
+                source="fx",
+                as_of=dt.datetime.now(dt.UTC),
+                derived=False,
+            )
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(sources={"fx": Rates()})
+    try:
+        await client.fx("usd", "cny")
+        await client.fx("USD", "CNY")
+    finally:
+        await client.aclose()
+
+    assert Rates.calls == 1

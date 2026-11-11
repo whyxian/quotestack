@@ -275,3 +275,70 @@ async def test_a_batch_with_a_transient_failure_is_unavailable() -> None:
         await client.aclose()
 
     assert "UNAVAILABLE" in (results[0].error or "")
+
+
+async def test_a_healthy_source_makes_the_batch_merely_unavailable() -> None:
+    """One source answering, one source changing shape, is not CLIENT_BROKEN.
+
+    The old test only asked whether every *failure* was a parse failure, so a
+    source that answered and simply lacked a code was invisible: the remaining
+    item was labelled CLIENT_BROKEN, telling the caller to upgrade the library
+    when the real answer was "this source has no row for it".
+    """
+    from quotestack.errors import SchemaChangedError
+
+    class Partial:
+        """Answers, but only covers one code."""
+
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.QUOTE}),
+            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        )
+
+        async def quote(self, instruments: list[Any]) -> list[Quote]:
+            return [
+                _quote(instrument.id, "1453.00", "eastmoney")
+                for instrument in instruments
+                if instrument.code == "600519"
+            ]
+
+        async def aclose(self) -> None:
+            return None
+
+    class Moved:
+        meta = SourceMeta(
+            name="tencent",
+            capabilities=frozenset({Capability.QUOTE}),
+            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        )
+
+        async def quote(self, instruments: list[Any]) -> list[Quote]:
+            raise SchemaChangedError(
+                "payload moved",
+                source="tencent",
+                capability="quote",
+                assertion="a",
+                sample="b",
+            )
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(
+        sources={"eastmoney": Partial(), "tencent": Moved()},
+        source_priority={"QUOTE": ["eastmoney", "tencent"]},
+    )
+    try:
+        results = await client.quote_many(
+            [
+                ("600519", AssetClass.STOCK, Market.CN),
+                ("510300", AssetClass.STOCK, Market.CN),
+            ]
+        )
+    finally:
+        await client.aclose()
+
+    assert results[0].ok is True
+    assert "UNAVAILABLE" in (results[1].error or "")
+    assert "CLIENT_BROKEN" not in (results[1].error or "")

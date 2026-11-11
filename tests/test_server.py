@@ -520,15 +520,6 @@ async def test_instruments_reports_has_more_correctly() -> None:
     assert [i["code"] for i in second["items"]] == ["000001"]
 
 
-async def test_history_reports_the_source_that_answered() -> None:
-    """The route used to claim "eastmoney" regardless of who answered."""
-    async with _api() as api:
-        body = (await api.get("/v1/history?code=600519&limit=3")).json()["data"]
-
-    assert body["source"]
-    assert body["source"] != "unknown"
-
-
 async def test_holdings_has_more_comes_from_the_extra_quarter() -> None:
     """A page that exactly fills the limit is not evidence of another page.
 

@@ -199,14 +199,14 @@ v1|nav|CN:FUND:166002
 
 | 文件 | 行数 |
 |---|---|
-| `quotestack/client/__init__.py` | 1195 |
+| `quotestack/client/__init__.py` | 1211 |
 | `quotestack/server/app.py` | 633 |
 | `quotestack/sources/tiantian.py` | 620 |
 | `quotestack/server/schemas.py` | 314 |
 | `quotestack/sync.py` | 309 |
 | 其余 48 个文件 | < 303 |
 
-**合计**：8,129 行 / 53 文件。
+**合计**：8,145 行 / 53 文件。
 
 <!-- generated:end -->
 

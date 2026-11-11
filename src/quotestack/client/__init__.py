@@ -941,8 +941,17 @@ class MarketData:
         method = getattr(source, "fx", None)
         if method is None:
             raise UnsupportedError("no FX source configured", base=base, quote=quote)
+
+        # A rate is good for an hour (Capability.FX), and a page showing ten
+        # dollar-denominated holdings asked for the same pair ten times.
+        key = make_key(Capability.FX, f"{base.upper()}/{quote.upper()}")
+        entry = self._cache.get(key)
+        if entry is not None and is_fresh(entry, self._ttl[Capability.FX]):
+            return cast("FxRate", entry.value)
+
         await self._bucket.acquire()
         rate: FxRate = await method(base, quote)
+        self._cache.set(key, rate, getattr(getattr(source, "meta", None), "name", "fx"))
         return rate
 
     async def iter_instruments(
@@ -1097,7 +1106,11 @@ class MarketData:
         the fate of every other instrument in the same call.
         """
         remaining = list(group)
-        reasons: list[str] = []
+        # A source that answered, even without covering every code, is healthy.
+        # Tracking only the exceptions made one broken source look like "every
+        # source is broken" whenever the others simply had no row for a code.
+        attempted: set[str] = set()
+        schema_failures: set[str] = set()
         candidates = self._priority.get(
             Capability.QUOTE.value,
             route(remaining[0][1].asset_class, remaining[0][1].market, Capability.QUOTE),
@@ -1107,6 +1120,7 @@ class MarketData:
             source = self._sources.get(name)
             if source is None or self._cooldown.is_cooling(name) or not remaining:
                 continue
+            attempted.add(name)
             await self._bucket.acquire()
             try:
                 quotes = await source.quote(  # type: ignore[attr-defined]
@@ -1118,7 +1132,8 @@ class MarketData:
                 # source down for everything else.
                 if exc.retryable:
                     self._cooldown.mark_failed(name)
-                reasons.append(exc.code)
+                if exc.code == "SCHEMA_CHANGED":
+                    schema_failures.add(name)
                 continue
 
             self._cooldown.mark_ok(name)
@@ -1133,10 +1148,11 @@ class MarketData:
                 self._cache.set(make_key(Capability.QUOTE, instrument.id), quote, name)
             remaining = still_missing
 
-        # Same distinction as the single-quote path: if every source answered
-        # with a payload we cannot parse, retrying will fail identically and the
-        # caller needs to upgrade rather than retry.
-        broken = bool(reasons) and all(reason == "SCHEMA_CHANGED" for reason in reasons)
+        # Same distinction as the single-quote path, but the test is "every
+        # source we tried failed to parse", not "every failure was a parse
+        # failure": a source that answered and merely lacked this instrument is
+        # not evidence that the client is out of date.
+        broken = bool(attempted) and attempted == schema_failures
         for index, instrument in remaining:
             code = "CLIENT_BROKEN" if broken else "UNAVAILABLE"
             detail = (
