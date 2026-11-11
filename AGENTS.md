@@ -69,7 +69,7 @@ uv run quotestack-server --dump-openapi > docs/api/openapi.yaml
 | 2 | [harness/ARCHITECTURE](docs/harness/ARCHITECTURE.md) | 代码在哪、谁能 import 谁、调用路径 |
 | 3 | [harness/PITFALLS](docs/harness/PITFALLS.md) | 不报错但会算错的地方 |
 | 4 | [harness/WORKFLOWS](docs/harness/WORKFLOWS.md) | 加源 / 修 bug / 改接口的步骤 |
-| 5 | [harness/BOUNDARY](docs/harness/BOUNDARY.md) | 哪些操作必须先问人 |
+| 5 | [harness/BOUNDARY](docs/harness/BOUNDARY.md) | 哪些操作必须先问人，以及**申请权限的标准格式** |
 
 ### 需要设计背景时
 
