@@ -146,9 +146,9 @@ layers = ["quotestack.server", "quotestack.client", "quotestack.sources", "quote
 | async 中调用 `time.sleep` / `requests` | 阻塞整个事件循环 | ruff `ASYNC` |
 | 模块级可变全局（缓存单例除外） | 测试串扰 | 审查 |
 | `from x import *` | 污染命名空间 | ruff `F403` |
-| 裸 `Any`（边界除外） | 类型形同虚设 | mypy |
+| 裸 `Any`（边界除外） | 类型形同虚设 | **审查**（mypy strict 不禁止显式 `Any`） |
 | 在 `__init__` 中做 I/O | 构造不应有副作用 | 审查 |
-| 超过 3 层嵌套 | 可读性急剧下降 | 审查 |
+| 超过 3 层嵌套 | 可读性急剧下降 | 审查（未开 `C901`） |
 
 ---
 
@@ -158,8 +158,8 @@ layers = ["quotestack.server", "quotestack.client", "quotestack.sources", "quote
 |---|---|
 | 公共 API 有完整类型标注与 docstring | 否则 `py.typed` 无意义 |
 | 每个公共函数至少一个测试 | 覆盖率 85% 是结果，不是目标 |
-| 错误走异常层级 | 不返回错误码 |
-| 日志用 `logger.<level>(msg, extra={...})` | 不拼字符串 |
+| 错误走异常层级 | 不返回错误码；第三方异常在边界处翻译（见 `sources/transport.py`） |
+| 事件用 `event(logger, level, name, **fields)` | 固定事件名 + 结构化字段，不拼字符串 |
 | 私有成员前缀 `_` | 明确边界 |
 | 模块显式声明 `__all__` | 控制导出面 |
 
