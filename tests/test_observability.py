@@ -43,3 +43,44 @@ def test_emitted_events_are_registered() -> None:
 
     unknown = used - set(EVENTS)
     assert not unknown, f"emitted but not registered: {sorted(unknown)}"
+
+
+def test_documented_event_fields_match_the_code() -> None:
+    """The event table listed fields nobody emitted.
+
+    `batch` was documented with capability, elapsed_ms, ok and failed; the code
+    passes only `count`. A reader tuning a log query on those names would get
+    nothing, and nothing noticed because only the event names were tested.
+    """
+    import ast
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    emitted: dict[str, set[str]] = {}
+    for path in (root / "src/quotestack").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if getattr(node.func, "id", "") != "event":
+                continue
+            if len(node.args) < 3 or not isinstance(node.args[2], ast.Constant):
+                continue
+            name = str(node.args[2].value)
+            fields = {kw.arg for kw in node.keywords if kw.arg and kw.arg != "hint"}
+            emitted.setdefault(name, set()).update(fields)
+
+    doc = (root / "docs/design/12-observability.md").read_text(encoding="utf-8")
+    section = doc[doc.index("| 事件 | 级别 | 字段 |") :]
+    section = section[: section.index("**已实现的事件")]
+
+    documented: dict[str, set[str]] = {}
+    for line in section.splitlines():
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if len(cells) < 3 or not cells[0].startswith("`"):
+            continue
+        name = cells[0].strip("`")
+        documented[name] = set(re.findall(r"`([a-z_]+)`", cells[2]))
+
+    assert set(documented) == set(emitted), "event list drifted"
+    for name, fields in documented.items():
+        assert fields == emitted[name], f"{name}: doc {sorted(fields)} code {sorted(emitted[name])}"

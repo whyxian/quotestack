@@ -25,18 +25,22 @@ HTTP 壳是应用，由它配置输出格式与级别。
 
 不要到处写自由文本，用固定事件名，便于 grep 与聚合。
 
-| 事件 | 级别 | 实际字段 | 状态 |
-|---|---|---|---|
-| `startup` | INFO | `version`, `python`, `proxy`, `sources`, `cache`, `ttl` | M6（服务启动时） |
-| `resolve` | DEBUG | `code`, `market`, `asset_class`, `instrument`, `confidence`, `aliases` | ✅ |
-| `cache_lookup` | DEBUG | `key`, `state`(`fresh`/`stale`/`expired`), `capability` | ✅ |
-| `stale_served` | WARNING | `capability`, `key`, `source`, `hint` | ✅ |
-| `cooldown` | WARNING | `source`, `action`, `duration`, `hint` | ✅ |
-| `upstream_request` | DEBUG | `source`, `capability`, `instrument`, `elapsed_ms`, `status` | M4 |
-| `batch` | INFO | `capability`, `count`, `elapsed_ms`, `ok`, `failed` | M4 |
-| `fallback` | INFO | `from`, `to`, `reason` | M4（源间降级埋点） |
-| `schema_changed` | ERROR | `source`, `capability`, `assertion`, `sample`, `url` | M6 |
-| `all_sources_failed` | ERROR | `capability`, `instrument`, `attempts` | M6 |
+| 事件 | 级别 | 字段 |
+|---|---|---|
+| `startup` | INFO | `sources` |
+| `resolve` | DEBUG | `code`, `market`, `asset_class`, `instrument`, `confidence`, `aliases` |
+| `cache_lookup` | DEBUG | `key`, `state`, `capability` |
+| `stale_served` | WARNING | `capability`, `key`, `source` |
+| `cooldown` | WARNING | `source`, `action`, `duration` |
+| `fallback` | DEBUG | `capability`, `from_source`, `to_source` |
+| `upstream_request` | DEBUG | `source`, `method`, `url` |
+| `batch` | DEBUG | `count` |
+| `schema_changed` | ERROR | `capability`, `source`, `assertion` |
+| `all_sources_failed` | ERROR | `capability`, `key`, `reason`, `attempts` |
+
+所有事件都额外带一个 `hint` 字段，说明"看到这个之后该做什么"。
+
+`state` 的取值是 `fresh` / `stale` / `expired`。
 
 **已实现的事件写在 `logging.EVENTS` 里**，拼错名字会直接抛 `ValueError`，防止事件名漂移。
 

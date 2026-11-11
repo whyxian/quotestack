@@ -53,7 +53,7 @@ uv run quotestack-server --host 127.0.0.1 --port 8000
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    QUOTESTACK_PORT=8000
+    QUOTESTACK_SERVER_PORT=8000
 
 WORKDIR /app
 
@@ -98,7 +98,7 @@ docker run -d \
 ```bash
 docker run -d \
   -e HTTPS_PROXY=http://host.docker.internal:7890 \
-  -e HTTP_PROXY=http://host.docker.internal:7890 \
+  -e QUOTESTACK_PROXY_URL=http://host.docker.internal:7890 \
   ...
 ```
 
@@ -199,20 +199,22 @@ fx        = 3600
 |---|---|---|---|
 | `server.host` | `QUOTESTACK_SERVER_HOST` | `127.0.0.1` | 监听地址 |
 | `server.port` | `QUOTESTACK_SERVER_PORT` | `8000` | 监听端口 |
-| `cache.dir` | `QUOTESTACK_CACHE_DIR` | `~/.cache/quotestack` | 缓存文件目录 |
 | `log.level` | `QUOTESTACK_LOG_LEVEL` | `INFO` | `DEBUG` 输出完整排查信息 |
 | `proxy.url` | `QUOTESTACK_PROXY_URL` | 空 | 出站代理 |
-| `proxy.bypass` | `QUOTESTACK_PROXY_BYPASS` | 空 | 逗号分隔的域名列表 |
 | `ttl.quote` | `QUOTESTACK_TTL_QUOTE` | 30 | 秒 |
 | `ttl.history` | `QUOTESTACK_TTL_HISTORY` | 3600 | 秒 |
 | `ttl.nav` | `QUOTESTACK_TTL_NAV` | 21600 | 秒 |
 | `ttl.profile` | `QUOTESTACK_TTL_PROFILE` | 86400 | 秒 |
 | `ttl.holdings` | `QUOTESTACK_TTL_HOLDINGS` | `never` | `never` 或秒数 |
-| `ttl.benchmark` | `QUOTESTACK_TTL_BENCHMARK` | 21600 | 秒 |
+| `ttl.benchmark` | `QUOTESTACK_TTL_BENCHMARK` | — | 不缓存，配了也不生效 |
 | `ttl.estimate` | `QUOTESTACK_TTL_ESTIMATE` | 30 | 秒 |
 | `ttl.fx` | `QUOTESTACK_TTL_FX` | 3600 | 秒 |
+| `ttl.resolve` | `QUOTESTACK_TTL_RESOLVE` | 604800 | 秒 |
+| `ttl.list` | `QUOTESTACK_TTL_LIST` | — | 不缓存，配了也不生效 |
 
-`HTTPS_PROXY` / `HTTP_PROXY` 也会被识别，但优先级低于 `QUOTESTACK_PROXY_URL`。
+`QUOTESTACK_CONFIG` 指定配置文件路径；`HTTPS_PROXY` 被识别为代理，优先级低于 `QUOTESTACK_PROXY_URL`。
+
+**没有持久化缓存配置**：缓存是进程内的，容器重建即冷启动。
 
 ### 验证配置生效
 

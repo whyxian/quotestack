@@ -77,25 +77,30 @@ SyncMarketData.__init__
 
 ### 2.1 令牌桶
 
-**每个源一个独立的令牌桶**：
+**整个客户端一个桶，不是每个源一个。**
 
-| 参数 | 默认值 |
-|---|---|
-| 速率 | 5 请求/秒 |
-| 突发容量 | 10 |
-| 排队上限 | 20 个等待者 |
-| 排队超时 | 5 秒（超时抛 `RateLimited`） |
+| 参数 | 默认值 | 为什么 |
+|---|---|---|
+| 速率 | **4 请求/秒** | 东财 fundf10 实测：4/s 通过，5/s 触发 514 |
+| 突发容量 | **1**（不突发） | 任何突发都会叠加到同一秒内 |
+| 等待上限 | 5 秒，超时抛 `RateLimitedError` | 无限等待会让调用方卡死 |
 
-超限时**排队等待**而不是直接报错——对调用方更友好，也不浪费已完成的解析工作。
+**超限时排队等待**，不是立刻报错——对调用方更友好，也不浪费已完成的解析工作。
+
+> 为什么全局而不是每源：所有源共享同一条出网链路和对端的风控。
+> 每源一个桶意味着"东财 4/s + 腾讯 4/s"同时打出去，对端看到的是 8/s。
 
 ### 2.2 配置
 
 ```python
-MarketData(
-    rate_limit={"eastmoney": (5, 10), "binance": (10, 20)},
-    rate_limit_disabled=False,     # 自测时可关
-)
+from quotestack import MarketData
+from quotestack.resilience import TokenBucket
+
+client = MarketData(bucket=TokenBucket(rate=2.0, capacity=1))
 ```
+
+想关掉限流只能自己传一个极大的 `rate`——**没有 disable 开关**，
+因为限流是防被封的必要行为，不是可选优化。
 
 ### 2.3 尊重 `Retry-After`
 
