@@ -11,17 +11,21 @@
 
 服务自持缓存，能力粒度 TTL，初始化可配。
 
-| 能力 | 默认 TTL |
-|---|---|
-| resolve | 7 天 |
-| quote | 30 秒 |
-| history（日线及以上） | 1 小时 |
-| history（分钟线） | 60 秒 |
-| nav | 6 小时 |
-| profile | 24 小时 |
-| **holdings** | **永久**（历史季度不可变） |
-| benchmark | 6 小时 |
-| fx | 1 小时 |
+| 能力 | 默认 TTL | 最旧容忍 | 说明 |
+|---|---|---|---|
+| `RESOLVE` | 7 天 | 30 天 | 代码 → 各源标识，规则稳定 |
+| `QUOTE` | 30 秒 | 1 天 | 盘中要新鲜，收盘后不必重取 |
+| `HISTORY` | 1 小时 | 不限 | 含分钟线；返回的都是已完成 K 线 |
+| `NAV` | 6 小时 | 7 天 | 每日公布一次 |
+| `PROFILE` | 24 小时 | 7 天 | 静态信息 |
+| `HOLDINGS` | 永久 | 不限 | 历史季度不可变 |
+| `ESTIMATE` | 30 秒 | 5 分钟 | 跟着报价走，过期就无意义 |
+| `FX` | 1 小时 | 7 天 | 汇率日内波动小 |
+| `BENCHMARK` | **不缓存** | — | 每次由成分指数历史现算 |
+| `LIST` | **不缓存** | — | 列表是流式消费，存了没有读者 |
+
+「不缓存」是显式声明，不是遗漏——见 `cache/base.py` 的 `_CACHE_POLICY`，
+每个能力恰好一行，`None` 表示不缓存并写明原因。
 
 ### 三态语义
 
@@ -43,16 +47,21 @@
 ### 配置示例
 
 ```python
+from quotestack import MarketData
+from quotestack.cache import MemoryCache
+from quotestack.models import Capability
+
 client = MarketData(
-    cache=SqliteCache("~/.cache/quotestack.db"),
-    ttl={
-        "resolve": 604800, "quote": 30, "history": 3600,
-        "nav": 21600, "profile": 86400, "fx": 3600,
-    },
-    serve_stale_on_error=True,
-    single_flight=True,
+    cache=MemoryCache(max_entries=20_000),      # 默认 10,000 条，LRU 淘汰
+    ttl={Capability.QUOTE: 60, Capability.ESTIMATE: 15},
+    max_stale={Capability.QUOTE: 3600},
 )
 ```
+
+**单飞和 stale 回退不是开关**——它们是取数路径的固有行为，没有关闭的选项。
+配置项只有三个：缓存实现、TTL 覆盖、容忍期覆盖。
+
+目前只有 `MemoryCache`，**没有持久化实现**：进程重启即冷启动。
 
 **服务形态下**没有调用方写代码，TTL 由 `quotestack.toml` 的 `[ttl]` 段或 `QUOTESTACK_TTL_*` 环境变量提供，server 读取后转成上面的构造参数。详见 [部署与环境 § 配置](09-deployment.md#配置)。
 

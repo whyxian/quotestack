@@ -378,3 +378,52 @@ def test_guide_rate_limit_matches_the_configured_bucket() -> None:
     assert f"{bucket._rate:g} 次/秒" in universe, (
         f"guide states a rate that is not the bucket's {bucket._rate:g}/s"
     )
+
+
+def _doc_ttl_rows() -> dict[str, str]:
+    """Parse the TTL tables out of the design and guide documents."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    design = (root / "docs/design/04-cache.md").read_text(encoding="utf-8")
+    section = design[design.index("| 能力 | 默认 TTL |") :]
+    section = section[: section.index("\n\n")]
+
+    rows: dict[str, str] = {}
+    for line in section.splitlines():
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if len(cells) >= 2 and cells[0].startswith("`"):
+            rows[cells[0].strip("`")] = cells[1]
+    return rows
+
+
+def test_design_ttl_table_matches_the_policy() -> None:
+    """The cache table in the design doc must be the code's table.
+
+    It listed `benchmark 6 小时` and a separate 60-second TTL for minute bars.
+    Neither was true: benchmark is not cached at all, and history has one TTL.
+    """
+    from quotestack.cache.base import _CACHE_POLICY
+    from quotestack.models import Capability
+
+    rows = _doc_ttl_rows()
+    assert set(rows) == {capability.value for capability in Capability}, (
+        "design table must have one row per capability"
+    )
+
+    for capability, policy in _CACHE_POLICY.items():
+        documented = rows[capability.value]
+        if policy is None:
+            assert "不缓存" in documented, f"{capability.value} is not cached but says {documented}"
+        else:
+            assert "不缓存" not in documented, f"{capability.value} is cached but says {documented}"
+
+
+def test_guide_ttl_table_does_not_claim_an_uncached_capability_is_cached() -> None:
+    root = pathlib.Path(__file__).resolve().parents[1]
+    guide = (root / "guide/12-reference.md").read_text(encoding="utf-8")
+    section = guide[guide.index("| 能力 | 默认 TTL |") :]
+    section = section[: section.index("\n\n")]
+
+    for capability in ("BENCHMARK", "LIST"):
+        rows = [line for line in section.splitlines() if f"`{capability}`" in line]
+        assert rows, f"guide has no row for {capability}"
+        assert "不缓存" in rows[0]
