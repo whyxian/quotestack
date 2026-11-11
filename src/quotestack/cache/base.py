@@ -16,6 +16,7 @@ from typing import Protocol
 from quotestack.models import Capability
 
 __all__ = [
+    "NOT_CACHED",
     "CacheEntry",
     "CacheKey",
     "CacheState",
@@ -26,6 +27,12 @@ __all__ = [
 ]
 
 CACHE_VERSION = "v1"
+
+# Capabilities that no code path caches, declared rather than merely absent.
+# Listing streams and never stores; a benchmark curve is composed per request.
+# Anything not listed here must actually populate the cache when called - a
+# test asserts it, because a TTL nobody reads is just a louder kind of silence.
+NOT_CACHED: frozenset[Capability] = frozenset({Capability.LIST, Capability.BENCHMARK})
 
 # Seconds. Chosen per capability, not per source.
 _DEFAULT_TTL: dict[Capability, float] = {
@@ -38,6 +45,8 @@ _DEFAULT_TTL: dict[Capability, float] = {
     Capability.BENCHMARK: 6 * 3600.0,
     Capability.ESTIMATE: 30.0,
     Capability.FX: 3600.0,
+    # Declared so that indexing the table never raises; LIST is in NOT_CACHED.
+    Capability.LIST: 3600.0,
 }
 
 
@@ -53,6 +62,7 @@ _DEFAULT_MAX_STALE: dict[Capability, float] = {
     Capability.BENCHMARK: 7 * 24 * 3600,
     Capability.ESTIMATE: 300,  # estimates go stale fast
     Capability.FX: 7 * 24 * 3600,
+    Capability.LIST: float("inf"),
 }
 
 
