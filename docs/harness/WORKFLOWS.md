@@ -90,6 +90,9 @@ QUOTESTACK_LIVE=1 uv run pytest tests/test_smoke.py -q -rs
 
 第 3 步是机械的：索引状态列从各篇自己的标题读，所以**先改标题再跑脚本**。
 
+顺便跑一次 `uv run python scripts/doc_state.py`，看有没有文档因为这次改动而
+「描述过的代码变了」——有的话复查一遍，确认后 `--confirm` 掉。
+
 ---
 
 ## 改动牵动哪些文档
@@ -98,13 +101,19 @@ QUOTESTACK_LIVE=1 uv run pytest tests/test_smoke.py -q -rs
 |---|---|---|
 | 能力声明 / 数据源 | `docs/design/03-sources.md` | `test_docs.py` |
 | HTTP 接口 | `docs/api/openapi.yaml` | `test_server.py` |
+| 事件名 / 字段 | `docs/design/12-observability.md` | `test_observability.py` |
+| 错误类层次 | `docs/design/06-errors.md` | `test_docs.py` |
+| 缓存 TTL / 是否缓存 | `docs/design/04-cache.md`、`guide/12-reference.md` | `test_docs.py` |
+| 示例脚本 | `docs/design/10-open-source.md` | `test_docs.py` |
+| CLI 命令 | `docs/design/05-api.md` | `test_docs.py` |
 | 方法/路由/错误数量 | `docs/design/README.md` 事实块 | `sync_docs.py --check` |
 | 各篇实现状态 | 索引状态列 | `sync_docs.py --check` |
-| 模块结构 | `docs/harness/ARCHITECTURE.md` | 人工 |
-| 测试数量 / 覆盖率 | `docs/design/14-testing.md` | 人工 |
-| 完成里程碑 | `docs/ROADMAP.md` | 人工 |
+| 模块结构 | `docs/harness/ARCHITECTURE.md` | 人工（`doc_state.py` 报告） |
+| 测试数量 / 覆盖率 | `docs/design/14-testing.md` | 人工（`doc_state.py` 报告） |
+| 完成里程碑 | `docs/ROADMAP.md` | `sync_docs.py --check`（进度行） |
 
-前三行有测试兜底，后三行只能靠自觉——**所以后三行要写进提交前自查**。
+**上表前九行有测试兜底**。剩下的人工项由 `scripts/doc_state.py` 报告——
+它会列出「描述过的代码变了、但没人再确认」的文档，按需复查即可。
 
 ### 探测失败之后
 
