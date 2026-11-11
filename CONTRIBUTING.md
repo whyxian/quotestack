@@ -40,6 +40,12 @@ uv run mypy src                                     # 类型
 uv run pre-commit install   # 新克隆的仓库需要执行一次
 ```
 
+**缓存目录建议指向仓库内**，避免写家目录：
+
+```bash
+export PRE_COMMIT_HOME="$PWD/.pre-commit-home"    # 已在 .gitignore 里
+```
+
 钩子用的是**本仓库 venv 里的工具**，不是另外下载的版本——避免两个 ruff 对同一份代码
 给出不同结论。
 
