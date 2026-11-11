@@ -696,3 +696,23 @@ def test_api_readme_route_table_matches_the_spec() -> None:
     assert documented == real, (
         f"doc {sorted(documented - real)} vs spec {sorted(real - documented)}"
     )
+
+
+def test_guide_error_codes_exist_in_the_library() -> None:
+    """Every code the troubleshooting guide names must be a real error code."""
+    import quotestack.errors as errors
+    from quotestack.errors import MarketDataError
+
+    real = {
+        value.code
+        for value in vars(errors).values()
+        if isinstance(value, type) and issubclass(value, MarketDataError)
+    }
+
+    text = (ROOT_DIR / "guide/11-troubleshooting.md").read_text(encoding="utf-8")
+    section = text[text.index("| `code` | 含义 | 怎么办 |") :]
+    section = section[: section.index("**场外基金查报价")]
+    documented = set(re.findall(r"^\| `([A-Z_]+)` \|", section, re.M))
+
+    assert documented, "no codes parsed"
+    assert documented <= real, f"guide names codes that do not exist: {documented - real}"
