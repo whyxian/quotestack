@@ -473,3 +473,25 @@ def test_adapter_doc_lists_the_real_capabilities() -> None:
         assert f'name="{source.meta.name}"' in doc
         for capability in source.meta.capabilities:
             assert capability.value in doc, f"{source.meta.name} missing {capability.value}"
+
+
+def test_permission_format_is_defined_once() -> None:
+    """The four-item list lives in R11, not also in BOUNDARY.
+
+    It was in both: CONSTRAINTS enumerated the items and BOUNDARY repeated the
+    block. Two copies of one rule drift, which is the whole reason the cache
+    policy became a single table.
+    """
+    root = pathlib.Path(__file__).resolve().parents[1]
+    constraints = (root / "docs/harness/CONSTRAINTS.md").read_text(encoding="utf-8")
+    boundary = (root / "docs/harness/BOUNDARY.md").read_text(encoding="utf-8")
+
+    assert "R11" in constraints
+    for item in ("改什么", "为什么", "影响", "撤销"):
+        assert item in constraints, f"R11 must name {item}"
+
+    # BOUNDARY points at R11 and explains the items rather than re-listing them
+    # as a form to copy.
+    assert "R11" in boundary
+    assert "【申请权限】" in boundary, "the worked example belongs here"
+    assert boundary.count("改什么：<") == 0, "BOUNDARY must not redefine the form"
