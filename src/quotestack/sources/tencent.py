@@ -37,6 +37,11 @@ _IDX_CHANGE = 31
 _IDX_CHANGE_PCT = 32
 _IDX_HIGH = 33
 _IDX_LOW = 34
+# Volume and amount. A code the source has no trading data for still comes back
+# as a row, but with both at zero - which is how `sz166002`, an open-end fund
+# with no exchange listing, returned a made-up price of 1.000.
+_IDX_VOLUME = 6
+_IDX_AMOUNT = 37
 
 # US-only positions.
 _IDX_US_CURRENCY = 35
@@ -172,6 +177,16 @@ class TencentSource:
                 instrument=instrument.id,
             )
 
+        # A zero-volume, zero-amount row is a placeholder, not a trade. Reporting
+        # it as a price invents data; the caller cannot tell it from a real one.
+        if _has_no_trades(fields):
+            raise EmptyResponseError(
+                "tencent has no trading data for this instrument",
+                source="tencent",
+                instrument=instrument.id,
+                hint="the code exists but is not exchange-traded",
+            )
+
         is_us = fields[0] == _US_FLAG
         if is_us:
             currency = fields[_IDX_US_CURRENCY] or instrument.currency
@@ -197,6 +212,13 @@ def _as_float(raw: str) -> float | None:
         return float(raw)
     except (TypeError, ValueError):
         return None
+
+
+def _has_no_trades(fields: list[str]) -> bool:
+    """Whether the row reports no trading at all."""
+    volume = fields[_IDX_VOLUME] if len(fields) > _IDX_VOLUME else "0"
+    amount = fields[_IDX_AMOUNT] if len(fields) > _IDX_AMOUNT else "0"
+    return _as_float(volume) in (None, 0.0) and _as_float(amount) in (None, 0.0)
 
 
 def _parse_cn_timestamp(raw: str) -> datetime:

@@ -101,3 +101,140 @@ async def test_quote_rejects_short_row() -> None:
             await source.quote([_STOCK])
     finally:
         await source.aclose()
+
+
+def test_a_row_with_no_trades_is_not_a_price() -> None:
+    """Tencent answers for codes it has no data for, with a placeholder row.
+
+    `sz166002` is an open-end fund with no listing; the source returned
+    price=1.000, change=0.000, volume=0, amount=0, and the library reported that
+    as a real quote - a fabricated price the caller could not tell from a real
+    one. A real ETF has volume in the tens of millions.
+    """
+    from quotestack.errors import EmptyResponseError
+    from quotestack.identity import resolve
+    from quotestack.sources.tencent import TencentSource
+
+    instrument = resolve("166002", AssetClass.FUND, Market.CN)
+    fields = [
+        "51",
+        "中欧蓝筹",
+        "166002",
+        "1.000",
+        "1.000",
+        "0.000",
+        "0",
+        "0",
+        "0",
+        "0.000",
+        "0",
+        "0.000",
+        "0",
+        "0.000",
+        "0",
+        "0.000",
+        "0",
+        "0.000",
+        "0",
+        "0.000",
+        "0",
+        "0.000",
+        "0",
+        "0.000",
+        "0",
+        "0.000",
+        "0",
+        "0.000",
+        "0",
+        "",
+        "20261111090000",
+        "0.000",
+        "0.00",
+        "0.000",
+        "0.000",
+        "1.000/0/0",
+        "0",
+        "0",
+        "",
+        "",
+        "",
+        "0.000",
+        "0.000",
+        "0.00",
+        "",
+        "",
+        "0.00",
+        "-1",
+        "-1",
+        "0.00",
+        "0",
+        "1.000",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "0.0000",
+        "0.0000",
+        "0",
+        "",
+    ]
+
+    with pytest.raises(EmptyResponseError):
+        TencentSource._to_quote(instrument, fields)
+
+
+def test_a_row_with_volume_is_a_price() -> None:
+    from quotestack.identity import resolve
+    from quotestack.sources.tencent import TencentSource
+
+    instrument = resolve("159915", AssetClass.FUND, Market.CN)
+    fields = [
+        "51",
+        "创业板ETF",
+        "159915",
+        "2.590",
+        "2.509",
+        "2.500",
+        "44596299",
+        "23789364",
+        "20806935",
+        "2.590",
+        "43875",
+        "2.589",
+        "115098",
+        "2.588",
+        "13024",
+        "2.587",
+        "22381",
+        "2.586",
+        "20358",
+        "2.591",
+        "19146",
+        "2.592",
+        "19467",
+        "2.593",
+        "12862",
+        "2.594",
+        "12861",
+        "2.595",
+        "44324",
+        "",
+        "20261111161436",
+        "0.081",
+        "3.23",
+        "2.597",
+        "2.500",
+        "2.590/44596299/11386149158",
+        "44596299",
+        "1138615",
+        "9.80",
+        "",
+        "",
+        "",
+    ]
+
+    quote = TencentSource._to_quote(instrument, fields)
+
+    assert quote.price == "2.590"
+    assert quote.change_pct == 3.23
