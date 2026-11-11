@@ -99,7 +99,7 @@ class QuoteModel(_Model):
     change_pct: float | None = Field(default=None, description="涨跌幅百分数值，-1.76 表示 -1.76%")
     source: str
     ts: str = Field(description="RFC3339 带时区偏移的观测时刻")
-    status: Literal["REALTIME", "HISTORICAL", "UNAVAILABLE"]
+    status: Literal["REALTIME", "HISTORICAL"]
     stale: bool = False
 
 
@@ -223,7 +223,9 @@ class BarsPayload(_Model):
     bars: list[BarModel]
     interval: str
     adjust: str
-    source: str
+    # Null when the cache entry has been evicted by the time the response is
+    # built; an evicted entry must not turn into a 500.
+    source: str | None = None
     fetched_at: str
 
 
@@ -233,7 +235,7 @@ class BarsResponse(_Envelope[BarsPayload]): ...
 class NavPayload(_Model):
     points: list[NavPointModel]
     latest: NavPointModel
-    source: str
+    source: str | None = None
     fetched_at: str
 
 

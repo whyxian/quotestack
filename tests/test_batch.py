@@ -207,3 +207,71 @@ async def test_one_source_moving_is_not_client_broken() -> None:
         await client.aclose()
 
     assert quote.source == "tencent"
+
+
+async def test_a_batch_where_every_source_moved_reports_client_broken() -> None:
+    """The batch path must name the same condition as the single path.
+
+    It reported UNAVAILABLE, which tells a caller to retry something that will
+    fail identically until the parser is updated.
+    """
+    from quotestack.errors import SchemaChangedError
+
+    class Moved:
+        def __init__(self, name: str) -> None:
+            self.meta = SourceMeta(
+                name=name,
+                capabilities=frozenset({Capability.QUOTE}),
+                markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+            )
+
+        async def quote(self, instruments: list[Any]) -> list[Quote]:
+            raise SchemaChangedError(
+                "payload moved",
+                source=self.meta.name,
+                capability="quote",
+                assertion="data.diff is a list",
+                sample="{}",
+            )
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(
+        sources={"eastmoney": Moved("eastmoney"), "tencent": Moved("tencent")},
+        source_priority={"QUOTE": ["eastmoney", "tencent"]},
+    )
+    try:
+        results = await client.quote_many([("600519", AssetClass.STOCK, Market.CN)])
+    finally:
+        await client.aclose()
+
+    assert results[0].ok is False
+    assert "CLIENT_BROKEN" in (results[0].error or "")
+
+
+async def test_a_batch_with_a_transient_failure_is_unavailable() -> None:
+    """A timeout is not a schema change."""
+
+    class Down:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.QUOTE}),
+            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        )
+
+        async def quote(self, instruments: list[Any]) -> list[Quote]:
+            from quotestack.errors import TimeoutError
+
+            raise TimeoutError("slow", source="eastmoney")
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(sources={"eastmoney": Down()}, source_priority={"QUOTE": ["eastmoney"]})
+    try:
+        results = await client.quote_many([("600519", AssetClass.STOCK, Market.CN)])
+    finally:
+        await client.aclose()
+
+    assert "UNAVAILABLE" in (results[0].error or "")

@@ -375,3 +375,17 @@ def test_proxy_credentials_are_redacted_in_health() -> None:
     )
     assert _redact_proxy("http://proxy.local:7890") == "http://proxy.local:7890"
     assert _redact_proxy(None) is None
+
+
+async def test_negative_max_age_is_rejected() -> None:
+    """A negative age means "expired"; silently honouring it is a trap."""
+    from quotestack.errors import InvalidArgumentError
+
+    async with MarketData() as client:
+        for call in (
+            client.quote("600519", max_age=-1),
+            client.history("600519", max_age=-1),
+            client.nav("022430", max_age=-1),
+        ):
+            with pytest.raises(InvalidArgumentError):
+                await call

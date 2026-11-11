@@ -19,7 +19,7 @@ quote = await client.quote("600519", AssetClass.STOCK, Market.CN)
 | `change_pct` | `0.07` | 涨跌幅百分数（`0.07` = 0.07%） |
 | `source` | `'eastmoney'` | 实际给你数据的源 |
 | `ts` | `2026-11-06T16:11:39+08:00` | 带时区的观测时刻 |
-| `status` | `'REALTIME'` | `REALTIME` / `HISTORICAL` / `UNAVAILABLE` |
+| `status` | `'REALTIME'` | `REALTIME`（5 分钟内有成交）/ `HISTORICAL`（更旧） |
 | `stale` | `False` | 是否来自过期缓存 |
 
 **`source` 值得看**：它告诉你这次是主源还是兜底源给的。做数据质量统计时有用。

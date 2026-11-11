@@ -256,8 +256,16 @@ def _register(app: FastAPI) -> None:
                 "bars": [_bar(bar) for bar in bars],
                 "interval": interval.value,
                 "adjust": adjust.value,
+                # The key must match the one `history` wrote: it includes
+                # interval, adjust and limit. Passing only the instrument
+                # looked up a key that does not exist and returned None, which
+                # the response model then refused.
                 "source": client.source_for(
-                    Capability.HISTORY, client.resolve(code, asset_class, market).id
+                    Capability.HISTORY,
+                    client.resolve(code, asset_class, market).id,
+                    interval.value,
+                    adjust.value,
+                    str(limit),
                 ),
                 "fetched_at": _now(),
             }

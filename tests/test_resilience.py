@@ -183,3 +183,36 @@ async def test_every_source_call_takes_a_token() -> None:
         await client.aclose()
 
     assert bucket.taken >= 2, f"only {bucket.taken} tokens taken"
+
+
+async def test_index_resolution_is_cached_and_rate_limited() -> None:
+    """Name-to-secid is stable; resolving it per component repeated upstream work."""
+    from quotestack import AssetClass, Market, MarketData
+    from quotestack.models import Capability
+    from quotestack.sources.base import SourceMeta
+
+    class Index:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.LIST}),
+            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        )
+
+        calls = 0
+
+        async def resolve_index(self, name: str) -> str:
+            Index.calls += 1
+            return "1.000906"
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(sources={"eastmoney": Index()})
+    try:
+        first = await client._resolve_index("中证800")
+        second = await client._resolve_index("中证800")
+    finally:
+        await client.aclose()
+
+    assert first == second == "1.000906"
+    assert Index.calls == 1, f"resolved {Index.calls} times; the cache did not help"

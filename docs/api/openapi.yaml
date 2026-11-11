@@ -1235,7 +1235,9 @@ components:
           type: string
           title: Adjust
         source:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Source
         fetched_at:
           type: string
@@ -1245,7 +1247,6 @@ components:
       - bars
       - interval
       - adjust
-      - source
       - fetched_at
       title: BarsPayload
     BarsResponse:
@@ -1853,7 +1854,9 @@ components:
         latest:
           $ref: '#/components/schemas/NavPointModel'
         source:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Source
         fetched_at:
           type: string
@@ -1862,7 +1865,6 @@ components:
       required:
       - points
       - latest
-      - source
       - fetched_at
       title: NavPayload
     NavPointModel:
@@ -2024,7 +2026,6 @@ components:
           enum:
           - REALTIME
           - HISTORICAL
-          - UNAVAILABLE
           title: Status
         stale:
           type: boolean

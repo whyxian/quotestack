@@ -137,4 +137,3 @@ class QuoteStatus(StrEnum):
 
     REALTIME = "REALTIME"
     HISTORICAL = "HISTORICAL"
-    UNAVAILABLE = "UNAVAILABLE"

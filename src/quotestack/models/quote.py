@@ -45,11 +45,6 @@ class Quote:
     status: QuoteStatus = QuoteStatus.REALTIME
     stale: bool = False
 
-    @property
-    def is_usable(self) -> bool:
-        """Whether the quote carries an actual price."""
-        return self.status is not QuoteStatus.UNAVAILABLE
-
 
 def status_for(ts: datetime, *, now: datetime | None = None) -> QuoteStatus:
     """Classify a quote by how old its observation time is.

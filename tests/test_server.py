@@ -40,7 +40,7 @@ class _FakeClient:
     def __init__(self) -> None:
         self.closed = False
 
-    def source_for(self, capability: Any, instrument_id: str) -> str:
+    def source_for(self, capability: Any, instrument_id: str, *parts: str) -> str:
         return "eastmoney"
 
     def resolve(self, code: str, asset_class: Any = None, market: Any = None) -> Any:
@@ -555,3 +555,67 @@ def test_every_capability_can_be_configured_from_the_environment() -> None:
     from quotestack.server.config import _TTL_NAMES
 
     assert {c.value for c in Capability} == set(_TTL_NAMES)
+
+
+async def test_history_route_works_with_a_real_client() -> None:
+    """The fake client hid a key mismatch that made every history call 500.
+
+    Routing a request through a real MarketData exercises the cache key that
+    `history` actually writes; the fake returned a source name without looking
+    anything up, so it could not fail.
+    """
+    import datetime as dt
+
+    from quotestack.models import Bar, Capability
+    from quotestack.sources.base import SourceMeta
+
+    class History:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.HISTORY}),
+            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        )
+
+        async def history(
+            self, instrument: Any, interval: Any, adjust: Any, limit: int
+        ) -> list[Bar]:
+            return [
+                Bar(
+                    date=dt.date(2026, 11, 10),
+                    open="1",
+                    high="2",
+                    low="1",
+                    close="1.5",
+                    volume="100",
+                )
+            ]
+
+        async def aclose(self) -> None:
+            return None
+
+    base = MarketData(sources={"eastmoney": History()}, source_priority={"HISTORY": ["eastmoney"]})
+    async with base:
+        app = create_app(client=base)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://t"
+        ) as api:
+            response = await api.get("/v1/history", params={"code": "600519", "limit": 3})
+
+    assert response.status_code == 200
+    assert response.json()["data"]["source"] == "eastmoney"
+
+
+def test_history_payload_accepts_an_unknown_source() -> None:
+    """An evicted cache entry must yield null, not a validation error.
+
+    The route cannot prove eviction (the entry is written then read in the same
+    request), so the contract is asserted at the model instead: `source` is
+    optional precisely so a missing lookup degrades instead of raising.
+    """
+    from quotestack.server.schemas import BarsPayload
+
+    payload = BarsPayload(
+        bars=[], interval="1d", adjust="qfq", source=None, fetched_at="2026-11-11T00:00:00Z"
+    )
+
+    assert payload.source is None

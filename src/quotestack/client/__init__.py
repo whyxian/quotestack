@@ -27,7 +27,7 @@ from typing import Self, cast
 from urllib.parse import urlparse
 
 from quotestack.benchmark import BenchmarkComponent
-from quotestack.cache import MemoryCache, default_max_stale, make_key, merge_ttl
+from quotestack.cache import MemoryCache, default_max_stale, is_fresh, make_key, merge_ttl
 from quotestack.client.fetch import FetchPolicy
 from quotestack.errors import (
     InvalidArgumentError,
@@ -283,6 +283,8 @@ class MarketData:
             UnsupportedError: The instrument has no realtime quote.
             UpstreamError: The source failed and no usable cache exists.
         """
+        if max_age is not None and max_age < 0:
+            raise InvalidArgumentError("max_age must not be negative", max_age=max_age)
         instrument = self.resolve(code, asset_class, market)
         self._require(instrument, Capability.QUOTE)
         key = make_key(Capability.QUOTE, instrument.id)
@@ -379,6 +381,8 @@ class MarketData:
         """
         if limit < 1:
             raise InvalidArgumentError("limit must be at least 1", limit=limit)
+        if max_age is not None and max_age < 0:
+            raise InvalidArgumentError("max_age must not be negative", max_age=max_age)
         instrument = self.resolve(code, asset_class, market)
         self._require(instrument, Capability.HISTORY)
         # ``limit`` belongs in the key: asking for five bars and later for fifty
@@ -726,12 +730,29 @@ class MarketData:
         )
 
     async def _resolve_index(self, name: str) -> str | None:
+        """Resolve an index name to a secid, through the cache.
+
+        Name-to-secid is stable for weeks, and a benchmark curve resolves one
+        name per component, so resolving the same name on every estimate was
+        pure upstream traffic.
+        """
         source = self._sources.get("eastmoney")
         method = getattr(source, "resolve_index", None)
         if method is None:
             return None
+        source_name = getattr(getattr(source, "meta", None), "name", "eastmoney")
+        # A name-to-secid mapping is not an instrument lookup, so it uses the
+        # cache directly rather than the fetch policy: there is nothing to fail
+        # over to, and a plain read/write is easier to reason about.
+        key = make_key(Capability.RESOLVE, f"index:{name}")
+        entry = self._cache.get(key)
+        if entry is not None and is_fresh(entry, self._ttl[Capability.RESOLVE]):
+            return cast("str | None", entry.value)
+
         await self._bucket.acquire()
         secid: str | None = await method(name)
+        if secid is not None:
+            self._cache.set(key, secid, source_name)
         return secid
 
     async def _index_history(
@@ -743,6 +764,7 @@ class MarketData:
         source = self._sources.get("eastmoney")
         if source is None:
             return []
+        await self._bucket.acquire()
         bars: list[Bar] = await source.history_by_secid(secid, start, end)  # type: ignore[attr-defined]
         return bars
 
@@ -885,6 +907,8 @@ class MarketData:
         """
         if limit < 1:
             raise InvalidArgumentError("limit must be at least 1", limit=limit)
+        if max_age is not None and max_age < 0:
+            raise InvalidArgumentError("max_age must not be negative", max_age=max_age)
         instrument = self.resolve(code, asset_class, market)
         self._require(instrument, Capability.NAV)
         key = make_key(Capability.NAV, instrument.id)
@@ -1004,9 +1028,21 @@ class MarketData:
             await self._bucket.acquire()
             yield batch
 
-    def source_for(self, capability: Capability, instrument_id: str) -> str | None:
-        """Return the source that produced the cached value, if any."""
-        return self._fetch.source_for(make_key(capability, instrument_id))
+    def source_for(self, capability: Capability, instrument_id: str, *parts: str) -> str | None:
+        """Return the source that produced the cached value, if any.
+
+        Args:
+            capability: Which cache namespace to look in.
+            instrument_id: Canonical instrument id.
+            *parts: Any extra key segments the call used, in the same order.
+                ``history`` keys on interval, adjust and limit, so a caller that
+                omits them looks in the wrong place and finds nothing.
+
+        Returns:
+            The adapter name, or ``None`` when the entry is absent or already
+            evicted. Callers must tolerate ``None``.
+        """
+        return self._fetch.source_for(make_key(capability, instrument_id, *parts))
 
     def cache_stats(self) -> dict[str, int]:
         """Return a snapshot of cache occupancy."""
@@ -1061,6 +1097,7 @@ class MarketData:
         the fate of every other instrument in the same call.
         """
         remaining = list(group)
+        reasons: list[str] = []
         candidates = self._priority.get(
             Capability.QUOTE.value,
             route(remaining[0][1].asset_class, remaining[0][1].market, Capability.QUOTE),
@@ -1081,6 +1118,7 @@ class MarketData:
                 # source down for everything else.
                 if exc.retryable:
                     self._cooldown.mark_failed(name)
+                reasons.append(exc.code)
                 continue
 
             self._cooldown.mark_ok(name)
@@ -1095,10 +1133,20 @@ class MarketData:
                 self._cache.set(make_key(Capability.QUOTE, instrument.id), quote, name)
             remaining = still_missing
 
+        # Same distinction as the single-quote path: if every source answered
+        # with a payload we cannot parse, retrying will fail identically and the
+        # caller needs to upgrade rather than retry.
+        broken = bool(reasons) and all(reason == "SCHEMA_CHANGED" for reason in reasons)
         for index, instrument in remaining:
+            code = "CLIENT_BROKEN" if broken else "UNAVAILABLE"
+            detail = (
+                "every source changed shape; the parser needs updating"
+                if broken
+                else f"no source served {instrument.id}"
+            )
             results[index] = QuoteResult(
                 instrument=instrument,
-                error=f"UNAVAILABLE: no source served {instrument.id}",
+                error=f"{code}: {detail}",
             )
 
     async def _fetch_history(
