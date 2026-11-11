@@ -648,3 +648,16 @@ def test_code_map_identifiers_exist_in_the_source() -> None:
     missing = sorted(name for name in referenced if name not in known and not name.endswith(".py"))
 
     assert not missing, f"code map names identifiers that do not exist: {missing}"
+
+
+def test_readme_coverage_table_matches_the_sources() -> None:
+    """The README promised crypto quotes and klines; Binance serves listings."""
+    from quotestack.models import Capability
+    from quotestack.sources import BinanceSource
+
+    assert Capability.QUOTE not in BinanceSource().meta.capabilities
+
+    text = (ROOT_DIR / "README.md").read_text(encoding="utf-8")
+    row = [line for line in text.splitlines() if "**Crypto**" in line]
+    assert row, "README has no crypto row"
+    assert "listing only" in row[0], row[0]

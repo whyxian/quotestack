@@ -64,11 +64,12 @@ async for batch in client.iter_instruments(AssetClass.STOCK, Market.CN):
 | **A-shares** | stocks and ETFs, full history, listings | convertible bonds, futures, options |
 | **US stocks** | quotes and daily bars, listings | minute-level long history |
 | **Mutual funds** | NAV, profile, benchmark, holdings, intraday estimate | anything requiring a trading account |
-| **Crypto** | Binance spot universe | derivatives |
+| **Crypto** | Binance spot universe (listing only) | quotes, klines, derivatives |
 
-Five sources back this: Eastmoney (primary), Tencent (realtime fallback),
-Tiantian Fund (open-end funds), Binance Vision (crypto), Eastmoney FX (rates).
-Routing and fallback are automatic; see [03-sources](https://github.com/whyxian/quotestack/blob/main/docs/design/03-sources.md).
+The sources behind this: Eastmoney (primary), Tencent (realtime fallback),
+Tiantian Fund (open-end funds), Binance Vision (crypto listings), Eastmoney FX
+(rates). Routing and fallback are automatic; see
+[03-sources](https://github.com/whyxian/quotestack/blob/main/docs/design/03-sources.md).
 
 ## Run as a service
 
@@ -77,7 +78,7 @@ uv run quotestack-server            # 127.0.0.1:8000
 curl 'http://127.0.0.1:8000/v1/quote?code=600519'
 ```
 
-Twelve endpoints, unified `{data, error}` envelope, Prometheus metrics at `/metrics`.
+Every endpoint answers with the same `{data, error}` envelope; Prometheus metrics at `/metrics`.
 The contract is generated from code: [`docs/api/openapi.yaml`](https://github.com/whyxian/quotestack/blob/main/docs/api/openapi.yaml).
 
 ## Documentation
@@ -86,7 +87,7 @@ Two separate bodies of documentation, for two different readers.
 
 ### If you want to use it
 
-Start at the [**guide**](https://github.com/whyxian/quotestack/blob/main/guide/README.md) — 中文，十篇，自成一体，可单独托管。
+Start at the [**guide**](https://github.com/whyxian/quotestack/blob/main/guide/README.md) — 中文，自成一体，可单独托管。
 It never links back into this repository, so it works as a standalone site.
 
 | Topic | File |

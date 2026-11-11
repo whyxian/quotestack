@@ -35,20 +35,23 @@
 - 源冷却与令牌桶限流（4 次/秒，实测东财防爬边界）
 - 结构化日志事件，库不配置 handler
 - CLI：`quote` / `history` / `resolve` / `health` / `estimate`
-- HTTP 服务：12 条路由、统一 `{data, error}` 信封、Prometheus 指标
+- HTTP 服务：完整路由集、统一 `{data, error}` 信封、Prometheus 指标
 - 同步包装 `SyncMarketData`
 
 ### 实测
 
 - 估值回测：ETF 联接相关系数 1.000 / MAE 0.02pp；主动基金 0.958 / 0.41pp
-- 测试 287 个，行覆盖 91.5%，分支覆盖 80.5%
+- 快速测试全离线；真实探测按需手动触发（见 [14-testing](docs/design/14-testing.md)）
 
 ### 已知限制
 
 - 港股未接入
 - 可转债、期货、期权不支持
-- 加密源在部分网络下不可达，需代理
+- 加密只有交易对列表，报价与 K 线未接入
+- 基金代码前缀不可靠：`166002` 会被推断成场内基金，查行情得到 `UNAVAILABLE`
+  （见 [04-funds](guide/04-funds.md) 的「已知局限」）
 - 中债系列指数取不到，含该成分的基准曲线覆盖率会低于 1
+- 缓存是进程内的，重启即冷启动
 
 [Unreleased]: https://github.com/whyxian/quotestack/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/whyxian/quotestack/releases/tag/v0.1.0
