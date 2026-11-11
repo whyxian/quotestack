@@ -573,3 +573,41 @@ def test_examples_doc_lists_the_real_files() -> None:
     real = {path.name for path in (root / "examples").glob("*.py")}
 
     assert documented == real, f"doc {sorted(documented)} vs files {sorted(real)}"
+
+
+def test_guide_fund_classes_match_the_enum() -> None:
+    """The guide lists the seven fund classes readers will see."""
+    from quotestack.models import FundClass
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    guide = (root / "guide/04-funds.md").read_text(encoding="utf-8")
+    section = guide[guide.index("| `fund_class` | 涵盖 | 含义 |") :]
+    section = section[: section.index("**未知标签一律归")]
+
+    documented = set(re.findall(r"^\| `([A-Z]+)` \|", section, re.M))
+    real = {member.value for member in FundClass}
+
+    assert documented == real, f"guide {sorted(documented)} vs enum {sorted(real)}"
+
+
+def test_guide_batch_request_count_is_not_a_single_request() -> None:
+    """Batching by 50 per market means the count depends on the caller's list.
+
+    The guide said one network request for any batch, which the implementation
+    contradicts as soon as a batch spans two markets or exceeds 50 instruments.
+    """
+    from quotestack.sources.eastmoney.quotes import MAX_BATCH
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    guide = (root / "guide/03-quotes.md").read_text(encoding="utf-8")
+
+    assert f"{MAX_BATCH} 只一批" in guide
+    assert "一次网络请求" not in guide
+
+
+def test_guide_does_not_promise_a_single_request_for_batches() -> None:
+    """Batching is per market and per 50 instruments, not one request."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    for relative in ("guide/03-quotes.md", "guide/09-recipes.md", "guide/10-sync.md"):
+        text = (root / relative).read_text(encoding="utf-8")
+        assert "一次网络请求" not in text.replace("一次请求拿一批", ""), relative

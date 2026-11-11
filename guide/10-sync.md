@@ -157,4 +157,4 @@ results = await asyncio.gather(*(client.quote(c) for c in codes))
 results = client.quote_many([(c, AssetClass.STOCK, Market.CN) for c in codes])
 ```
 
-**批量接口在两种模式下都比循环快**——它内部按 50 个一批，一次网络请求拿一批。
+**批量接口在两种模式下都比循环快**——它按 50 只、按市场分批，一次请求拿一批。

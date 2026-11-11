@@ -93,7 +93,7 @@ docker run -d \
 
 #### 联网与代理
 
-容器**不继承宿主机的 VPN 路由**。若需要访问境外源（OKX、CoinGecko），必须显式配置：
+容器**不继承宿主机的 VPN 路由**。若需要访问境外源（Binance），必须显式配置：
 
 ```bash
 docker run -d \
@@ -274,16 +274,15 @@ Java 启动时探测 `/healthz`，**不通也照常启动**；行情调用失败
 **库调用时**通过构造参数传入；容器部署的代理设置见上文「形态三：Docker → 联网与代理」。
 
 ```python
-client = MarketData(
-    proxy="http://127.0.0.1:7890",
-    proxy_bypass=["eastmoney.com", "qq.com"],
-)
+client = MarketData(proxy="http://127.0.0.1:7890")
 ```
 
-| 档位 | 可用源 | 加密覆盖 |
-|---|---|---|
-| 无 proxy | 东财 / 腾讯 / 天天基金 / Binance-Vision / 东财外汇 | 11/15 |
-| 有 proxy | 上述 + OKX + CoinGecko + GitHub 汇率 | 14/15 |
+| 档位 | 可用源 |
+|---|---|
+| 无 proxy | 东财 / 腾讯 / 天天基金 / 东财外汇；Binance 时通时断 |
+| 有 proxy | 上述全部，Binance 稳定 |
+
+**没有 `proxy_bypass`**：代理要么整体生效，要么不用。需要分流请在代理软件里配规则。
 
 无代理时对不可达源**快速失败**并给具体提示，不傻等超时：
 

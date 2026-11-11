@@ -80,7 +80,7 @@ async def main() -> None:
             await asyncio.sleep(30)
 ```
 
-**一次请求拿 50 只**（库内部按 50 分批），30 秒轮询毫无压力。
+**每 50 只一批、每个市场一批**，30 秒轮询毫无压力。
 
 ---
 
@@ -249,6 +249,6 @@ async def daily_at(target: time, job) -> None:
 | `float(quote.price) * shares` | 金额用浮点，累计误差 |
 | `estimate.change_pct or 0` | 未知变持平 |
 | `for _ in range(10): retry(quote)` | `NOT_FOUND` 重试也没用 |
-| 自己 `asyncio.gather` 并发 100 个 | 触发限流，反而更慢 |
+| 自己 `asyncio.gather` 并发 100 个 | 绕不过令牌桶，只是把等待排成队 |
 | 忽略 `quote.stale` | 拿旧价做高频决策 |
 | `try/except` 包整个 `quote_many` | 一条失败丢掉整批结果 |
