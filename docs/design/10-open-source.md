@@ -14,8 +14,8 @@
 | 仓库 | monorepo 内，零内部依赖 |
 | 目录 | 见 [ARCHITECTURE](../harness/ARCHITECTURE.md) |
 
-> 原计划的目录树（`quote-service/`、`src/quotestack_server/`、OKX/CoinGecko 源）
-> 已被实现取代：HTTP 层在 `src/quotestack/server/`，源只有五个，包布局是 `src/quotestack/`。
+> 原计划的目录树（独立的服务包名、OKX/CoinGecko 源）已被实现取代：
+> HTTP 层就在 `src/quotestack/server/`，源只有五个，包布局是单一 `src/quotestack/`。
 > 当前结构见 [ARCHITECTURE](../harness/ARCHITECTURE.md)。
 
 **依赖拆分**
@@ -43,7 +43,7 @@ Playwright 必须 optional（带 150 MB Chromium）。
 | 项 | 决议 |
 |---|---|
 | 构建后端 | **hatchling**（src layout 零配置） |
-| 布局 | `src/quotestack/`、`src/quotestack_server/` |
+| 布局 | `src/quotestack/` 单一包（HTTP 层在 `src/quotestack/server/`） |
 | 类型标记 | 附带 `py.typed`（PEP 561），否则 `mypy` 不认类型 |
 | 元数据 | `classifiers` / `keywords` / `urls` 必须完整填写 |
 

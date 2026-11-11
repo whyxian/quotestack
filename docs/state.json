@@ -1,0 +1,379 @@
+{
+  "documents": {
+    "docs/CODE_MAP_ZH.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/benchmark",
+        "src/quotestack/cache",
+        "src/quotestack/cli",
+        "src/quotestack/client",
+        "src/quotestack/errors",
+        "src/quotestack/estimate",
+        "src/quotestack/funds",
+        "src/quotestack/identity",
+        "src/quotestack/indexes",
+        "src/quotestack/logging",
+        "src/quotestack/models",
+        "src/quotestack/resilience",
+        "src/quotestack/server",
+        "src/quotestack/sources",
+        "src/quotestack/sync"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/ROADMAP.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/cache",
+        "src/quotestack/cli",
+        "src/quotestack/client",
+        "src/quotestack/errors",
+        "src/quotestack/identity",
+        "src/quotestack/models",
+        "src/quotestack/sources"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/00-why.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/01-overview.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/02-identity.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/03-sources.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/identity"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/04-cache.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/cache"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/05-api.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/funds",
+        "src/quotestack/server"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/06-errors.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/07-funds.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/08-adapters.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/09-deployment.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/cache"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/10-open-source.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/estimate",
+        "src/quotestack/server"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/11-evidence.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/12-observability.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/cache"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/13-runtime-model.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/14-testing.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/15-code-style.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/cache"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/16-glossary.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/design/README.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/sync"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/harness/ARCHITECTURE.md": {
+      "checked_by": [
+        "tests/test_architecture.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/benchmark",
+        "src/quotestack/cache",
+        "src/quotestack/cli",
+        "src/quotestack/client",
+        "src/quotestack/errors",
+        "src/quotestack/estimate",
+        "src/quotestack/funds",
+        "src/quotestack/identity",
+        "src/quotestack/indexes",
+        "src/quotestack/logging",
+        "src/quotestack/models",
+        "src/quotestack/resilience",
+        "src/quotestack/server",
+        "src/quotestack/sources",
+        "src/quotestack/sync"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/harness/BOUNDARY.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/cache"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/harness/CONSTRAINTS.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/client",
+        "src/quotestack/sources"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/harness/PITFALLS.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/harness/README.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "docs/harness/WORKFLOWS.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/server",
+        "src/quotestack/sources"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/01-install.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack/estimate"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/02-concepts.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/03-quotes.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/04-funds.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/05-estimate.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/06-universe.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/07-service.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/08-errors.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/09-recipes.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/10-sync.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/11-troubleshooting.md": {
+      "checked_by": [],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/12-reference.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    },
+    "guide/README.md": {
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": false,
+      "describes": [
+        "src/quotestack"
+      ],
+      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+    }
+  },
+  "version": 1
+}

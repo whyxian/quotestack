@@ -281,6 +281,7 @@ def main() -> int:
         "status matches roadmap": check_status_against_roadmap,
         "roadmap progress matches checkboxes": check_roadmap_progress,
         "code map covers modules": check_code_map_covers_modules,
+        "symbol references exist": check_symbol_references,
     }
 
     failed = False
@@ -295,6 +296,105 @@ def main() -> int:
             print(f"ok    {name}")
 
     return 1 if failed else 0
+
+
+def _symbol_index() -> dict[str, set[str]]:
+    """Collect the names a document is allowed to reference.
+
+    Returns:
+        A mapping of namespace to known members, so ``Capability.QUOTE`` can be
+        checked against the enum rather than trusted.
+    """
+    import ast
+
+    index: dict[str, set[str]] = {"classes": set(), "methods": set(), "modules": set()}
+    for path in (ROOT / "src/quotestack").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        index["modules"].add(path.stem)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                index["classes"].add(node.name)
+                for item in node.body:
+                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        index["methods"].add(f"{node.name}.{item.name}")
+
+    from quotestack.models import Capability
+
+    for enum_name in (
+        "AssetClass",
+        "Market",
+        "Interval",
+        "Adjust",
+        "FundClass",
+        "EstimateBasis",
+        "QuoteStatus",
+        "Capability",
+        "Confidence",
+    ):
+        try:
+            module = __import__("quotestack.models", fromlist=[enum_name])
+            enum = getattr(module, enum_name)
+        except (ImportError, AttributeError):
+            continue
+        index.setdefault("enums", set()).update(f"{enum_name}.{member.name}" for member in enum)
+    index["enums"].add(f"Capability.{Capability.RESOLVE.name}")
+    return index
+
+
+def check_symbol_references() -> list[str]:
+    """Backticked code references must exist.
+
+    Prose drifts by keeping a name the code renamed or deleted. Only references
+    that carry a namespace are checked (``Capability.QUOTE``, ``client.quote``,
+    ``src/...``), because a bare word in backticks is usually prose.
+    """
+    index = _symbol_index()
+    problems = []
+    pattern = re.compile(r"`([A-Za-z_][A-Za-z0-9_.]*(?:/[A-Za-z0-9_./-]*)?)`")
+
+    for path in _documents():
+        if "reviews" in path.parts:
+            continue
+        in_code = False
+        for number, line in enumerate(_all_lines(path), start=1):
+            if line.strip().startswith("```"):
+                in_code = not in_code
+                continue
+            if in_code:
+                # Fenced blocks carry examples and historical trees; the
+                # references that rot are the ones in prose.
+                continue
+            for token in pattern.findall(line):
+                if "/" in token and token.split("/")[0] in {"src", "docs", "guide", "tests"}:
+                    if not (ROOT / token).exists():
+                        problems.append(f"{path.relative_to(ROOT)}:{number}: no such path {token}")
+                    continue
+                if "." not in token or token.endswith(".py"):
+                    continue
+                head, _, tail = token.partition(".")
+                if head in {
+                    "Capability",
+                    "AssetClass",
+                    "Market",
+                    "Interval",
+                    "Adjust",
+                    "FundClass",
+                    "EstimateBasis",
+                    "QuoteStatus",
+                    "Confidence",
+                }:
+                    if token not in index.get("enums", set()):
+                        problems.append(
+                            f"{path.relative_to(ROOT)}:{number}: unknown enum member {token}"
+                        )
+                elif head in {"client", "MarketData", "SyncMarketData"}:
+                    member = f"MarketData.{tail}"
+                    if (
+                        member not in index["methods"]
+                        and f"SyncMarketData.{tail}" not in index["methods"]
+                    ):
+                        problems.append(f"{path.relative_to(ROOT)}:{number}: no method {token}")
+    return problems
 
 
 if __name__ == "__main__":
