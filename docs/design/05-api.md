@@ -651,16 +651,18 @@ quotestack-server --dump-openapi > docs/api/openapi.yaml
 
 命令行入口由 `[project.scripts]` 注册，**进程内直接调用库**，不依赖 HTTP 服务，也不引入额外依赖（纯 `argparse` + ANSI 转义）。
 
-### 命令集（4 个）
+### 命令集（5 个）
 
-| 命令 | 状态 | 作用 | 示例 |
-|---|---|---|---|
-| `quote` | ✅ M1 | 查实时价 | `quotestack quote 600519` |
-| `history` | ✅ M1 | 查 K 线 / 分钟线 | `quotestack history 600519 --limit 20` |
-| `resolve` | M2 | 调试标识解析 | `quotestack resolve 000001 --asset-class FUND` |
-| `health` | M2 | 查看源状态 | `quotestack health` |
+| 命令 | 作用 | 示例 |
+|---|---|---|
+| `quote` | 查实时价 | `quotestack quote 600519` |
+| `history` | 查 K 线 / 分钟线 | `quotestack history 600519 --limit 20` |
+| `resolve` | 调试标识解析 | `quotestack resolve 000001 --asset-class FUND` |
+| `estimate` | 基金盘中估值，附计算依据 | `quotestack estimate 022430` |
+| `health` | 查看源状态 | `quotestack health` |
 
-**不做** `profile` / `holdings` / `benchmark` / `estimate` / `fx`——它们没有清晰的终端呈现方式（结构复杂、需要分页、需要画图）。
+**不做** `profile` / `holdings` / `benchmark` / `fx`——它们没有清晰的终端呈现方式
+（结构复杂、需要分页、需要画图）。`estimate` 做了，因为它只输出一个数加一行解释。
 
 ### 输出
 

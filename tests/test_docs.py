@@ -427,3 +427,49 @@ def test_guide_ttl_table_does_not_claim_an_uncached_capability_is_cached() -> No
         rows = [line for line in section.splitlines() if f"`{capability}`" in line]
         assert rows, f"guide has no row for {capability}"
         assert "不缓存" in rows[0]
+
+
+def test_cli_command_list_matches_the_parser() -> None:
+    """The API doc listed four commands; the parser has five."""
+    from quotestack.cli import _build_parser
+
+    parser = _build_parser()
+    actions = [
+        action
+        for action in parser._subparsers._group_actions  # type: ignore[attr-defined]
+        if hasattr(action, "choices") and action.choices
+    ]
+    real = set(actions[0].choices)  # type: ignore[attr-defined]
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    doc = (root / "docs/design/05-api.md").read_text(encoding="utf-8")
+    section = doc[doc.index("### 命令集") :]
+    section = section[: section.index("### 输出")]
+    documented = set(re.findall(r"^\| `([a-z]+)` \|", section, re.M))
+
+    assert documented == real, f"doc {sorted(documented)} vs parser {sorted(real)}"
+
+
+def test_adapter_doc_lists_the_real_capabilities() -> None:
+    """The adapter example claimed Binance serves QUOTE and HISTORY.
+
+    It serves LIST. The section also documented a `_assert_schema` helper that
+    no source has, and a routing table naming okx and coingecko.
+    """
+    from quotestack.sources import (
+        BinanceSource,
+        EastMoneySource,
+        TiantianSource,
+    )
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    doc = (root / "docs/design/08-adapters.md").read_text(encoding="utf-8")
+
+    assert "_assert_schema" not in doc
+    assert "coingecko" not in doc.lower()
+    assert "okx" not in doc.lower()
+
+    for source in (EastMoneySource(), TiantianSource(), BinanceSource()):
+        assert f'name="{source.meta.name}"' in doc
+        for capability in source.meta.capabilities:
+            assert capability.value in doc, f"{source.meta.name} missing {capability.value}"

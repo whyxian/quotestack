@@ -23,10 +23,10 @@
   标的能力：无交易所代码 → history ❌
   实际：UNSUPPORTED
 
-USDG（加密）
-  源能力：OKX 能做 history        ✅
-  标的能力：有 K 线               ✅
-  实际：看运行时（OKX 需代理）
+BTC（加密）
+  源能力：Binance 只做 list       ❌
+  标的能力：只有 list             ✅
+  实际：UNSUPPORTED（问 history 时）
 ```
 
 把两者混为一谈，就会出现"场外基金去查 K 线"这类错误路由。
@@ -47,34 +47,48 @@ class Historian(Protocol):
 
 ```python
 class EastMoneySource:
-    name = "eastmoney"
-    capabilities = {QUOTE, HISTORY, RESOLVE, FX}
-    markets = {(STOCK, CN), (STOCK, US), (FUND, CN)}
-    needs_proxy = False
-    timeout = 5.0
+    meta = SourceMeta(
+        name="eastmoney",
+        capabilities={QUOTE, HISTORY, LIST},
+        markets={(STOCK, CN), (STOCK, US)},
+        timeout=5.0,
+    )
 
-    def quote(self, instruments): ...
-    def history(self, inst, interval, adjust, limit): ...
-    def _assert_schema(self, data, capability): ...   # 就地断言
+    async def quote(self, instruments): ...
+    async def history(self, inst, interval, adjust, limit): ...
 
 class TiantianSource:
-    name = "tiantian"
-    capabilities = {NAV, PROFILE, HOLDINGS}
-    markets = {(FUND, CN)}
-    needs_proxy = False
-    timeout = 8.0        # 大文件，给足时间
+    meta = SourceMeta(
+        name="tiantian",
+        capabilities={NAV, PROFILE, HOLDINGS, ESTIMATE, LIST},
+        markets={(FUND, CN)},
+        timeout=8.0,        # 大文件，给足时间
+    )
 
 class BinanceSource:
-    name = "binance"
-    capabilities = {QUOTE, HISTORY}
-    markets = {(CRYPTO, CRYPTO)}
-    needs_proxy = False  # data-api.binance.vision 国内可达
-    timeout = 5.0
+    meta = SourceMeta(
+        name="binance",
+        capabilities={LIST},      # 只有交易对枚举，报价与 K 线未接入
+        markets={(CRYPTO, CRYPTO)},
+        timeout=5.0,
+    )
 ```
 
-### 结构断言放在适配器内部
+### 结构断言写在解析处
 
-`_assert_schema` 是"这个源的知识"，与解析代码放在一起，失败即抛 `SchemaChanged`。不做集中式断言表。
+没有统一的结构断言辅助函数。每个解析器在**失败的那一刻**抛
+`SchemaChangedError`，并把判断依据带上：
+
+```python
+raise SchemaChangedError(
+    "eastmoney 'data.diff' is not a list",
+    assertion="data.diff is a list",
+    sample=response.text[:500],
+    url=str(response.url),
+)
+```
+
+`assertion` 说明期望的结构，`sample` 保留现场，告警时不需要再抓一次。
 
 ### 超时由适配器就地声明
 
@@ -86,33 +100,36 @@ class BinanceSource:
 | 腾讯 | 3s |
 | 天天基金 | 8s（614 KB 文件） |
 | Binance | 5s |
-| CoinGecko | 5s |
 
 ### 路由表放代码里
 
-```python
-ROUTES = {
-    (STOCK, CN,  QUOTE):     ["eastmoney", "tencent"],
-    (STOCK, CN,  HISTORY):   ["eastmoney"],
-    (STOCK, US,  QUOTE):     ["eastmoney", "tencent"],
-    (STOCK, US,  HISTORY):   ["eastmoney", "tencent"],
-    (FUND,  CN,  NAV):       ["tiantian"],
-    (FUND,  CN,  PROFILE):   ["tiantian"],
-    (CRYPTO, CRYPTO, QUOTE): ["binance", "okx", "coingecko"],
-    (CRYPTO, CRYPTO, HISTORY):["binance", "okx", "coingecko"],
-}
+```text
+# sources/routing.py 的 _ROUTES（节选）
+( STOCK, CN, QUOTE )    -> ["eastmoney", "tencent"]
+( STOCK, CN, HISTORY )  -> ["eastmoney"]
+( FUND,  CN, QUOTE )    -> ["eastmoney", "tencent"]   # 场内基金
+( FUND,  CN, HISTORY )  -> ["eastmoney"]
+( FUND,  CN, NAV )      -> ["tiantian"]
+( FUND,  CN, PROFILE )  -> ["tiantian"]
+( FUND,  CN, HOLDINGS ) -> ["tiantian"]
 ```
+
+**没有 crypto 的 QUOTE / HISTORY 路由**——Binance 只提供交易对枚举，
+加密报价尚未接入。`resolve()` 也因此只给 crypto 声明 `LIST`。
+路由表由 `tests/test_routing.py` 与 `tests/test_docs.py` 双向校验。
+
 
 **为什么放代码而不放配置**：路由是设计决策，改动应走 PR；配置化会导致"每个部署一套路由"，问题无法复现。
 
-只允许两种运行时覆盖：
+只允许一种运行时覆盖：
 
 ```python
 MarketData(
-    source_priority={"crypto": ["coingecko", "binance"]},
-    disabled_sources={"okx"},
+    source_priority={"QUOTE": ["tencent", "eastmoney"]},   # 键是能力名
 )
 ```
+
+**没有 `disabled_sources`**——想去掉某个源，就在优先级列表里不写它。
 
 ### 失败兜底链
 
@@ -132,7 +149,7 @@ MarketData(
 | 层 | 机制 |
 |---|---|
 | 缓存 stale | 回源失败回退旧值 |
-| 多源降级 | 东财 → 腾讯；Binance → OKX |
+| 多源降级 | 东财 → 腾讯（报价）；K 线只有东财 |
 | 部分成功 | `quote_many` 中失败条目单独标记，其余照常 |
 
 **冷却机制（极简熔断，约 15 行）**
