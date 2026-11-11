@@ -4,7 +4,7 @@
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack/benchmark",
         "src/quotestack/cache",
@@ -22,11 +22,11 @@
         "src/quotestack/sources",
         "src/quotestack/sync"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/ROADMAP.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack/cache",
         "src/quotestack/cli",
@@ -36,167 +36,178 @@
         "src/quotestack/models",
         "src/quotestack/sources"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/00-why.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/01-overview.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/02-identity.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/03-sources.md": {
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack/identity"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/04-cache.md": {
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack/cache"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/05-api.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack/funds",
         "src/quotestack/server"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/06-errors.md": {
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/07-funds.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/08-adapters.md": {
-      "checked_by": [],
-      "confirmed": false,
-      "describes": [
-        "src/quotestack"
+      "checked_by": [
+        "tests/test_docs.py"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "confirmed": true,
+      "describes": [
+        "src/quotestack/sources"
+      ],
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/09-deployment.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
-        "src/quotestack/cache"
+        "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/10-open-source.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack/estimate",
         "src/quotestack/server"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/11-evidence.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/12-observability.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_observability.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack/cache"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/13-runtime-model.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/14-testing.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/15-code-style.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
-        "src/quotestack/cache"
+        "src/quotestack/cache",
+        "src/quotestack/sources"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/16-glossary.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/design/README.md": {
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack/sync"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/harness/ARCHITECTURE.md": {
       "checked_by": [
         "tests/test_architecture.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack/benchmark",
         "src/quotestack/cache",
@@ -214,165 +225,179 @@
         "src/quotestack/sources",
         "src/quotestack/sync"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/harness/BOUNDARY.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack/cache"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/harness/CONSTRAINTS.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack/client",
         "src/quotestack/sources"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/harness/PITFALLS.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/harness/README.md": {
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "docs/harness/WORKFLOWS.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack/server",
         "src/quotestack/sources"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/01-install.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack/estimate"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/02-concepts.md": {
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/03-quotes.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/04-funds.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/05-estimate.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/06-universe.md": {
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/07-service.md": {
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/08-errors.md": {
       "checked_by": [],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/09-recipes.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/10-sync.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/11-troubleshooting.md": {
-      "checked_by": [],
-      "confirmed": false,
+      "checked_by": [
+        "tests/test_docs.py"
+      ],
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/12-reference.md": {
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
     "guide/README.md": {
       "checked_by": [
         "tests/test_docs.py"
       ],
-      "confirmed": false,
+      "confirmed": true,
       "describes": [
         "src/quotestack"
       ],
-      "verified_at": "8b3cbee67b5f9d3c9a8149d8ff6a3ff17ae7c3a9"
+      "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     }
   },
   "version": 1
