@@ -52,7 +52,7 @@ models ← errors ← identity ← cache
 
 ---
 
-## `client/` — 主入口（2 个文件）
+## `client/` — 主入口
 
 **职责**：把解析、缓存、单飞、降级、限流、路由串成一次调用。
 
@@ -103,14 +103,14 @@ _fallback()        有 stale 值就返回，否则抛 Unavailable
 
 ---
 
-## `sources/eastmoney/` — 东财（5 个文件）
+## `sources/eastmoney/` — 东财
 
 **职责**：主数据源，行情 + K 线 + 全市场列表 + 美股 secid 解析。
 
 | 成员 | 作用 | 说明 |
 |---|---|---|
 | `quote(instruments)` | 批量报价 | 内部按 50 个一批 |
-| `history(...)` | K 线 | 8 种周期、3 种复权 |
+| `history(...)` | K 线 | 周期与复权见 `Interval` / `Adjust` |
 | `list_instruments(...)` | 全市场列表 | A股 / 场内基金 / 美股 |
 | `_secid_for(instrument)` | 取 secid | 美股需搜索，结果缓存 |
 | `_search_us(...)` | 搜索美股 | 多候选抛 `Ambiguous` |
@@ -157,7 +157,7 @@ _fallback()        有 stale 值就返回，否则抛 Unavailable
 
 **职责**：交易对列表。用 `data-api.binance.vision`（国内可达）。
 
-默认只返回 `status=TRADING` 且 `quoteAsset=USDT` 的 518 个交易对。
+默认只返回 `status=TRADING` 且 `quoteAsset=USDT` 的交易对。
 
 **注意**：17MB 的 `exchangeInfo`，超时设 20 秒；连通性不稳定，需代理时通过 `proxy` 参数。
 
@@ -218,7 +218,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 | `CacheState` | `FRESH` / `STALE` / `EXPIRED` |
 | `classify(entry, ttl, max_stale)` | **核心函数**，判三态 |
 | `make_key(...)` | `v1\|quote\|CN:STOCK:600519` |
-| `_DEFAULT_MAX_STALE` | 每能力的陈旧上限（quote 1 天，history ∞） |
+| `_CACHE_POLICY` | **每能力一行**：`CachePolicy(ttl, max_stale)` 或 `None`（不缓存） |
 
 ### `memory.py`
 
@@ -241,7 +241,7 @@ USD/HKD  = USDCNH ÷ HKDCNH
 
 `classify_fund_type("混合型-偏股")` → `FundClass.EQUITY`
 
-33 种原始标签 → 7 类。**未知标签一律 `OTHER`，绝不猜成 `EQUITY`**——猜错分类等于算错估值。
+把东财的原始标签归一成 7 类。**未知标签一律 `OTHER`，绝不猜成 `EQUITY`**——猜错分类等于算错估值。
 
 实测分布：EQUITY 13,413 / BOND 9,690 / HYBRID 2,504 / FOF 1,409 / MONEY 977 / REITS 103 / OTHER 209。
 
@@ -353,7 +353,7 @@ MarketDataError                 基类，带 code / retryable / fallback
 | `create_app(config, client)` | 工厂；把客户端挂到 `app.state` |
 | `lifespan` | 启动建客户端、关闭时 `aclose` |
 | `ERROR_RESPONSES` | 数据路由共享的错误声明，让 OpenAPI 说出会失败 |
-| `_wrap(...)` | 统一 `{data, error}` 信封 |
+| `_envelope(...)` | 统一 `{data, error}` 信封 |
 | 全部路由 | `resolve` `quote` `quotes/batch` `history` `nav` `profile` `holdings` `benchmark` `estimate` `fx` `instruments` `healthz` |
 
 > 路由声明了 `responses=ERROR_RESPONSES`，否则 FastAPI 只文档化 200，
@@ -413,8 +413,8 @@ MarketDataError                 基类，带 code / retryable / fallback
 |---|---|
 | 加数据源 | `sources/` 新建 + `routing.py` 登记 |
 | 改 secid 规则 | `identity/rules.py` |
-| 改缓存时长 | `cache/base.py` 的 `_DEFAULT_TTL` |
-| 改 stale 上限 | `cache/base.py` 的 `_DEFAULT_MAX_STALE` |
+| 改缓存时长 | `cache/base.py` 的 `_CACHE_POLICY` |
+| 改 stale 上限 | 同上，`CachePolicy` 的第二个参数 |
 | 改降级顺序 | `sources/routing.py` 的 `_ROUTES` |
 | 改基金分类 | `funds.py` 的 `_RULES` |
 | 改基准判定 | `benchmark.py` 的 `_NON_EQUITY` |
@@ -423,7 +423,7 @@ MarketDataError                 基类，带 code / retryable / fallback
 | 加日志事件 | `logging.py` 的 `EVENTS` |
 | 改错误语义 | `errors.py` |
 | 改 CLI 输出 | `cli.py` 的 `_emit_*` |
-| 改列表板块 | `sources/eastmoney.py` 的 `_LIST_FILTERS` |
+| 改列表板块 | `sources/eastmoney/listings.py` 的 `LIST_FILTERS` |
 
 ---
 

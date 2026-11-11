@@ -18,6 +18,8 @@ from quotestack.sources import (
     TiantianSource,
 )
 
+ROOT_DIR = pathlib.Path(__file__).resolve().parents[1]
+
 _DOC = pathlib.Path(__file__).resolve().parents[1] / "docs" / "design" / "03-sources.md"
 
 _NAMES = {
@@ -611,3 +613,38 @@ def test_guide_does_not_promise_a_single_request_for_batches() -> None:
     for relative in ("guide/03-quotes.md", "guide/09-recipes.md", "guide/10-sync.md"):
         text = (root / relative).read_text(encoding="utf-8")
         assert "一次网络请求" not in text.replace("一次请求拿一批", ""), relative
+
+
+def test_code_map_identifiers_exist_in_the_source() -> None:
+    """The code map pointed at `_DEFAULT_TTL`, `_wrap` and `_LIST_FILTERS`.
+
+    The first two were removed when the cache policy became one table and the
+    envelope got a name; the third lost its leading underscore. A reader
+    following the map would grep for names that return nothing.
+    """
+    import ast
+
+    known: set[str] = set()
+    for path in (ROOT_DIR / "src/quotestack").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                known.add(node.name)
+            elif isinstance(node, ast.Assign):
+                known.update(target.id for target in node.targets if isinstance(target, ast.Name))
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                known.add(node.target.id)
+
+    text = (ROOT_DIR / "docs/CODE_MAP_ZH.md").read_text(encoding="utf-8")
+    # Only the quick-reference rows: "| `name` | ..." in the lookup table.
+    section = text[text.index("| 改缓存时长 |") :]
+    section = section[: section.index("\n\n")]
+
+    referenced = {
+        token
+        for line in section.splitlines()
+        for token in re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)`", line)
+    }
+    missing = sorted(name for name in referenced if name not in known and not name.endswith(".py"))
+
+    assert not missing, f"code map names identifiers that do not exist: {missing}"
