@@ -100,11 +100,11 @@ quotestack = "quotestack.cli:main"
 
 | 示例 | 演示什么 |
 |---|---|
-| `examples/quote.py` | 查单个标的最新价 |
-| `examples/history.py` | 拉 K 线并画图（matplotlib 可选依赖） |
-| `examples/fund_estimate.py` | 场外基金估值 + 基准对比 |
+| `examples/01_quote.py` | 单个报价 + 最近几根 K 线 |
+| `examples/02_fund_estimate.py` | 基金画像 + 盘中估值，打印依据 |
+| `examples/03_refresh_universe.py` | 遍历市场列表，演示品种库刷新 |
 
-每个示例必须能独立运行，且不依赖未声明的依赖。
+每个示例必须能独立运行，且**只用库自身 + 标准库**——不引入 matplotlib 之类的展示依赖。
 
 ---
 
@@ -114,12 +114,13 @@ quotestack = "quotestack.cli:main"
 |---|---|---|
 | `README.md` | **英文** | 开源项目门面，国际用户第一眼 |
 | `README.zh-CN.md` | 中文 | 中文用户 |
-| `CONTRIBUTING.md` | 英文 | 与 README 一致 |
-| `docs/design/*` | 中文 | 内部设计记录，可接受 |
+| `CONTRIBUTING.md` | **中文** | 读它的人是要改这个仓库的中文开发者 |
+| `guide/` | 中文 | 面向 A股/场外基金的使用者 |
+| `docs/` | 中文 | 内部设计记录 |
+| 代码注释与 docstring | **英文** | 面向所有读代码的人 |
 
 **规则**：英文 README 是权威版本，中文版跟随更新，不反向同步。
-
----
+`guide/` 与 `docs/` 互不引用——前者可单独托管，见 [ARCHITECTURE](../harness/ARCHITECTURE.md)。
 
 ## 发布前检查
 
@@ -147,14 +148,15 @@ quotestack = "quotestack.cli:main"
 
 ```
 0.1.0   首个可用版本（数据源跑通、接口定型）
-
-> **跳过了 0.0.1 占名版本。** 原计划是先发一个占名版本，但功能在发布时已经完整，
-> 再发一个空壳只会让版本号说谎。若担心包名被占，应在实现之前先发。
 0.x     迭代期，允许破坏性变更
 1.0.0   API 冻结
 ```
 
-`0.0.1` 发布后不可删除（只可 yank），内容必须干净：无内部路径、无调试代码。
+> **跳过了 0.0.1 占名版本。** 原计划是先发一个占名版本，但功能在发布时已经完整，
+> 再发一个空壳只会让版本号说谎。若担心包名被占，应在实现之前先发。
+
+已发布的版本不可删除（只可 yank），内容必须干净：无内部路径、无调试代码。
+发布前跑 `uv run python scripts/check_release.py`——它检查的就是这些。
 
 先走 TestPyPI 验证打包，再发正式 PyPI。
 
@@ -166,9 +168,10 @@ quotestack = "quotestack.cli:main"
 | 真实探测  | 手动        | 真实请求各源，验证结构断言                           | **当场修**，不阻塞 |
 | 发布    | tag       | 构建 → TestPyPI → PyPI                    | —               |
 
-**必须有"定时探测"**：fixture 是历史快照，源改版后测试照样绿；只有真实探测能发现漂移，这正是 `SchemaChanged` 断言的用途。
+**必须有真实探测**：样本是历史快照，源改版后测试照样绿；只有真打一次才能发现漂移，
+这正是 `SchemaChanged` 断言存在的用途。
 
-### 定时探测
+### 真实探测
 
 #### 它解决什么问题
 
@@ -249,21 +252,16 @@ QUOTESTACK_LIVE=1 .venv/bin/pytest tests/test_smoke.py -q
 
 #### 与 `/healthz` 的区别
 
-| | `/healthz` | 定时探测 |
+| | `/healthz` | 真实探测 |
 |---|---|---|
 | 回答 | 「现在各源通不通」 | 「上游结构有没有变」 |
-| 时机 | 运行时随时 | 每天一次 |
-| 能否发现结构变更 | ❌ 只报告可达性 | ✅ 真解析一遍 |
+| 时机 | 运行时随时 | 手动触发 |
+| 能否发现结构变更 | ❌ 只报告可达性与冷却状态 | ✅ 真解析一遍 |
 
 两者互补，不能替代彼此。
 
-fixture 刷新：
-
-```bash
-python scripts/record_fixtures.py --source eastmoney --capability history
-```
-
-跑完 `git diff` 即一次可审查的变更。
+**没有录制脚本**：样本少，`curl` 存到 `tests/fixtures/<源>/` 即可，
+约定见 [`tests/fixtures/README.md`](../../tests/fixtures/README.md)。
 
 ---
 

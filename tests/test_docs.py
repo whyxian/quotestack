@@ -556,3 +556,20 @@ def test_documented_benchmark_classifications_are_real() -> None:
             checked += 1
 
     assert checked >= 10, f"only {checked} rows parsed"
+
+
+def test_examples_doc_lists_the_real_files() -> None:
+    """The examples table named quote.py, history.py and fund_estimate.py.
+
+    None of them exist: the directory holds 01_quote, 02_fund_estimate and
+    03_refresh_universe, and nothing imports matplotlib.
+    """
+    root = pathlib.Path(__file__).resolve().parents[1]
+    doc = (root / "docs/design/10-open-source.md").read_text(encoding="utf-8")
+    section = doc[doc.index("| 示例 | 演示什么 |") :]
+    section = section[: section.index("每个示例必须能独立运行")]
+
+    documented = set(re.findall(r"`examples/([0-9a-z_]+\.py)`", section))
+    real = {path.name for path in (root / "examples").glob("*.py")}
+
+    assert documented == real, f"doc {sorted(documented)} vs files {sorted(real)}"
