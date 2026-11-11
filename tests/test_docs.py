@@ -495,3 +495,64 @@ def test_permission_format_is_defined_once() -> None:
     assert "R11" in boundary
     assert "【申请权限】" in boundary, "the worked example belongs here"
     assert boundary.count("改什么：<") == 0, "BOUNDARY must not redefine the form"
+
+
+def test_error_tree_matches_the_class_hierarchy() -> None:
+    """The tree named three intermediate classes that do not exist.
+
+    `InputError`, `IdentityError` and `CapabilityError` were in the diagram and
+    nowhere in the code, while Unauthorized and Internal were missing.
+    """
+    from quotestack.errors import MarketDataError
+
+    def walk(cls: type) -> set[str]:
+        found = set()
+        for sub in cls.__subclasses__():
+            found.add(sub.__name__)
+            found |= walk(sub)
+        return found
+
+    real = walk(MarketDataError)
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    doc = (root / "docs/design/06-errors.md").read_text(encoding="utf-8")
+    block = doc[doc.index("MarketDataError") : doc.index("### 处置策略")]
+    # Only the tree lines: the paragraph below names errors that deliberately
+    # do not exist, and those must not count as documented classes.
+    tree_lines = [line for line in block.splitlines() if "├──" in line or "└──" in line]
+    documented = {
+        match for line in tree_lines for match in re.findall(r"([A-Z][A-Za-z]+Error)\b", line)
+    }
+
+    assert documented == real, (
+        f"only in doc: {sorted(documented - real)}; only in code: {sorted(real - documented)}"
+    )
+
+
+def test_documented_benchmark_classifications_are_real() -> None:
+    """Every row in the classification table must reproduce.
+
+    The table listed bare names like `中证800` and called them equity; the
+    classifier needs the word 指数, which the real benchmark text carries, so
+    the table could not be reproduced from the page.
+    """
+    from quotestack.benchmark import ComponentKind, classify_component
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    doc = (root / "docs/design/07-funds.md").read_text(encoding="utf-8")
+    section = doc[doc.index("| 原始组件文本 | 判定 |") :]
+    section = section[: section.index("**裸名字会判成")]
+
+    checked = 0
+    for line in section.splitlines():
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if len(cells) != 2:
+            continue
+        expected_cell = cells[1].strip("`")
+        if expected_cell not in {"EQUITY", "NON_EQUITY"}:
+            continue
+        for name in re.findall(r"`([^`]+)`", cells[0]):
+            assert classify_component(name) is ComponentKind[expected_cell], name
+            checked += 1
+
+    assert checked >= 10, f"only {checked} rows parsed"

@@ -8,14 +8,26 @@
 ## 错误模型
 
 ```
-MarketDataError
-├── InputError          → InvalidArgument
-├── IdentityError       → NotFound / Ambiguous / Delisted
-├── CapabilityError     → Unsupported
-├── UpstreamError       → Timeout / RateLimited / Unavailable
-│                         / EmptyResponse / SchemaChanged
-└── ClientBroken        → 全部源结构都变了（该升级库了）
+MarketDataError                    基类，code = MARKETDATA_ERROR
+├── InvalidArgumentError           参数不对，重试无用
+├── NotFoundError                  代码不存在
+├── AmbiguousError                 有多个候选
+├── DelistedError                  已退市
+├── UnsupportedError               该标的没这个能力
+├── ClientBrokenError              所有源结构都变了（该升级库）
+├── InternalError                  库或服务自身出错
+└── UpstreamError                  上游失败的总类，retryable = True
+    ├── TimeoutError
+    ├── UnavailableError
+    ├── RateLimitedError           asks for backoff，retryable = False
+    ├── EmptyResponseError         源有响应但没这条数据
+    ├── SchemaChangedError         载荷结构变了
+    └── UnauthorizedError          源要鉴权
 ```
+
+**没有 `InputError` / `IdentityError` / `CapabilityError` 这类中间层**——
+只有 `UpstreamError` 一个中间类，因为它承载「可重试」这个共同语义。
+其余错误直接挂在基类下。
 
 ### 处置策略
 
@@ -26,7 +38,7 @@ MarketDataError
 | `Ambiguous` | ❌ | ❌ | 409 |
 | `Delisted` | ❌ | ❌ | 410 |
 | `Unsupported` | ❌ | ❌ | 422 |
-| `Timeout` | ✅ 1 次 | ✅ | 504 |
+| `Timeout` | ❌ 不重试同一个源 | ✅ 立即换 | 504 |
 | `RateLimited` | 等 `retry_after` | ✅ | 429 |
 | `Unavailable` | ✅ | ✅ | 502 |
 | `EmptyResponse` | ❌ | ✅ 立即 | 502 |
@@ -34,6 +46,9 @@ MarketDataError
 | `Unauthorized` | ❌ | ✅ | 502 |
 | `ClientBroken` | ❌ | — | 503 |
 | `Internal` | ❌ | — | 500 |
+
+**任何错误都不重试同一个源**——失败即换下一个。重试同一源只会在它已经超时或
+限流时再加一次压力，而换源的成本一样低。
 
 **`EmptyResponse` 与 `Unavailable` 必须分开**：东财对 `560000` 返回 `{"rc":0,"data":null}`——HTTP 200、结构正常、就是没这只票。当 `Unavailable` 重试是白等。
 
@@ -86,13 +101,16 @@ HTTP 404
 
 ### 重试归属
 
-服务内部只重试 **1 次**，且仅在没有备用源时。
+**服务内部一次都不重试。**
 
-- 有备用源 → 不重试，直接切
-- 无备用源 → 重试 1 次
-- 限流 → 不重试
+- 有备用源 → 直接切下一个源
+- 没有备用源 → 失败即返回，由调用方决定
+- 限流 → 冷却该源，换下一个
 
-避免每层重试导致请求放大（3×3=9 次上游调用）。
+理由：重试同一源在它刚超时或限流时只会加压力，而换源的成本一样低。
+多层重试还会放大请求（3 层 × 3 次 = 9 次上游调用）。
+
+调用方要重试时，看 `exc.retryable` 决定——那是**调用方**的策略，不是库的。
 
 ---
 
