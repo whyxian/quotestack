@@ -64,7 +64,7 @@ src/quotestack/
 └── *.py          各一个关注点：funds / benchmark / indexes / estimate / resilience / logging
 ```
 
-**依赖只能向下**，`tests/test_architecture.py` 会用 AST 校验。想在 `sources/` 里
+**依赖只能向下**，`tests/contracts/test_architecture.py` 会用 AST 校验。想在 `sources/` 里
 import `client`，测试会直接失败。
 
 ---
@@ -74,7 +74,7 @@ import `client`，测试会直接失败。
 1. 在 `sources/` 新建文件，实现需要的方法（`quote` / `history` / `nav` / `list_instruments` …）
 2. 声明 `meta`：`name`、`capabilities`、`markets`、`timeout`
 
-   > **实现了什么就要声明什么。** `tests/test_docs.py` 会检查
+   > **实现了什么就要声明什么。** `tests/contracts/test_docs.py` 会检查
    > 「有没有 `list_instruments`」与「有没有声明 `LIST`」是否一致。
 
 3. 在 `sources/routing.py` 的 `_ROUTES` 登记优先级
@@ -97,7 +97,7 @@ uv run quotestack-server --dump-openapi > docs/api/openapi.yaml
 # 3. 提交
 ```
 
-**不要手改 `openapi.yaml`**——它是生成物。`tests/test_server.py` 会重新生成并比对，
+**不要手改 `openapi.yaml`**——它是生成物。`tests/interfaces/test_server.py` 会重新生成并比对，
 忘了重新生成测试就红。
 
 想解释「为什么这么设计」，写到 [`docs/design/05-api.md`](docs/design/05-api.md)，
@@ -109,11 +109,15 @@ uv run quotestack-server --dump-openapi > docs/api/openapi.yaml
 
 | 层次 | 位置 | 说明 |
 |---|---|---|
-| 单元 | `tests/test_<模块>.py` | 纯函数，无网络 |
-| 适配器 | `tests/test_<源>.py` | respx 拦截，读 fixture |
-| 端到端 | `tests/test_client_edges.py` | 假源注入，走完整链路 |
-| HTTP | `tests/test_server.py` | ASGI 进程内，不开端口 |
-| 真实请求 | `tests/test_smoke.py` | 默认跳过，`QUOTESTACK_LIVE=1` 才跑 |
+| 单元 | `tests/unit/` | 纯函数与独立机制，无网络 |
+| 适配器 | `tests/sources/` | respx 拦截 HTTP |
+| 编排 | `tests/client/` | 注入假源，走完整链路 |
+| 接口 | `tests/interfaces/` | ASGI 进程内 + CLI |
+| 契约 | `tests/contracts/` | 文档/架构/事件与代码一致 |
+| 真实请求 | `tests/live/` | 默认跳过，`QUOTESTACK_LIVE=1` 才跑 |
+
+完整的测试分层、命名与样本策略见
+[`docs/design/14-testing.md`](docs/design/14-testing.md)。
 
 **写测试时优先补"另一侧分支"**：错误路径、缺字段、空结果。
 覆盖率指标不是目的——为了数字写的测试没有价值。

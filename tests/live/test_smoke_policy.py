@@ -8,7 +8,7 @@ equally useless. This file pins the distinction.
 from __future__ import annotations
 
 import pytest
-from tests.test_smoke import resolve_or_skip
+from tests.support.live_policy import resolve_or_skip
 
 from quotestack.errors import (
     EmptyResponseError,

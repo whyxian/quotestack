@@ -598,7 +598,7 @@ quotestack-server --dump-openapi > docs/api/openapi.yaml
 ```
 
 本文只解释**为什么**这么设计；字段的权威定义在生成物里。改接口的正确顺序是
-「改代码 → 重新生成 → 提交」，`tests/test_server.py` 会拦住忘记重新生成的情况。
+「改代码 → 重新生成 → 提交」，`tests/interfaces/test_server.py` 会拦住忘记重新生成的情况。
 
 ---
 

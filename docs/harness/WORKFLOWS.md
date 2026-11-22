@@ -42,7 +42,7 @@
 3. 提交
 ```
 
-**不要手改 YAML。** `tests/test_server.py` 重新生成并比对，忘了生成就红。
+**不要手改 YAML。** `tests/interfaces/test_server.py` 重新生成并比对，忘了生成就红。
 
 要解释「为什么这么设计」，写到 `docs/design/05-api.md`，不是写进 YAML。
 
@@ -53,7 +53,7 @@
 GitHub 的 runner 在境外，定时探测只会测出 runner 的位置。所以在**能访问源的网络**上手动跑：
 
 ```bash
-QUOTESTACK_LIVE=1 uv run pytest tests/test_smoke.py -q -rs
+QUOTESTACK_LIVE=1 uv run pytest tests/live/test_smoke.py -q -rs
 ```
 
 判定规则：

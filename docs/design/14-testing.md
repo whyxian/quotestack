@@ -154,7 +154,7 @@ uv run pytest -q
 uv run pytest --cov=quotestack --cov-fail-under=85
 
 # 单个适配器
-uv run pytest tests/test_eastmoney.py -q
+uv run pytest tests/sources/test_eastmoney.py -q
 
 # 刷新 fixture（会联网，产出可审查的 diff）
 uv run python scripts/record_fixtures.py --source eastmoney --capability history

@@ -205,7 +205,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --extra dev
-      - run: uv run pytest tests/test_smoke.py -q
+      - run: uv run pytest tests/live/test_smoke.py -q
         env:
           QUOTESTACK_LIVE: "1"
 ```
@@ -213,7 +213,7 @@ jobs:
 本地等价命令：
 
 ```bash
-QUOTESTACK_LIVE=1 .venv/bin/pytest tests/test_smoke.py -q
+QUOTESTACK_LIVE=1 .venv/bin/pytest tests/live/test_smoke.py -q
 ```
 
 #### 探测范围

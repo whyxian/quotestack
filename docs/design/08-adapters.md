@@ -116,7 +116,7 @@ raise SchemaChangedError(
 
 **没有 crypto 的 QUOTE / HISTORY 路由**——Binance 只提供交易对枚举，
 加密报价尚未接入。`resolve()` 也因此只给 crypto 声明 `LIST`。
-路由表由 `tests/test_routing.py` 与 `tests/test_docs.py` 双向校验。
+路由表由 `tests/sources/test_routing.py` 与 `tests/contracts/test_docs.py` 双向校验。
 
 
 **为什么放代码而不放配置**：路由是设计决策，改动应走 PR；配置化会导致"每个部署一套路由"，问题无法复现。

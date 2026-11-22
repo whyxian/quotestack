@@ -374,7 +374,7 @@ MarketDataError                 基类，带 code / retryable / fallback
 
 ### `errors.py`
 
-`STATUS_BY_CODE`：错误码 → HTTP 状态。`tests/test_docs.py` 拿它和
+`STATUS_BY_CODE`：错误码 → HTTP 状态。`tests/contracts/test_docs.py` 拿它和
 `design/06-errors.md` 的表格逐行比对，两边不许漂移。
 
 ### `metrics.py`

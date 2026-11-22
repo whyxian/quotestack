@@ -16,7 +16,7 @@ quotestack-server --dump-openapi > docs/api/openapi.yaml
 它由 FastAPI 从代码生成，所以**内容来自代码而不是手写**。
 
 但提交进仓库的这份文件**可能过期**——改了接口却忘了重新生成就会脱节。
-`tests/test_server.py::test_committed_spec_matches_the_code` 重新生成一次并比对，
+`tests/interfaces/test_server.py::test_committed_spec_matches_the_code` 重新生成一次并比对，
 忘同步就红。
 
 ---

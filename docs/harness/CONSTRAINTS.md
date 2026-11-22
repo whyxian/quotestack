@@ -33,7 +33,7 @@
 - R4：一个月前的价格不能冒充现价
 - R5：调用方无法为同一字段写两支分支
 
-R3 的机械化版本：`tests/test_architecture.py` 用 AST 检查 import 方向，
+R3 的机械化版本：`tests/contracts/test_architecture.py` 用 AST 检查 import 方向，
 `sources/` import `client` 会让测试失败。
 R10 的机械化版本：`scripts/check_docs.py` 的数字黑名单。
 

@@ -15,42 +15,16 @@ probe would fail precisely when the library works as designed.
 from __future__ import annotations
 
 import os
-from typing import Any
 
 import pytest
+from tests.support.live_policy import resolve_or_skip
 
 from quotestack import AssetClass, Interval, Market, MarketData
-from quotestack.errors import (
-    EmptyResponseError,
-    RateLimitedError,
-    SchemaChangedError,
-    TimeoutError,
-    UnavailableError,
-)
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("QUOTESTACK_LIVE"),
     reason="set QUOTESTACK_LIVE=1 to run against real sources",
 )
-
-# Transport problems: the runner could not reach the source at all.
-TRANSPORT = (UnavailableError, TimeoutError, RateLimitedError)
-# Structural problems: the source answered, but not in the shape we expect.
-STRUCTURAL = (SchemaChangedError, EmptyResponseError)
-
-
-async def resolve_or_skip(awaitable: Any) -> Any:
-    """Await a live call, converting an environment problem into a skip.
-
-    Kept separate so the policy can be tested without a network: a structural
-    change must fail, a transport problem must not.
-    """
-    try:
-        return await awaitable
-    except STRUCTURAL:
-        raise
-    except TRANSPORT as exc:
-        pytest.skip(f"cannot reach the source from this runner: {exc.code}")
 
 
 async def test_live_quote_mainland_stock() -> None:
