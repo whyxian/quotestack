@@ -342,3 +342,37 @@ async def test_a_healthy_source_makes_the_batch_merely_unavailable() -> None:
     assert results[0].ok is True
     assert "UNAVAILABLE" in (results[1].error or "")
     assert "CLIENT_BROKEN" not in (results[1].error or "")
+
+
+async def test_offexchange_fund_quote_is_unsupported() -> None:
+    """A fund without an exchange listing cannot produce a quote."""
+    async with MarketData() as client:
+        with pytest.raises(Exception, match="quote data"):
+            await client.quote("022430", AssetClass.FUND, Market.CN)
+
+
+async def test_quote_many_falls_back_when_every_source_fails() -> None:
+    """When no source serves a group the items carry a per-item error."""
+    from quotestack.errors import UpstreamError
+
+    class _Failing:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.QUOTE}),
+            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        )
+
+        async def quote(self, instruments: list[Any]) -> list[Any]:
+            raise UpstreamError("down", source="eastmoney")
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(sources={"eastmoney": _Failing()})
+    try:
+        results = await client.quote_many([("600519", AssetClass.STOCK, Market.CN)])
+    finally:
+        await client.aclose()
+
+    assert results[0].ok is False
+    assert "UNAVAILABLE" in (results[0].error or "")

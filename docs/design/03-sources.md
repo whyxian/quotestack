@@ -3,7 +3,7 @@
 > quotestack 设计决议 · 第 3 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
 > **实现状态**：✅ 五个源全部接入；加密只有交易对列表，报价与 K 线未接入
-> 能力表与代码由 `tests/contracts/test_docs.py` 自动校验，改代码不改文档会让测试失败。
+> 能力表与代码由 `tests/contracts/test_design_docs.py` 自动校验，改代码不改文档会让测试失败。
 
 所有结论均来自真实接口探测，复现命令见 [实测证据](11-evidence.md)。
 

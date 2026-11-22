@@ -74,7 +74,7 @@ import `client`，测试会直接失败。
 1. 在 `sources/` 新建文件，实现需要的方法（`quote` / `history` / `nav` / `list_instruments` …）
 2. 声明 `meta`：`name`、`capabilities`、`markets`、`timeout`
 
-   > **实现了什么就要声明什么。** `tests/contracts/test_docs.py` 会检查
+   > **实现了什么就要声明什么。** `tests/contracts/test_design_docs.py` 会检查
    > 「有没有 `list_instruments`」与「有没有声明 `LIST`」是否一致。
 
 3. 在 `sources/routing.py` 的 `_ROUTES` 登记优先级

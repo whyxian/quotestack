@@ -417,7 +417,7 @@ async def test_batch_endpoint_keeps_order() -> None:
     assert [item["ok"] for item in body["data"]["results"]] == [False, False]
 
 
-async def test_holdings_rejects_a_bad_cursor() -> None:
+async def test_holdings_rejects_a_bad_cursor_over_http() -> None:
     """A malformed cursor is an invalid argument, not an unsupported capability.
 
     FastAPI defaults validation errors to 422, but this contract reserves 422

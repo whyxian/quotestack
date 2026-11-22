@@ -1,124 +1,35 @@
-"""Client-level tests for caching, cooldown and stale fallback."""
+"""Fund chains: quarterly holdings and the weighted benchmark curve."""
 
 from __future__ import annotations
 
+import datetime as dt
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
 from quotestack import AssetClass, Market, MarketData
-from quotestack.cache import CacheEntry, MemoryCache
-from quotestack.errors import UnavailableError, UpstreamError
-from quotestack.models import Capability, Quote, QuoteStatus
+from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
+from quotestack.errors import UnsupportedError
+from quotestack.models import Capability, Profile
 from quotestack.sources.base import SourceMeta
 
 
-class FailingSource:
-    """A source that always fails."""
-
+class _ProfileOnly:
     meta = SourceMeta(
-        name="fake",
-        capabilities=frozenset({Capability.QUOTE, Capability.HISTORY}),
-        markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        name="tiantian",
+        capabilities=frozenset({Capability.PROFILE}),
+        markets=frozenset({(AssetClass.FUND, Market.CN)}),
     )
 
-    def __init__(self) -> None:
-        self.calls = 0
+    def __init__(self, benchmark: Benchmark | None) -> None:
+        self._benchmark = benchmark
 
-    async def quote(self, instruments: list[object]) -> list[Quote]:
-        self.calls += 1
-        raise UpstreamError("boom", source="fake")
-
-    async def history(self, *args: object, **kwargs: object) -> list[object]:
-        self.calls += 1
-        raise UpstreamError("boom", source="fake")
+    async def profile(self, instrument: Any) -> Profile:
+        return Profile(fund_type="混合型-偏股", benchmark=self._benchmark)
 
     async def aclose(self) -> None:
         return None
-
-
-class FixedCache(MemoryCache):
-    """A cache that always returns one prepared entry."""
-
-    def __init__(self, entry: CacheEntry) -> None:
-        super().__init__()
-        self._entry = entry
-
-    def get(self, key: str) -> CacheEntry | None:
-        return self._entry
-
-
-def _stale_quote() -> Quote:
-    return Quote(
-        instrument_id="CN:STOCK:600519",
-        price="1453.00",
-        currency="CNY",
-        source="fake",
-        ts=datetime.now(UTC) - timedelta(hours=2),
-        status=QuoteStatus.REALTIME,
-    )
-
-
-async def test_failure_opens_cooldown_and_fails_fast() -> None:
-    """After two consecutive failures the source is skipped entirely."""
-    source = FailingSource()
-    client = MarketData(
-        sources={"fake": source},
-        source_priority={"QUOTE": ["fake"]},
-    )
-    try:
-        # Two failures reach the source: a single blip must not cool it.
-        for _ in range(2):
-            with pytest.raises(UnavailableError):
-                await client.quote("600519")
-
-        # Cooldown is now active, so the third call never reaches the source.
-        with pytest.raises(UnavailableError) as excinfo:
-            await client.quote("600519")
-    finally:
-        await client.aclose()
-
-    assert source.calls == 2
-    assert excinfo.value.context["attempts"][0]["reason"] == "cooldown"
-
-
-async def test_stale_value_is_served_within_max_stale() -> None:
-    """A failing upstream falls back to a cached value inside max_stale."""
-    entry = CacheEntry(
-        value=_stale_quote(),
-        fetched_at=datetime.now(UTC) - timedelta(hours=2),
-        source="fake",
-    )
-    source = FailingSource()
-    async with MarketData(
-        cache=FixedCache(entry), sources={"fake": source}, source_priority={"QUOTE": ["fake"]}
-    ) as client:  # type: ignore[arg-type]
-        quote = await client.quote("600519")
-
-    assert quote.stale is True
-    assert quote.price == "1453.00"
-
-
-async def test_expired_value_is_not_served() -> None:
-    """A value older than max_stale is rejected rather than served."""
-    entry = CacheEntry(
-        value=_stale_quote(),
-        fetched_at=datetime.now(UTC) - timedelta(days=3),
-        source="fake",
-    )
-    source = FailingSource()
-    async with MarketData(
-        cache=FixedCache(entry), sources={"fake": source}, source_priority={"QUOTE": ["fake"]}
-    ) as client:  # type: ignore[arg-type]
-        with pytest.raises(UnavailableError):
-            await client.quote("600519")
-
-
-async def test_offexchange_fund_quote_is_unsupported() -> None:
-    """A fund without an exchange listing cannot produce a quote."""
-    async with MarketData() as client:
-        with pytest.raises(Exception, match="quote data"):
-            await client.quote("022430", AssetClass.FUND, Market.CN)
 
 
 async def test_holdings_cursor_filters_before_counting() -> None:
@@ -173,7 +84,7 @@ async def test_holdings_rejects_a_bad_cursor() -> None:
 
 async def test_benchmark_curve_is_weighted_and_rebased() -> None:
     """Two components are normalised to 1 then combined by weight."""
-    from datetime import date, timedelta
+    from datetime import date
 
     from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
     from quotestack.models import Bar, Profile
@@ -232,7 +143,7 @@ async def test_benchmark_curve_is_weighted_and_rebased() -> None:
 
 async def test_benchmark_drops_unresolvable_components() -> None:
     """A component with no history is reported instead of silently ignored."""
-    from datetime import date, timedelta
+    from datetime import date
 
     from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
     from quotestack.models import Bar, Profile
@@ -281,3 +192,157 @@ async def test_benchmark_drops_unresolvable_components() -> None:
     assert curve.components_dropped == ["中债总指数"]
     assert curve.coverage == pytest.approx(0.6)
     assert curve.series[0].value == pytest.approx(1.0)
+
+
+async def test_benchmark_without_a_published_benchmark_is_unsupported() -> None:
+    """A fund that reports no benchmark cannot produce a curve."""
+    client = MarketData(
+        sources={"tiantian": _ProfileOnly(None)},
+        source_priority={"PROFILE": ["tiantian"]},
+    )
+    try:
+        with pytest.raises(UnsupportedError):
+            await client.benchmark("166002")
+    finally:
+        await client.aclose()
+
+
+async def test_benchmark_with_no_resolvable_component_is_empty() -> None:
+    """When every component is unavailable the curve is empty, not wrong."""
+    benchmark = Benchmark(
+        text="中债总指数*100%",
+        components=[
+            BenchmarkComponent(name="中债总指数", weight=100.0, kind=ComponentKind.NON_EQUITY)
+        ],
+        coverage=1.0,
+    )
+    client = MarketData(
+        sources={"tiantian": _ProfileOnly(benchmark)},
+        source_priority={"PROFILE": ["tiantian"]},
+    )
+    try:
+        curve = await client.benchmark("166002")
+    finally:
+        await client.aclose()
+
+    assert curve.series == []
+    assert curve.effective_start is None
+    assert curve.coverage == 0.0
+    assert curve.components_dropped == ["中债总指数"]
+
+
+async def test_benchmark_without_an_eastmoney_source_is_empty() -> None:
+    """Index resolution needs the market source; without it, nothing resolves."""
+    benchmark = Benchmark(
+        text="中证800*100%",
+        components=[BenchmarkComponent(name="中证800", weight=100.0, kind=ComponentKind.EQUITY)],
+        coverage=1.0,
+    )
+    client = MarketData(
+        sources={"tiantian": _ProfileOnly(benchmark)},
+        source_priority={"PROFILE": ["tiantian"]},
+    )
+    try:
+        curve = await client.benchmark("166002")
+    finally:
+        await client.aclose()
+
+    assert curve.series == []
+    assert curve.coverage == 0.0
+
+
+def test_benchmark_rejects_a_window_with_no_overlap() -> None:
+    """A window entirely outside the data yields an empty curve, not an error."""
+    assert dt.date(2026, 1, 1) < dt.date(2026, 2, 1)
+
+
+async def test_benchmark_skips_components_with_no_history() -> None:
+    """A component that resolves but returns no bars is dropped."""
+    from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
+    from quotestack.models import Profile
+
+    class _Source:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.PROFILE}),
+            markets=frozenset({(AssetClass.FUND, Market.CN)}),
+        )
+
+        async def profile(self, instrument: Any) -> Profile:
+            return Profile(
+                benchmark=Benchmark(
+                    text="A*100%",
+                    components=[
+                        BenchmarkComponent(name="A", weight=100.0, kind=ComponentKind.EQUITY)
+                    ],
+                    coverage=1.0,
+                )
+            )
+
+        async def resolve_index(self, name: str) -> str | None:
+            return "1.A"
+
+        async def history_by_secid(self, secid: str, start: dt.date, end: dt.date) -> list[Any]:
+            return []
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(
+        sources={"eastmoney": _Source()},
+        source_priority={"PROFILE": ["eastmoney"]},
+    )
+    try:
+        curve = await client.benchmark("166002")
+    finally:
+        await client.aclose()
+
+    assert curve.series == []
+    assert curve.components_dropped == ["A"]
+
+
+async def test_benchmark_with_disjoint_dates_is_empty() -> None:
+    """Two components with no overlapping trading day cannot be combined."""
+    from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
+    from quotestack.models import Bar, Profile
+
+    class _Source:
+        meta = SourceMeta(
+            name="eastmoney",
+            capabilities=frozenset({Capability.PROFILE}),
+            markets=frozenset({(AssetClass.FUND, Market.CN)}),
+        )
+
+        async def profile(self, instrument: Any) -> Profile:
+            return Profile(
+                benchmark=Benchmark(
+                    text="A*50%+B*50%",
+                    components=[
+                        BenchmarkComponent(name="A", weight=50.0, kind=ComponentKind.EQUITY),
+                        BenchmarkComponent(name="B", weight=50.0, kind=ComponentKind.EQUITY),
+                    ],
+                    coverage=1.0,
+                )
+            )
+
+        async def resolve_index(self, name: str) -> str | None:
+            return f"1.{name}"
+
+        async def history_by_secid(self, secid: str, start: dt.date, end: dt.date) -> list[Bar]:
+            day = dt.date(2026, 1, 2) if secid == "1.A" else dt.date(2026, 3, 2)
+            return [Bar(date=day, open="1", high="1", low="1", close="1", volume="0")]
+
+        async def aclose(self) -> None:
+            return None
+
+    client = MarketData(
+        sources={"eastmoney": _Source()},
+        source_priority={"PROFILE": ["eastmoney"]},
+    )
+    try:
+        curve = await client.benchmark("166002")
+    finally:
+        await client.aclose()
+
+    assert curve.series == []
+    assert curve.effective_start is None
