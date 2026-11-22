@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-import pathlib
 from typing import Any
 
 import httpx
 import pytest
+from tests.support import ROOT
 
 from quotestack import MarketData
 from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
@@ -311,11 +311,7 @@ def test_committed_spec_matches_the_code() -> None:
     app = create_app(Config(), client=_FakeClient())  # type: ignore[arg-type]
     generated = app.openapi()
 
-    committed = yaml.safe_load(
-        (pathlib.Path(__file__).resolve().parents[1] / "docs/api/openapi.yaml").read_text(
-            encoding="utf-8"
-        )
-    )
+    committed = yaml.safe_load((ROOT / "docs/api/openapi.yaml").read_text(encoding="utf-8"))
 
     assert set(committed["paths"]) == set(generated["paths"])
     assert committed["components"]["schemas"].keys() == generated["components"]["schemas"].keys()

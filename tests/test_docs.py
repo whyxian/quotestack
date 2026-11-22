@@ -5,8 +5,9 @@ These do not check prose, only the tables a reader would trust at face value.
 
 from __future__ import annotations
 
-import pathlib
 import re
+
+from tests.support import ROOT
 
 from quotestack.identity import resolve
 from quotestack.models import AssetClass, Capability, Market
@@ -18,9 +19,9 @@ from quotestack.sources import (
     TiantianSource,
 )
 
-ROOT_DIR = pathlib.Path(__file__).resolve().parents[1]
+ROOT_DIR = ROOT
 
-_DOC = pathlib.Path(__file__).resolve().parents[1] / "docs" / "design" / "03-sources.md"
+_DOC = ROOT / "docs" / "design" / "03-sources.md"
 
 _NAMES = {
     "东方财富": "eastmoney",
@@ -122,7 +123,7 @@ def test_guide_status_table_matches_the_spec() -> None:
     """The status codes the guide lists must be the ones the API can return."""
     import yaml
 
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     spec = yaml.safe_load((root / "docs/api/openapi.yaml").read_text(encoding="utf-8"))
     documented = set()
     for operations in spec["paths"].values():
@@ -152,7 +153,7 @@ def test_generated_doc_blocks_are_current() -> None:
 
     result = subprocess.run(
         [sys.executable, "scripts/sync_docs.py", "--check"],
-        cwd=pathlib.Path(__file__).resolve().parents[1],
+        cwd=ROOT,
         capture_output=True,
         text=True,
     )
@@ -164,7 +165,7 @@ def test_generated_doc_blocks_are_current() -> None:
 
 def test_index_status_matches_each_page() -> None:
     """The index table must not claim a status its page contradicts."""
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     design = root / "docs" / "design"
     index = (design / "README.md").read_text(encoding="utf-8")
 
@@ -181,7 +182,7 @@ def test_error_status_table_matches_the_server() -> None:
     """The HTTP mapping documented in 06-errors must be the one the server uses."""
     from quotestack.server.errors import STATUS_BY_CODE
 
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     text = (root / "docs/design/06-errors.md").read_text(encoding="utf-8")
 
     documented: dict[str, int] = {}
@@ -222,7 +223,7 @@ def test_sources_listed_in_the_docs_match_the_code() -> None:
             FxSource(),
         )
     }
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     index = (root / "docs/design/README.md").read_text(encoding="utf-8")
 
     assert "OKX+CoinGecko" not in index, "removed sources still listed as active"
@@ -232,7 +233,7 @@ def test_sources_listed_in_the_docs_match_the_code() -> None:
 
 def test_harness_documents_are_reachable_from_the_entry_point() -> None:
     """AGENTS.md is an index; every harness file must be reachable from it."""
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     entry = (root / "AGENTS.md").read_text(encoding="utf-8")
     harness = sorted((root / "docs/harness").glob("*.md"))
 
@@ -245,7 +246,7 @@ def test_harness_documents_are_reachable_from_the_entry_point() -> None:
 
 def test_harness_does_not_hold_human_only_documents() -> None:
     """harness is AI context; a human code guide belongs elsewhere."""
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     names = {path.name for path in (root / "docs/harness").glob("*.md")}
 
     assert "CODE_MAP_ZH.md" not in names, "the Chinese code map is human-facing"
@@ -254,7 +255,7 @@ def test_harness_does_not_hold_human_only_documents() -> None:
 
 def test_entry_point_stays_an_index() -> None:
     """AGENTS.md should point at rules, not restate them."""
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     lines = len((root / "AGENTS.md").read_text(encoding="utf-8").splitlines())
 
     assert lines < 130, f"AGENTS.md grew to {lines} lines; move detail into harness/"
@@ -310,7 +311,7 @@ def test_guide_capability_matrix_matches_the_sources() -> None:
         "东财外汇": "eastmoney-fx",
     }
 
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     text = (root / "guide/12-reference.md").read_text(encoding="utf-8")
     section = text[text.index("| 能力 | 东财") :]
     section = section[: section.index("\n\n")]
@@ -349,7 +350,7 @@ def test_documentation_fragments_and_links() -> None:
 
     result = subprocess.run(
         [sys.executable, "scripts/check_docs.py"],
-        cwd=pathlib.Path(__file__).resolve().parents[1],
+        cwd=ROOT,
         capture_output=True,
         text=True,
     )
@@ -359,7 +360,7 @@ def test_documentation_fragments_and_links() -> None:
 
 def test_guide_does_not_promise_crypto_quotes() -> None:
     """The guide said crypto has quotes; no route or source serves them."""
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     concepts = (root / "guide/02-concepts.md").read_text(encoding="utf-8")
 
     assert "只有全市场列表" in concepts
@@ -374,7 +375,7 @@ def test_guide_rate_limit_matches_the_configured_bucket() -> None:
     from quotestack.resilience import TokenBucket
 
     bucket = TokenBucket()
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     universe = (root / "guide/06-universe.md").read_text(encoding="utf-8")
 
     assert f"{bucket._rate:g} 次/秒" in universe, (
@@ -384,7 +385,7 @@ def test_guide_rate_limit_matches_the_configured_bucket() -> None:
 
 def _doc_ttl_rows() -> dict[str, str]:
     """Parse the TTL tables out of the design and guide documents."""
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     design = (root / "docs/design/04-cache.md").read_text(encoding="utf-8")
     section = design[design.index("| 能力 | 默认 TTL |") :]
     section = section[: section.index("\n\n")]
@@ -420,7 +421,7 @@ def test_design_ttl_table_matches_the_policy() -> None:
 
 
 def test_guide_ttl_table_does_not_claim_an_uncached_capability_is_cached() -> None:
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     guide = (root / "guide/12-reference.md").read_text(encoding="utf-8")
     section = guide[guide.index("| 能力 | 默认 TTL |") :]
     section = section[: section.index("\n\n")]
@@ -443,7 +444,7 @@ def test_cli_command_list_matches_the_parser() -> None:
     ]
     real = set(actions[0].choices)  # type: ignore[attr-defined]
 
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     doc = (root / "docs/design/05-api.md").read_text(encoding="utf-8")
     section = doc[doc.index("### 命令集") :]
     section = section[: section.index("### 输出")]
@@ -464,7 +465,7 @@ def test_adapter_doc_lists_the_real_capabilities() -> None:
         TiantianSource,
     )
 
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     doc = (root / "docs/design/08-adapters.md").read_text(encoding="utf-8")
 
     assert "_assert_schema" not in doc
@@ -484,7 +485,7 @@ def test_permission_format_is_defined_once() -> None:
     block. Two copies of one rule drift, which is the whole reason the cache
     policy became a single table.
     """
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     constraints = (root / "docs/harness/CONSTRAINTS.md").read_text(encoding="utf-8")
     boundary = (root / "docs/harness/BOUNDARY.md").read_text(encoding="utf-8")
 
@@ -516,7 +517,7 @@ def test_error_tree_matches_the_class_hierarchy() -> None:
 
     real = walk(MarketDataError)
 
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     doc = (root / "docs/design/06-errors.md").read_text(encoding="utf-8")
     block = doc[doc.index("MarketDataError") : doc.index("### 处置策略")]
     # Only the tree lines: the paragraph below names errors that deliberately
@@ -540,7 +541,7 @@ def test_documented_benchmark_classifications_are_real() -> None:
     """
     from quotestack.benchmark import ComponentKind, classify_component
 
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     doc = (root / "docs/design/07-funds.md").read_text(encoding="utf-8")
     section = doc[doc.index("| 原始组件文本 | 判定 |") :]
     section = section[: section.index("**裸名字会判成")]
@@ -566,7 +567,7 @@ def test_examples_doc_lists_the_real_files() -> None:
     None of them exist: the directory holds 01_quote, 02_fund_estimate and
     03_refresh_universe, and nothing imports matplotlib.
     """
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     doc = (root / "docs/design/10-open-source.md").read_text(encoding="utf-8")
     section = doc[doc.index("| 示例 | 演示什么 |") :]
     section = section[: section.index("每个示例必须能独立运行")]
@@ -581,7 +582,7 @@ def test_guide_fund_classes_match_the_enum() -> None:
     """The guide lists the seven fund classes readers will see."""
     from quotestack.models import FundClass
 
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     guide = (root / "guide/04-funds.md").read_text(encoding="utf-8")
     section = guide[guide.index("| `fund_class` | 涵盖 | 含义 |") :]
     section = section[: section.index("**未知标签一律归")]
@@ -600,7 +601,7 @@ def test_guide_batch_request_count_is_not_a_single_request() -> None:
     """
     from quotestack.sources.eastmoney.quotes import MAX_BATCH
 
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     guide = (root / "guide/03-quotes.md").read_text(encoding="utf-8")
 
     assert f"{MAX_BATCH} 只一批" in guide
@@ -609,7 +610,7 @@ def test_guide_batch_request_count_is_not_a_single_request() -> None:
 
 def test_guide_does_not_promise_a_single_request_for_batches() -> None:
     """Batching is per market and per 50 instruments, not one request."""
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     for relative in ("guide/03-quotes.md", "guide/09-recipes.md", "guide/10-sync.md"):
         text = (root / relative).read_text(encoding="utf-8")
         assert "一次网络请求" not in text.replace("一次请求拿一批", ""), relative

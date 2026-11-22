@@ -11,8 +11,9 @@ import ast
 import pathlib
 
 import pytest
+from tests.support import ROOT
 
-_ROOT = pathlib.Path(__file__).resolve().parents[1] / "src" / "quotestack"
+_ROOT = ROOT / "src" / "quotestack"
 
 # Packages that may be imported by a given package. Everything in `models` is
 # allowed to depend on `models`; a rule here is about direction, not isolation.

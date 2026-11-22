@@ -7,12 +7,12 @@ read zero forever.
 
 from __future__ import annotations
 
-import pathlib
 import re
+
+from tests.support import ROOT
 
 from quotestack.logging import EVENTS
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src" / "quotestack"
 
 
@@ -54,7 +54,7 @@ def test_documented_event_fields_match_the_code() -> None:
     """
     import ast
 
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = ROOT
     emitted: dict[str, set[str]] = {}
     for path in (root / "src/quotestack").rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
