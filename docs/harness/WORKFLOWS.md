@@ -26,7 +26,7 @@
 ```
 1. 先补一个能复现的 fixture（从真实响应录，不要手写"大概长这样"）
 2. 改解析器
-3. uv run pytest tests/test_<源>.py
+3. uv run pytest tests/sources/test_<源>.py
 4. 跑一次真实请求确认线上结构仍匹配
 ```
 

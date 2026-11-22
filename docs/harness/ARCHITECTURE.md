@@ -214,20 +214,26 @@ v1|nav|CN:FUND:166002
 
 ```
 tests/
-├── 解析与规则      identity / eastmoney / tencent / tiantian / fx / listing
-│                   funds / indexes / parsing / klines / eastmoney_search
-├── 编排与容错      client / client_edges / batch / cache / resilience
-│                   transport / error_paths
-├── 业务链路        estimate / estimate_paths / estimate_edges / benchmark
-├── 服务与入口      server / cli / cli_sync / sync
-├── 元检查          architecture（分层）/ docs（文档对账）/ observability
-│                   fixtures（样本加载）
-└── 真实请求        smoke / smoke_policy（默认跳过）
+├── conftest.py          pytest 配置；共享 fixture
+├── support/             不是测试：ROOT、假源、live 策略
+├── fixtures/            录制样本与坏样本
+├── unit/                纯函数与独立机制（identity / funds / indexes /
+│                        cache / resilience / transport / 估值算式）
+├── sources/             适配器解析与错误映射（eastmoney / tencent /
+│                        tiantian / binance / fx / routing / listing）
+├── client/              多源编排（quotes / cache_and_fallback /
+│                        funds_flow / estimate / guards / health / sync）
+├── interfaces/          对外形态（server / cli）
+├── contracts/           文档、分层、事件与代码一致（design_docs / guide /
+│                        architecture / observability / fixtures）
+└── live/                真实请求，默认跳过
 ```
 
-文件名带 `_edges` / `_paths` 的，专测错误路径与边界——**不是补覆盖率，是补"没走到的另一侧"**。
+**目录就是分层**：`unit` 不知道网络，`sources` 知道一个源，`client` 知道多个源，
+`interfaces` 知道 HTTP。放错层次比写错断言更容易让测试失去价值——它会连不该测的东西一起测。
 
-测试全离线（respx 拦截 HTTP），少量 live 用例需 `QUOTESTACK_LIVE=1` 才跑，回测脚本在 `benchmarks/`。
+测试全离线（respx 拦截 HTTP），`live/` 需 `QUOTESTACK_LIVE=1`。
+完整的测试策略见 [14-testing](../design/14-testing.md)。
 
 ---
 
