@@ -7,39 +7,29 @@ dist/
 .venv/
 venv/
 
-# Tooling
+# 测试与检查工具的产物
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 .coverage
 .coverage.*
 htmlcov/
-.harness/backups/
+.cache/
 
-# OS
-.DS_Store
-
-# Editor state
-.obsidian/
-
-# Local data / cache
+# 本地数据与凭据
 *.db
 *.sqlite
 *.sqlite3
-.cache/
-
-# Secrets
 .env
 
-# build output
-dist/
-build/
-*.egg-info/
-
-# pre-commit 缓存放在仓库内，避免写 ~/.cache
-.pre-commit-home/
-
-# 编辑器配置（Obsidian 等），不进仓库
+# 编辑器状态
 .obsidian/
 .vscode/
 .idea/
+.DS_Store
+
+# pre-commit 缓存放在仓库内，避免写家目录（见 CONTRIBUTING）
+.pre-commit-home/
+
+# 工具备份
+.harness/backups/
