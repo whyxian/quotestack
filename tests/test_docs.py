@@ -716,3 +716,23 @@ def test_guide_error_codes_exist_in_the_library() -> None:
 
     assert documented, "no codes parsed"
     assert documented <= real, f"guide names codes that do not exist: {documented - real}"
+
+
+def test_publish_docs_name_configured_indexes() -> None:
+    """`uv publish --index testpypi` needs a matching tool.uv.index entry.
+
+    Without it uv answers "No indexes were found", so the documented command was
+    unrunnable. The section also carried a sed line using an undefined variable.
+    """
+    import tomllib
+
+    with (ROOT_DIR / "pyproject.toml").open("rb") as handle:
+        config = tomllib.load(handle)
+
+    declared = {index["name"] for index in config.get("tool", {}).get("uv", {}).get("index", [])}
+    assert {"pypi", "testpypi"} <= declared, f"pyproject declares {sorted(declared)}"
+
+    text = (ROOT_DIR / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    documented = set(re.findall(r"uv publish --index ([a-z]+)", text))
+    assert documented <= declared, f"docs use undefined indexes: {documented - declared}"
+    assert "$whyxian" not in text, "the sed example expanded an undefined variable"

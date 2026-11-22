@@ -16,7 +16,20 @@ import sys
 import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SKIP_DIRS = {".git", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache", "dist", "build"}
+SKIP_DIRS = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    "dist",
+    "build",
+    # Editor state, not project content. Present on a developer machine and
+    # gitignored, so scanning it only produces noise about paths it records.
+    ".obsidian",
+    ".vscode",
+    ".idea",
+}
 
 # This file names the very patterns it looks for, so it must skip itself.
 SELF = pathlib.Path(__file__).resolve()
