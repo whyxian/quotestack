@@ -99,11 +99,11 @@ def check_version() -> list[str]:
 
 
 def check_readme_links_are_absolute() -> list[str]:
-    """The README becomes the PyPI project page, where relative links die.
+    """The README is read outside the repository, where relative links die.
 
-    PyPI renders the long description as-is and does not resolve repository
-    paths, so every relative link on it becomes a 404 for someone arriving from
-    the package index.
+    It is rendered on GitHub and in editors, and copied into package metadata by
+    the build; a relative path only resolves when the file happens to be checked
+    out beside it.
     """
     import re
 
@@ -112,7 +112,7 @@ def check_readme_links_are_absolute() -> list[str]:
     for target in re.findall(r"\]\(([^)]+)\)", text):
         if target.startswith(("http://", "https://", "#", "mailto:")):
             continue
-        problems.append(f"README links to '{target}', which PyPI cannot resolve")
+        problems.append(f"README links to '{target}' with a relative path")
     return problems
 
 
