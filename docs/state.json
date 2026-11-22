@@ -266,6 +266,18 @@
       ],
       "verified_at": "c860a91a47c1d165b457963ba68714b793b898fa"
     },
+    "docs/harness/STACK.md": {
+      "checked_by": [
+        "tests/contracts/test_design_docs.py",
+        "tests/interfaces/test_server.py",
+        "tests/live/test_smoke.py"
+      ],
+      "confirmed": true,
+      "describes": [
+        "src/quotestack/cache"
+      ],
+      "verified_at": "e9ed6827c6712edba764b3bd90f8dbf2a9d30225"
+    },
     "docs/harness/WORKFLOWS.md": {
       "checked_by": [],
       "confirmed": true,

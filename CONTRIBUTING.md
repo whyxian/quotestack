@@ -7,21 +7,18 @@
 
 ## 1. 环境准备
 
-需要 uv（≥ 0.5）。它会自己装 Python，不需要事先准备。
+需要 git 和 uv（≥ 0.5）。uv 会自己装 Python，不需要事先准备。
 
 ```bash
 git clone https://github.com/whyxian/quotestack.git && cd quotestack
 uv sync --extra dev --extra server
 ```
 
-**两个 extra 都要**：
+**两个 extra 都要**——`uv sync` 会让环境严格匹配 extras，只写 `--extra server`
+会把 pytest 卸掉。
 
-| extra | 装什么 | 不装会怎样 |
-|---|---|---|
-| `dev` | pytest、ruff、mypy、respx | 测试和检查跑不了 |
-| `server` | fastapi、uvicorn、prometheus-client | `quotestack-server` 起不来 |
-
-> `uv sync` 会让环境**严格匹配** extras。只写 `--extra server` 会把 pytest 卸掉。
+依赖清单、版本下界、为什么只有 httpx 一个核心依赖、以及常见安装问题，都在
+[`docs/harness/STACK.md`](docs/harness/STACK.md)。
 
 ---
 
