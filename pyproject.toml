@@ -137,15 +137,3 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = ["live: hits real data sources, opt in with QUOTESTACK_LIVE=1"]
 addopts = "-q"
-
-# TestPyPI 与 PyPI 的入口分开，`uv publish --index testpypi` 依赖这里定义的
-# publish-url。不配置的话该命令会报 "No indexes were found"。
-[[tool.uv.index]]
-name = "testpypi"
-url = "https://test.pypi.org/simple/"
-publish-url = "https://test.pypi.org/legacy/"
-
-[[tool.uv.index]]
-name = "pypi"
-url = "https://pypi.org/simple/"
-publish-url = "https://upload.pypi.org/legacy/"

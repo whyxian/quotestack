@@ -157,70 +157,26 @@ test(estate): cover the missing-alias branch
 
 ---
 
-## 9. 发布（维护者）
+## 9. 打标签（维护者）
 
-### 9.1 一次性的凭据准备
-
-PyPI 用 **API token**，不是密码。两个站是**独立的账号和 token**：
-
-| 站点 | 用途 | 地址 |
-|---|---|---|
-| TestPyPI | 先演练一遍打包 | <https://test.pypi.org> → Account settings → API tokens |
-| PyPI | 用户真正 `pip install` 的来源 | <https://pypi.org> → Account settings → API tokens |
-
-步骤：
-
-1. 注册账号，**开启两步验证**（PyPI 强制要求，不开启无法上传）
-2. Account settings → API tokens → Add API token
-3. 首次发布选 **Entire account**——项目还不存在，无法选 project scope
-4. 项目发布后，回来建一个 **Project: quotestack** 的 token，删掉全账户 token
-
-Token 形如 `pypi-AgEIcHlwaS5vcmc...`，**只显示一次**，丢了只能重建。
-
-存到环境变量，不要写进命令历史：
+这个仓库**不发版到包索引**，分发方式就是 GitHub 仓库。所以没有发布流程，
+只有"什么时候打 tag"。
 
 ```bash
-# 追加到 ~/.zshrc 或每次会话里 export，别提交进仓库
-export UV_PUBLISH_TOKEN='pypi-...'
-```
+uv run python scripts/check_release.py     # 8 项全 ok 才继续
 
-> **不要把 token 贴进对话或提交信息。** 它会留在记录里，等于泄露。
+rm -rf dist && uv build                    # 打包自检，不发布
+# 可选：装一次确认构建产物可用
+python -m venv /tmp/t && /tmp/t/bin/pip install dist/quotestack-*.whl
 
-### 9.2 发布
-
-```bash
-uv run python scripts/check_release.py     # 全部 ok 才能继续
-
-rm -rf dist && uv build                    # 产出 wheel + sdist
-
-# 先发 TestPyPI 演练
-uv publish --index testpypi
-
-# 从 TestPyPI 装一次，确认能装（TestPyPI 没有依赖，必须加 --extra-index-url）
-python -m venv /tmp/t && /tmp/t/bin/pip install \
-  --index-url https://test.pypi.org/simple/ \
-  --extra-index-url https://pypi.org/simple/ quotestack==0.1.0
-
-# 正式发布
-uv publish
-```
-
-`--index testpypi` / `--index pypi` 指向 `pyproject.toml` 里 `[[tool.uv.index]]`
-定义的 `publish-url`。不加 `--index` 时 `uv publish` 默认发到 PyPI。
-
-### 9.3 发布之后
-
-PyPI 的包**不能删除，只能 yank**；名字永久归你。所以发布前把
-`check_release.py` 跑绿。
-
-发完打 tag：
-
-```bash
 git tag -a v0.1.0 -m "quotestack 0.1.0"
 git push origin v0.1.0
 ```
 
-GitHub 上从该 tag 建 Release，正文用 `CHANGELOG.md` 的 `0.1.0` 段。
+GitHub 上从该 tag 建 Release，正文用 `CHANGELOG.md` 的对应段落。
+
+`uv build` 保留的意义是**验证包本身没坏**：`pyproject.toml` 元数据完整、
+wheel 和 sdist 都能独立构建。不发版，但包不能是坏的。
 
 ## 10. 本地跑服务
 

@@ -19,8 +19,6 @@ uv sync --extra dev                  # 当库用
 uv sync --extra dev --extra server   # 需要 HTTP 服务时
 ```
 
-暂未发布到 PyPI。
-
 ---
 
 ## 快速开始

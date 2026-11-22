@@ -8,8 +8,6 @@ Getting consistent market data across four asset classes is repetitive work: eve
 source returns a different shape, fails differently, and needs its own caching,
 fallback and rate limiting. quotestack collapses that into one set of calls.
 
-`pip install` is not available yet — see [Install](#install).
-
 ## Install
 
 ```bash

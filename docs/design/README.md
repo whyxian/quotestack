@@ -39,7 +39,7 @@
 | [07](07-funds.md) | **基金能力** | ✅ 全部实现，回测相关性 0.958 / MAE 0.41pp（见实测证据） | 画像、持仓、基准、估值。 |
 | [08](08-adapters.md) | **适配器组织** | ✅ 路由表、降级链、冷却、限流均已实现 | Protocol、路由表、兜底链。 |
 | [09](09-deployment.md) | **部署与环境** | ✅ 库、CLI、HTTP 服务均可用；Docker 镜像已提供 | 部署形态、代理、开发环境。 |
-| [10](10-open-source.md) | **开源与版本** | 🚧 发布前准备已完成（LICENSE / README / CONTRIBUTING / SECURITY / CHANGELOG / 模板 / 打包验证）；PyPI 待发 | 许可、包名、版本策略、CI。 |
+| [10](10-open-source.md) | **开源与版本** | ✅ 开源就绪（LICENSE / README / CONTRIBUTING / SECURITY / CHANGELOG / 模板 / 打包自检）；标签待打 | 许可、包名、版本策略、CI。 |
 | [11](11-evidence.md) | **实测证据** | 📄 实测记录，非代码 | 所有结论背后的探测记录。 |
 | [12](12-observability.md) | **日志与可观测性** | ✅ 库侧事件、`/metrics`、启动快照均已实现 | 事件清单、字段规范、`hint` 约束、`/metrics`。 |
 | [13](13-runtime-model.md) | **运行时模型** | ✅ 限流、单飞、同步包装、服务端并发均已实现 | async/sync、上游限流、并发安全、性能目标。 |

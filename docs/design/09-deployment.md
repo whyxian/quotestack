@@ -11,7 +11,7 @@ quotestack 有两种交付形态：**作为库被导入**，或**作为 HTTP 服
 
 | 形态  | 适用场景                    | 交付物             |
 | --- | ----------------------- | --------------- |
-| 库   | Python 项目直接调用           | PyPI 包          |
+| 库   | Python 项目直接调用           | 源码包（GitHub）     |
 | 服务  | 非 Python 调用方（如 Java 后端） | 单进程 / Docker 镜像 |
 
 ---
@@ -19,7 +19,8 @@ quotestack 有两种交付形态：**作为库被导入**，或**作为 HTTP 服
 ### 形态一：作为库
 
 ```bash
-pip install quotestack
+git clone https://github.com/whyxian/quotestack.git && cd quotestack
+uv sync --extra dev
 ```
 
 ```python

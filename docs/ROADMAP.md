@@ -11,8 +11,8 @@
 
 ```
 阶段：M8 进行中（发布需本人执行）
-累计：79 / 85 项
-下一项：M8-6 PyPI 发布
+累计：79 / 84 项
+下一项：M8-6 打 tag + GitHub Release
 ```
 
 ---
@@ -272,22 +272,16 @@ CI 全绿。
 
 ## M8 开源发布
 
-> 目标：`pip install quotestack` 可用。
+> 目标：代码在 GitHub 上可读、可克隆、可安装，别人能自己跑起来。
 
 - [x] **M8-1** `README.md`（英）+ `README.zh-CN.md`（中）
 - [x] **M8-2** `CONTRIBUTING.md`、`SECURITY.md`、`CHANGELOG.md`、`CODE_OF_CONDUCT.md`
 - [x] **M8-3** Issue / PR 模板
-- [x] **M8-4** 发布前检查 → `scripts/check_release.py`（路径/垃圾文件/调试代码/版本/必备文件）
-- [x] **M8-5** 打包验证：wheel 装进干净 venv 可导入、CLI 可用；sdist 能独立构建；元数据完整
-- [ ] **M8-6** PyPI 发布 `0.1.0`（跳过占名版本）
-- [ ] **M8-7** 打 tag + GitHub Release
+- [x] **M8-4** 发布前检查 → `scripts/check_release.py`
+- [x] **M8-5** 打包自检：wheel 装进干净 venv 可导入、CLI 可用；sdist 能独立构建；元数据完整
+- [ ] **M8-6** 打 tag `v0.1.0` + GitHub Release（需要本人执行）
 
-**完成标准**
-
-```bash
-pip install quotestack
-quotestack quote 600519
-```
+分发方式是 GitHub 仓库，不发包索引。
 
 **规模**：M（1 天）
 

@@ -45,8 +45,6 @@ git clone https://github.com/whyxian/quotestack.git && cd quotestack
 uv sync --extra dev
 ```
 
-> 还没发到 PyPI，暂时从源码装。
-
 ### 2. 第一条查询
 
 ```python

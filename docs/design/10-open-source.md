@@ -2,14 +2,14 @@
 
 > quotestack 设计决议 · 第 10 部分 · v0.8（2026-11-07）
 > 返回索引 → [README](README.md)
-> **实现状态**：🚧 发布前准备已完成（LICENSE / README / CONTRIBUTING / SECURITY / CHANGELOG / 模板 / 打包验证）；PyPI 待发
+> **实现状态**：✅ 开源就绪（LICENSE / README / CONTRIBUTING / SECURITY / CHANGELOG / 模板 / 打包自检）；标签待打
 
 
 ## 开源准备
 
 | 项 | 决议 |
 |---|---|
-| 包名 | `quotestack`（PyPI 可用，npm 空） |
+| 包名 | `quotestack` |
 | 许可 | MIT |
 | 仓库 | monorepo 内，零内部依赖 |
 | 目录 | 见 [ARCHITECTURE](../harness/ARCHITECTURE.md) |
@@ -139,7 +139,7 @@ quotestack = "quotestack.cli:main"
 | # | 议题 | 决议 |
 |---|---|---|
 | 1 | Python 最低版本 | **`>=3.11`**，CI 跑 3.11 / 3.12 / 3.13 |
-| 2 | PyPI 发布 | 尽快发 `0.0.1` 占名，README 标 pre-alpha |
+| 2 | 分发方式 | **只在 GitHub**，不发包索引 |
 | 3 | CI | PR 离线 / 手动真实探测 / tag 发布 |
 | 4 | 分钟线 | 合并进 `history(interval)`，不单独暴露 |
 | 5 | 估值精度 | 写回测脚本出报告，不作 CI 门槛 |
@@ -152,21 +152,21 @@ quotestack = "quotestack.cli:main"
 1.0.0   API 冻结
 ```
 
-> **跳过了 0.0.1 占名版本。** 原计划是先发一个占名版本，但功能在发布时已经完整，
-> 再发一个空壳只会让版本号说谎。若担心包名被占，应在实现之前先发。
+版本号写在 `pyproject.toml` 与 `src/quotestack/__init__.py`，两处必须一致
+（`check_release.py` 会检查）。打 tag 前跑一次：
 
-已发布的版本不可删除（只可 yank），内容必须干净：无内部路径、无调试代码。
-发布前跑 `uv run python scripts/check_release.py`——它检查的就是这些。
-
-先走 TestPyPI 验证打包，再发正式 PyPI。
+```bash
+uv run python scripts/check_release.py     # 无内部路径、无调试代码、版本一致
+git tag -a v0.1.0 -m "quotestack 0.1.0"
+git push origin v0.1.0
+```
 
 ### CI 三段式
 
 | Job   | 触发        | 内容                                      | 失败影响            |
 | ----- | --------- | --------------------------------------- | --------------- |
-| PR CI | push / PR | `ruff` + `mypy` + `pytest`（全离线，fixture） | 阻塞合并            |
+| PR CI | push / PR | `ruff` + `mypy` + `pytest`（全离线）           | 阻塞合并            |
 | 真实探测  | 手动        | 真实请求各源，验证结构断言                           | **当场修**，不阻塞 |
-| 发布    | tag       | 构建 → TestPyPI → PyPI                    | —               |
 
 **必须有真实探测**：样本是历史快照，源改版后测试照样绿；只有真打一次才能发现漂移，
 这正是 `SchemaChanged` 断言存在的用途。

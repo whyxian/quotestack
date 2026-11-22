@@ -31,13 +31,6 @@ uv sync --extra dev --extra server
 > `uv sync --extra server` 会让环境**严格匹配**，把 pytest、ruff 一起卸掉。
 > 这是 `uv sync` 的语义，不是 bug。
 
-### 发布之后（M8 起）
-
-```bash
-pip install quotestack          # 只当库用
-pip install "quotestack[server]"  # 要 HTTP 服务
-```
-
 ---
 
 ## 验证装好了
