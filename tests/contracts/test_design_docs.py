@@ -545,8 +545,8 @@ def test_api_readme_route_table_matches_the_spec() -> None:
     )
 
 
-def test_stack_doc_lists_the_real_dependencies() -> None:
-    """The stack document restates pyproject's dependency lists.
+def test_environment_doc_lists_the_real_dependencies() -> None:
+    """The environment document restates pyproject's dependency lists.
 
     A reader uses it to decide what to install; a version added to pyproject and
     not to the document makes the instructions incomplete, which is the failure
@@ -564,10 +564,10 @@ def test_stack_doc_lists_the_real_dependencies() -> None:
     for extra in project["optional-dependencies"].values():
         declared |= names(extra)
 
-    doc = (ROOT / "docs/harness/STACK.md").read_text(encoding="utf-8")
+    doc = (ROOT / "docs/harness/ENVIRONMENT.md").read_text(encoding="utf-8")
     section = doc[doc.index("## 3. 依赖") : doc.index("## 4. 中间件")]
     documented = set(re.findall(r"[\"'`]\s*([a-z0-9][a-z0-9-]*)>=", section))
     documented |= set(re.findall(r"`([a-z0-9][a-z0-9-]*)`", section))
 
     missing = {name for name in declared if name not in documented}
-    assert not missing, f"STACK.md omits: {sorted(missing)}"
+    assert not missing, f"ENVIRONMENT.md omits: {sorted(missing)}"

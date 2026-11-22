@@ -18,7 +18,7 @@ uv sync --extra dev --extra server
 会把 pytest 卸掉。
 
 依赖清单、版本下界、为什么只有 httpx 一个核心依赖、以及常见安装问题，都在
-[`docs/harness/STACK.md`](docs/harness/STACK.md)。
+[`docs/harness/ENVIRONMENT.md`](docs/harness/ENVIRONMENT.md)。
 
 ---
 

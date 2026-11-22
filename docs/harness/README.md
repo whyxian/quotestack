@@ -14,7 +14,7 @@
 | 3 | [PITFALLS](PITFALLS.md) | 这个领域里哪些"看起来对但会错"的地方 |
 | 4 | [WORKFLOWS](WORKFLOWS.md) | 加源 / 修 bug / 改接口的具体步骤与文档义务 |
 | 5 | [BOUNDARY](BOUNDARY.md) | 哪些操作必须先问人 |
-| 6 | [STACK](STACK.md) | 用了什么、依赖是什么、新机器怎么装起来 |
+| 6 | [ENVIRONMENT](ENVIRONMENT.md) | 跑在什么上、依赖是什么、新机器怎么装起来 |
 
 **时间紧就只读 1 和 3。** 那两份决定了大部分返工。
 
