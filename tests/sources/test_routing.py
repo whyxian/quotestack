@@ -6,11 +6,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from tests.support.fakes import make_meta
 
 from quotestack import AssetClass, Market, MarketData
 from quotestack.errors import UpstreamError
 from quotestack.models import Capability, Quote, QuoteStatus
-from quotestack.sources.base import SourceMeta
 from quotestack.sources.routing import route
 
 
@@ -18,11 +18,7 @@ class _Source:
     """A fake quoter with a configurable failure mode."""
 
     def __init__(self, name: str, *, fail: bool = False) -> None:
-        self.meta = SourceMeta(
-            name=name,
-            capabilities=frozenset({Capability.QUOTE}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        self.meta = make_meta(name, {Capability.QUOTE})
         self._fail = fail
         self.calls: list[str] = []
 

@@ -7,21 +7,19 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from tests.support.fakes import make_meta
 
 from quotestack import AssetClass, Market, MarketData
 from quotestack.cache import CacheEntry, MemoryCache
 from quotestack.errors import UnavailableError, UpstreamError
 from quotestack.models import Capability, Quote, QuoteStatus
-from quotestack.sources.base import SourceMeta
 
 
 class FailingSource:
     """A source that always fails."""
 
-    meta = SourceMeta(
-        name="fake",
-        capabilities=frozenset({Capability.QUOTE, Capability.HISTORY}),
-        markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+    meta = make_meta(
+        "fake", {Capability.QUOTE, Capability.HISTORY}, {(AssetClass.STOCK, Market.CN)}
     )
 
     def __init__(self) -> None:
@@ -124,14 +122,9 @@ async def test_history_limit_changes_the_answer_not_the_cache() -> None:
     """
 
     from quotestack.models import Bar, Capability
-    from quotestack.sources.base import SourceMeta
 
     class Fake:
-        meta = SourceMeta(
-            name="fake",
-            capabilities=frozenset({Capability.HISTORY}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        meta = make_meta("fake", {Capability.HISTORY}, {(AssetClass.STOCK, Market.CN)})
         calls = 0
 
         async def history(
@@ -169,14 +162,9 @@ async def test_fx_rates_are_cached_for_the_configured_ttl() -> None:
     """A page with ten dollar holdings asked for the same pair ten times."""
 
     from quotestack.models import Capability, FxRate
-    from quotestack.sources.base import SourceMeta
 
     class Rates:
-        meta = SourceMeta(
-            name="fx",
-            capabilities=frozenset({Capability.FX}),
-            markets=frozenset(),
-        )
+        meta = make_meta("fx", {Capability.FX}, frozenset())
 
         calls = 0
 
@@ -210,10 +198,9 @@ async def test_fx_rates_are_cached_for_the_configured_ttl() -> None:
 async def test_fx_cache_ignores_case() -> None:
 
     from quotestack.models import Capability, FxRate
-    from quotestack.sources.base import SourceMeta
 
     class Rates:
-        meta = SourceMeta(name="fx", capabilities=frozenset({Capability.FX}), markets=frozenset())
+        meta = make_meta("fx", {Capability.FX}, frozenset())
         calls = 0
 
         async def fx(self, base: str, quote: str) -> FxRate:

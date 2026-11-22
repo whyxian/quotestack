@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from tests.support.fakes import make_meta
 
 from quotestack.cache.memory import MemoryCache
 
@@ -59,13 +60,12 @@ async def test_every_capability_that_caches_actually_caches() -> None:
     from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
     from quotestack.cache.base import NOT_CACHED
     from quotestack.models import Allocation, Capability, FxRate, Profile
-    from quotestack.sources.base import SourceMeta
 
     class Everything:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset(Capability) - NOT_CACHED,
-            markets=frozenset({(AssetClass.STOCK, Market.CN), (AssetClass.FUND, Market.CN)}),
+        meta = make_meta(
+            "eastmoney",
+            frozenset(Capability) - NOT_CACHED,
+            {(AssetClass.STOCK, Market.CN), (AssetClass.FUND, Market.CN)},
         )
 
         async def profile(self, instrument: object) -> Profile:

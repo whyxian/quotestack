@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from tests.support.fakes import make_meta
 
 from quotestack.cache import default_max_stale, default_ttl
 from quotestack.cache.memory import MemoryCache
@@ -99,25 +100,22 @@ async def test_every_sync_method_delegates() -> None:
         QuarterHoldings,
         Quote,
     )
-    from quotestack.sources.base import SourceMeta
     from quotestack.sync import SyncMarketData
 
     class All:
-        meta = SourceMeta(
-            name="fake",
-            capabilities=frozenset(
-                {
-                    Capability.QUOTE,
-                    Capability.HISTORY,
-                    Capability.NAV,
-                    Capability.PROFILE,
-                    Capability.HOLDINGS,
-                    Capability.ESTIMATE,
-                    Capability.FX,
-                    Capability.LIST,
-                }
-            ),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        meta = make_meta(
+            "fake",
+            {
+                Capability.QUOTE,
+                Capability.HISTORY,
+                Capability.NAV,
+                Capability.PROFILE,
+                Capability.HOLDINGS,
+                Capability.ESTIMATE,
+                Capability.FX,
+                Capability.LIST,
+            },
+            {(AssetClass.STOCK, Market.CN)},
         )
 
         async def quote(self, instruments: Any) -> list[Quote]:

@@ -12,11 +12,11 @@ import datetime as dt
 from typing import Any
 
 import pytest
+from tests.support.fakes import make_meta
 
 from quotestack import AssetClass, Market, MarketData
 from quotestack.errors import EmptyResponseError
 from quotestack.models import Capability, Quote
-from quotestack.sources.base import SourceMeta
 
 _TS = dt.datetime(2026, 11, 10, tzinfo=dt.UTC)
 
@@ -38,11 +38,7 @@ def _quote(instrument_id: str, price: str, source: str) -> Quote:
 class _Partial:
     """Prices one of the two codes and omits the other, as a real source does."""
 
-    meta = SourceMeta(
-        name="eastmoney",
-        capabilities=frozenset({Capability.QUOTE}),
-        markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-    )
+    meta = make_meta("eastmoney", {Capability.QUOTE}, {(AssetClass.STOCK, Market.CN)})
 
     def __init__(self, code: str) -> None:
         self._code = code
@@ -59,11 +55,7 @@ class _Partial:
 
 
 class _Backup:
-    meta = SourceMeta(
-        name="tencent",
-        capabilities=frozenset({Capability.QUOTE}),
-        markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-    )
+    meta = make_meta("tencent", {Capability.QUOTE}, {(AssetClass.STOCK, Market.CN)})
 
     async def quote(self, instruments: list[Any]) -> list[Quote]:
         return [_quote(instrument.id, "11.00", "tencent") for instrument in instruments]
@@ -116,11 +108,7 @@ async def test_a_total_miss_still_reports_unavailable() -> None:
     """When no source prices anything, every item says so individually."""
 
     class _Nothing:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.QUOTE}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.QUOTE}, {(AssetClass.STOCK, Market.CN)})
 
         async def quote(self, instruments: list[Any]) -> list[Quote]:
             raise EmptyResponseError("no rows at all", source="eastmoney")
@@ -144,11 +132,7 @@ async def test_every_source_changing_shape_is_client_broken() -> None:
 
     class Moved:
         def __init__(self, name: str) -> None:
-            self.meta = SourceMeta(
-                name=name,
-                capabilities=frozenset({Capability.QUOTE}),
-                markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-            )
+            self.meta = make_meta(name, {Capability.QUOTE})
 
         async def quote(self, instruments: list[Any]) -> list[Quote]:
             raise SchemaChangedError(
@@ -177,11 +161,7 @@ async def test_one_source_moving_is_not_client_broken() -> None:
     """A single source changing shape is what the fallback chain is for."""
 
     class Moved:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.QUOTE}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.QUOTE}, {(AssetClass.STOCK, Market.CN)})
 
         async def quote(self, instruments: list[Any]) -> list[Quote]:
             from quotestack.errors import SchemaChangedError
@@ -219,11 +199,7 @@ async def test_a_batch_where_every_source_moved_reports_client_broken() -> None:
 
     class Moved:
         def __init__(self, name: str) -> None:
-            self.meta = SourceMeta(
-                name=name,
-                capabilities=frozenset({Capability.QUOTE}),
-                markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-            )
+            self.meta = make_meta(name, {Capability.QUOTE})
 
         async def quote(self, instruments: list[Any]) -> list[Quote]:
             raise SchemaChangedError(
@@ -254,11 +230,7 @@ async def test_a_batch_with_a_transient_failure_is_unavailable() -> None:
     """A timeout is not a schema change."""
 
     class Down:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.QUOTE}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.QUOTE}, {(AssetClass.STOCK, Market.CN)})
 
         async def quote(self, instruments: list[Any]) -> list[Quote]:
             from quotestack.errors import TimeoutError
@@ -290,11 +262,7 @@ async def test_a_healthy_source_makes_the_batch_merely_unavailable() -> None:
     class Partial:
         """Answers, but only covers one code."""
 
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.QUOTE}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.QUOTE}, {(AssetClass.STOCK, Market.CN)})
 
         async def quote(self, instruments: list[Any]) -> list[Quote]:
             return [
@@ -307,11 +275,7 @@ async def test_a_healthy_source_makes_the_batch_merely_unavailable() -> None:
             return None
 
     class Moved:
-        meta = SourceMeta(
-            name="tencent",
-            capabilities=frozenset({Capability.QUOTE}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        meta = make_meta("tencent", {Capability.QUOTE}, {(AssetClass.STOCK, Market.CN)})
 
         async def quote(self, instruments: list[Any]) -> list[Quote]:
             raise SchemaChangedError(
@@ -356,11 +320,7 @@ async def test_quote_many_falls_back_when_every_source_fails() -> None:
     from quotestack.errors import UpstreamError
 
     class _Failing:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.QUOTE}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.QUOTE}, {(AssetClass.STOCK, Market.CN)})
 
         async def quote(self, instruments: list[Any]) -> list[Any]:
             raise UpstreamError("down", source="eastmoney")

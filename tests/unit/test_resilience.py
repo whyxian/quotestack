@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from tests.support.fakes import make_meta
 
 from quotestack.errors import RateLimitedError
 from quotestack.resilience import Cooldown, TokenBucket
@@ -121,7 +122,6 @@ async def test_every_source_call_takes_a_token() -> None:
     from quotestack import AssetClass, Market, MarketData
     from quotestack.models import Capability
     from quotestack.resilience import TokenBucket
-    from quotestack.sources.base import SourceMeta
 
     class Counting(TokenBucket):
         def __init__(self) -> None:
@@ -133,10 +133,8 @@ async def test_every_source_call_takes_a_token() -> None:
             await super().acquire()
 
     class Source:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.FX, Capability.LIST}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
+        meta = make_meta(
+            "eastmoney", {Capability.FX, Capability.LIST}, {(AssetClass.STOCK, Market.CN)}
         )
 
         async def fx(self, base: str, quote: str) -> object:
@@ -189,14 +187,9 @@ async def test_index_resolution_is_cached_and_rate_limited() -> None:
     """Name-to-secid is stable; resolving it per component repeated upstream work."""
     from quotestack import AssetClass, Market, MarketData
     from quotestack.models import Capability
-    from quotestack.sources.base import SourceMeta
 
     class Index:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.LIST}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.LIST}, {(AssetClass.STOCK, Market.CN)})
 
         calls = 0
 

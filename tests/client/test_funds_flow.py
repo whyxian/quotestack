@@ -7,20 +7,16 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from tests.support.fakes import make_meta
 
 from quotestack import AssetClass, Market, MarketData
 from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
 from quotestack.errors import UnsupportedError
 from quotestack.models import Capability, Profile
-from quotestack.sources.base import SourceMeta
 
 
 class _ProfileOnly:
-    meta = SourceMeta(
-        name="tiantian",
-        capabilities=frozenset({Capability.PROFILE}),
-        markets=frozenset({(AssetClass.FUND, Market.CN)}),
-    )
+    meta = make_meta("tiantian", {Capability.PROFILE}, {(AssetClass.FUND, Market.CN)})
 
     def __init__(self, benchmark: Benchmark | None) -> None:
         self._benchmark = benchmark
@@ -37,11 +33,7 @@ async def test_holdings_cursor_filters_before_counting() -> None:
     from quotestack.models import Holding, QuarterHoldings
 
     class _Holdings:
-        meta = SourceMeta(
-            name="fake",
-            capabilities=frozenset({Capability.HOLDINGS}),
-            markets=frozenset({(AssetClass.FUND, Market.CN)}),
-        )
+        meta = make_meta("fake", {Capability.HOLDINGS}, {(AssetClass.FUND, Market.CN)})
 
         async def holdings(self, instrument: object, year: int) -> list[QuarterHoldings]:
             table = {
@@ -93,10 +85,8 @@ async def test_benchmark_curve_is_weighted_and_rebased() -> None:
     day2 = day1 + timedelta(days=1)
 
     class _Source:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.HISTORY, Capability.PROFILE}),
-            markets=frozenset({(AssetClass.FUND, Market.CN)}),
+        meta = make_meta(
+            "eastmoney", {Capability.HISTORY, Capability.PROFILE}, {(AssetClass.FUND, Market.CN)}
         )
 
         async def profile(self, instrument: object) -> Profile:
@@ -151,10 +141,8 @@ async def test_benchmark_drops_unresolvable_components() -> None:
     day1 = date(2026, 1, 2)
 
     class _Source:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.HISTORY, Capability.PROFILE}),
-            markets=frozenset({(AssetClass.FUND, Market.CN)}),
+        meta = make_meta(
+            "eastmoney", {Capability.HISTORY, Capability.PROFILE}, {(AssetClass.FUND, Market.CN)}
         )
 
         async def profile(self, instrument: object) -> Profile:
@@ -262,11 +250,7 @@ async def test_benchmark_skips_components_with_no_history() -> None:
     from quotestack.models import Profile
 
     class _Source:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.PROFILE}),
-            markets=frozenset({(AssetClass.FUND, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.PROFILE}, {(AssetClass.FUND, Market.CN)})
 
         async def profile(self, instrument: Any) -> Profile:
             return Profile(
@@ -307,11 +291,7 @@ async def test_benchmark_with_disjoint_dates_is_empty() -> None:
     from quotestack.models import Bar, Profile
 
     class _Source:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.PROFILE}),
-            markets=frozenset({(AssetClass.FUND, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.PROFILE}, {(AssetClass.FUND, Market.CN)})
 
         async def profile(self, instrument: Any) -> Profile:
             return Profile(

@@ -6,6 +6,7 @@ import datetime as dt
 from typing import Any
 
 import pytest
+from tests.support.fakes import make_meta
 
 from quotestack import AssetClass, Market, MarketData
 from quotestack.benchmark import (
@@ -29,7 +30,6 @@ from quotestack.models import (
     Profile,
     QuarterHoldings,
 )
-from quotestack.sources.base import SourceMeta
 
 
 def _component(name: str, weight: float, kind: ComponentKind) -> BenchmarkComponent:
@@ -114,10 +114,10 @@ def test_holdings_explanation_when_no_proxy() -> None:
 
 
 class _Fund:
-    meta = SourceMeta(
-        name="tiantian",
-        capabilities=frozenset({Capability.PROFILE, Capability.HOLDINGS, Capability.ESTIMATE}),
-        markets=frozenset({(AssetClass.FUND, Market.CN)}),
+    meta = make_meta(
+        "tiantian",
+        {Capability.PROFILE, Capability.HOLDINGS, Capability.ESTIMATE},
+        {(AssetClass.FUND, Market.CN)},
     )
 
     def __init__(
@@ -164,11 +164,7 @@ class _Fund:
 
 
 class _Market:
-    meta = SourceMeta(
-        name="eastmoney",
-        capabilities=frozenset({Capability.QUOTE}),
-        markets=frozenset({(AssetClass.FUND, Market.CN)}),
-    )
+    meta = make_meta("eastmoney", {Capability.QUOTE}, {(AssetClass.FUND, Market.CN)})
 
     def __init__(self, *, index: str | None = "1.000906", changes: dict[str, float] | None = None):
         self._index = index
@@ -205,10 +201,10 @@ _FUND = "166002"
 class _FundSource:
     """Stands in for Tiantian: profile, allocation and holdings."""
 
-    meta = SourceMeta(
-        name="tiantian",
-        capabilities=frozenset({Capability.PROFILE, Capability.HOLDINGS, Capability.ESTIMATE}),
-        markets=frozenset({(AssetClass.FUND, Market.CN)}),
+    meta = make_meta(
+        "tiantian",
+        {Capability.PROFILE, Capability.HOLDINGS, Capability.ESTIMATE},
+        {(AssetClass.FUND, Market.CN)},
     )
 
     def __init__(self, *, tracking: str | None, stock: float = 60.0) -> None:
@@ -251,10 +247,8 @@ class _FundSource:
 class _MarketSource:
     """Stands in for Eastmoney: index codes and live changes."""
 
-    meta = SourceMeta(
-        name="eastmoney",
-        capabilities=frozenset({Capability.QUOTE, Capability.HISTORY}),
-        markets=frozenset({(AssetClass.FUND, Market.CN)}),
+    meta = make_meta(
+        "eastmoney", {Capability.QUOTE, Capability.HISTORY}, {(AssetClass.FUND, Market.CN)}
     )
 
     def __init__(self, changes: dict[str, float]) -> None:
@@ -476,13 +470,10 @@ async def test_estimate_degrades_when_the_index_lookup_fails() -> None:
     from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
     from quotestack.errors import UnavailableError
     from quotestack.models import Allocation, Capability, Profile
-    from quotestack.sources.base import SourceMeta
 
     class Fund:
-        meta = SourceMeta(
-            name="tiantian",
-            capabilities=frozenset({Capability.PROFILE, Capability.ESTIMATE}),
-            markets=frozenset({(AssetClass.FUND, Market.CN)}),
+        meta = make_meta(
+            "tiantian", {Capability.PROFILE, Capability.ESTIMATE}, {(AssetClass.FUND, Market.CN)}
         )
 
         async def profile(self, instrument: Any) -> Profile:
@@ -505,11 +496,7 @@ async def test_estimate_degrades_when_the_index_lookup_fails() -> None:
             return None
 
     class Down:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.QUOTE}),
-            markets=frozenset({(AssetClass.FUND, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.QUOTE}, {(AssetClass.FUND, Market.CN)})
 
         async def resolve_index(self, name: str) -> str:
             raise UnavailableError("down", attempts=[])
@@ -532,11 +519,7 @@ async def test_estimate_degrades_when_the_index_lookup_fails() -> None:
 
 
 class _ProfileOnly:
-    meta = SourceMeta(
-        name="tiantian",
-        capabilities=frozenset({Capability.PROFILE}),
-        markets=frozenset({(AssetClass.FUND, Market.CN)}),
-    )
+    meta = make_meta("tiantian", {Capability.PROFILE}, {(AssetClass.FUND, Market.CN)})
 
     def __init__(self, benchmark: Benchmark | None) -> None:
         self._benchmark = benchmark

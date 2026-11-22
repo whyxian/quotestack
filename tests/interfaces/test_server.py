@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 import pytest
 from tests.support import ROOT
+from tests.support.fakes import make_meta
 
 from quotestack import MarketData
 from quotestack.benchmark import Benchmark, BenchmarkComponent, ComponentKind
@@ -466,7 +467,6 @@ async def test_instruments_reports_has_more_correctly() -> None:
     that trusted it saw only the first page.
     """
     from quotestack.models import AssetClass, Capability, InstrumentSummary, Market
-    from quotestack.sources.base import SourceMeta
 
     def item(code: str, name: str) -> InstrumentSummary:
         return InstrumentSummary(
@@ -478,11 +478,7 @@ async def test_instruments_reports_has_more_correctly() -> None:
         )
 
     class Listing:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.LIST}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.LIST}, {(AssetClass.STOCK, Market.CN)})
 
         async def list_instruments(self, asset_class: Any, market: Any, **kwargs: Any) -> Any:
             yield [item("600519", "A")]
@@ -554,14 +550,9 @@ async def test_history_route_works_with_a_real_client() -> None:
     import datetime as dt
 
     from quotestack.models import Bar, Capability
-    from quotestack.sources.base import SourceMeta
 
     class History:
-        meta = SourceMeta(
-            name="eastmoney",
-            capabilities=frozenset({Capability.HISTORY}),
-            markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-        )
+        meta = make_meta("eastmoney", {Capability.HISTORY}, {(AssetClass.STOCK, Market.CN)})
 
         async def history(
             self, instrument: Any, interval: Any, adjust: Any, limit: int

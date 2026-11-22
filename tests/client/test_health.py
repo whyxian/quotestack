@@ -5,20 +5,17 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
+from tests.support.fakes import make_meta
+
 from quotestack import AssetClass, Market, MarketData
 from quotestack.models import Capability, Profile
-from quotestack.sources.base import SourceMeta
 
 
 async def test_aclose_tolerates_a_source_without_aclose() -> None:
     """A third-party source may implement only the methods it needs."""
 
     class _NoClose:
-        meta = SourceMeta(
-            name="bare",
-            capabilities=frozenset({Capability.PROFILE}),
-            markets=frozenset({(AssetClass.FUND, Market.CN)}),
-        )
+        meta = make_meta("bare", {Capability.PROFILE}, {(AssetClass.FUND, Market.CN)})
 
         async def profile(self, instrument: Any) -> Profile:
             return Profile()
@@ -83,14 +80,9 @@ async def test_fx_is_found_by_capability_not_by_name() -> None:
     """A second FX provider must work without renaming anything."""
 
     from quotestack.models import Capability, FxRate
-    from quotestack.sources.base import SourceMeta
 
     class Rates:
-        meta = SourceMeta(
-            name="some-other-fx",
-            capabilities=frozenset({Capability.FX}),
-            markets=frozenset(),
-        )
+        meta = make_meta("some-other-fx", {Capability.FX}, frozenset())
 
         async def fx(self, base: str, quote: str) -> FxRate:
             return FxRate(

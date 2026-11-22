@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+from tests.support.fakes import make_meta
 
 from quotestack import AssetClass, Market, MarketData
 from quotestack.errors import MarketDataError, TimeoutError, UpstreamError
@@ -69,11 +70,7 @@ class _Unreachable:
     from quotestack.models import Capability
     from quotestack.sources.base import SourceMeta
 
-    meta = SourceMeta(
-        name="eastmoney",
-        capabilities=frozenset({Capability.QUOTE}),
-        markets=frozenset({(AssetClass.STOCK, Market.CN)}),
-    )
+    meta = make_meta("eastmoney", {Capability.QUOTE}, {(AssetClass.STOCK, Market.CN)})
 
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
