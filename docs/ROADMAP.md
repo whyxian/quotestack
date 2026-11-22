@@ -10,9 +10,9 @@
 ## 当前进度
 
 ```
-阶段：M8 进行中（发布需本人执行）
-累计：79 / 84 项
-下一项：M8-6 打 tag + GitHub Release
+阶段：M8 收尾（只剩建 Release 页面）
+累计：80 / 84 项
+下一项：在 GitHub 上建 v0.1.0 Release（文案已备）
 ```
 
 ---
@@ -279,7 +279,7 @@ CI 全绿。
 - [x] **M8-3** Issue / PR 模板
 - [x] **M8-4** 发布前检查 → `scripts/check_release.py`
 - [x] **M8-5** 打包自检：wheel 装进干净 venv 可导入、CLI 可用；sdist 能独立构建；元数据完整
-- [ ] **M8-6** 打 tag `v0.1.0` + GitHub Release（需要本人执行）
+- [x] **M8-6** 打 tag `v0.1.0`（已推送）；GitHub Release 待建
 
 分发方式是 GitHub 仓库，不发包索引。
 
