@@ -86,16 +86,14 @@ def test_guide_capability_matrix_matches_the_sources() -> None:
     assert checked >= 40, f"only {checked} cells parsed; table shape changed"
 
 
-def test_guide_does_not_promise_crypto_quotes() -> None:
-    """The guide said crypto has quotes; no route or source serves them."""
+def test_guide_crypto_capabilities_match_the_sources() -> None:
+    """The concepts guide crypto row must reflect the capabilities Binance serves."""
     root = ROOT
     concepts = (root / "guide/02-concepts.md").read_text(encoding="utf-8")
 
-    assert "只有全市场列表" in concepts
-    # The stock row may say "报价、K 线"; the crypto row must not.
     crypto_rows = [line for line in concepts.splitlines() if "CRYPTO:" in line]
     assert crypto_rows
-    assert not any("报价、K 线" in line for line in crypto_rows)
+    assert any("报价、K 线" in line for line in crypto_rows)
 
 
 def test_guide_rate_limit_matches_the_configured_bucket() -> None:

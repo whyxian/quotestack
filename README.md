@@ -62,11 +62,11 @@ async for batch in client.iter_instruments(AssetClass.STOCK, Market.CN):
 | **A-shares** | stocks and ETFs, full history, listings | convertible bonds, futures, options |
 | **US stocks** | quotes and daily bars, listings | minute-level long history |
 | **Mutual funds** | NAV, profile, benchmark, holdings, intraday estimate | anything requiring a trading account |
-| **Crypto** | Binance spot universe (listing only) | quotes, klines, derivatives |
+| **Crypto** | Binance spot quotes, klines (1m–1M) and listings | derivatives |
 
 The sources behind this: Eastmoney (primary), Tencent (realtime fallback),
-Tiantian Fund (open-end funds), Binance Vision (crypto listings), Eastmoney FX
-(rates). Routing and fallback are automatic; see
+Tiantian Fund (open-end funds), Binance Vision (crypto quotes, klines and
+listings), Eastmoney FX (rates). Routing and fallback are automatic; see
 [03-sources](https://github.com/whyxian/quotestack/blob/main/docs/design/03-sources.md).
 
 ## Run as a service

@@ -68,10 +68,13 @@ class TiantianSource:
 class BinanceSource:
     meta = SourceMeta(
         name="binance",
-        capabilities={LIST},      # 只有交易对枚举，报价与 K 线未接入
+        capabilities={LIST, QUOTE, HISTORY},
         markets={(CRYPTO, CRYPTO)},
-        timeout=5.0,
+        timeout=20.0,
     )
+
+    async def quote(self, instruments): ...
+    async def history(self, inst, interval, adjust, limit): ...
 ```
 
 ### 结构断言写在解析处
@@ -112,10 +115,10 @@ raise SchemaChangedError(
 ( FUND,  CN, NAV )      -> ["tiantian"]
 ( FUND,  CN, PROFILE )  -> ["tiantian"]
 ( FUND,  CN, HOLDINGS ) -> ["tiantian"]
+( CRYPTO, CRYPTO, QUOTE )   -> ["binance"]
+( CRYPTO, CRYPTO, HISTORY ) -> ["binance"]
 ```
 
-**没有 crypto 的 QUOTE / HISTORY 路由**——Binance 只提供交易对枚举，
-加密报价尚未接入。`resolve()` 也因此只给 crypto 声明 `LIST`。
 路由表由 `tests/sources/test_routing.py` 与 `tests/contracts/test_design_docs.py` 双向校验。
 
 

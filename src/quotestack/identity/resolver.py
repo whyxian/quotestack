@@ -26,11 +26,8 @@ _CN_OFFEXCHANGE = "offexchange"
 _EM_MARKET_ID = {"sh": "1", "sz": "0", "bj": "0"}
 
 _CAPABILITIES_LISTED = frozenset({Capability.QUOTE, Capability.HISTORY})
-# Crypto can be enumerated but not yet priced: Binance is wired only for the
-# universe listing. Declaring QUOTE/HISTORY here made resolve() promise
-# something no source serves, and the failure surfaced as UNAVAILABLE - which
-# tells the caller to retry a call that can never succeed.
-_CAPABILITIES_CRYPTO = frozenset({Capability.LIST})
+# Binance serves crypto spot listings, 24h quotes and historical klines.
+_CAPABILITIES_CRYPTO = frozenset({Capability.LIST, Capability.QUOTE, Capability.HISTORY})
 # Every fund publishes NAV, a profile, quarterly holdings and a
 # benchmark; only listed ones also trade intraday.
 _CAPABILITIES_OFFEXCHANGE_FUND = frozenset(

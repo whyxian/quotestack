@@ -7,6 +7,19 @@
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-11-27
+
+补齐 Binance 现货加密货币实时报价与历史 K 线，加密品类与 A股/美股统一接入路由与 HTTP 接口。
+
+### 新增
+
+**加密行情**
+- `BinanceSource` 实现 `Quoter.quote()`：基于 `data-api.binance.vision/api/v3/ticker/24hr` 支持单标的与批量报价，解析 `lastPrice` / `priceChange` / `priceChangePercent` 与 `closeTime`
+- 批量报价容错：单条代码缺失或触发 Binance `-1121` 非法代码错误时自动隔离并逐条降级，不拖垮批次内其余标的
+- `BinanceSource` 实现 `Historian.history()`：基于 `/api/v3/klines` 支持 `1m` / `5m` / `15m` / `30m` / `60m`（映射 `1h`）/ `1d` / `1w` / `1M`，返回时间升序 `list[Bar]`
+- 路由表 `routing.py` 注册 `(CRYPTO, CRYPTO, QUOTE)` 与 `(CRYPTO, CRYPTO, HISTORY)` 至 `binance`
+- 标识解析 `resolver.py` 将加密能力更新为 `LIST` / `QUOTE` / `HISTORY`，保持 `BTC` 与 `BTCUSDT` 均幂等解析为 `BTCUSDT`
+
 ## [0.1.0] — 2026-11-22
 
 首个可用版本。库、CLI、HTTP 服务均已就绪。
@@ -53,5 +66,6 @@
 - 中债系列指数取不到，含该成分的基准曲线覆盖率会低于 1
 - 缓存是进程内的，重启即冷启动
 
-[Unreleased]: https://github.com/whyxian/quotestack/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/whyxian/quotestack/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/whyxian/quotestack/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/whyxian/quotestack/releases/tag/v0.1.0

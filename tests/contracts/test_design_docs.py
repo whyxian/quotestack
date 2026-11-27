@@ -498,16 +498,17 @@ def test_code_map_identifiers_exist_in_the_source() -> None:
 
 
 def test_readme_coverage_table_matches_the_sources() -> None:
-    """The README promised crypto quotes and klines; Binance serves listings."""
+    """The README crypto row must agree with BinanceSource capabilities."""
     from quotestack.models import Capability
     from quotestack.sources import BinanceSource
 
-    assert Capability.QUOTE not in BinanceSource().meta.capabilities
+    capabilities = BinanceSource().meta.capabilities
+    assert {Capability.LIST, Capability.QUOTE, Capability.HISTORY} <= capabilities
 
     text = (ROOT_DIR / "README.md").read_text(encoding="utf-8")
     row = [line for line in text.splitlines() if "**Crypto**" in line]
     assert row, "README has no crypto row"
-    assert "listing only" in row[0], row[0]
+    assert "quotes" in row[0].lower() and "klines" in row[0].lower(), row[0]
 
 
 def test_security_doc_matches_the_default_bind_address() -> None:

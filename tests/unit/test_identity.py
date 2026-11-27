@@ -112,19 +112,15 @@ def test_resolve_rejects_invalid_input(
 
 
 async def test_crypto_declares_only_what_a_source_can_serve() -> None:
-    """Declaring QUOTE for crypto made resolve() promise an impossibility.
-
-    Nothing routes crypto quotes, so the call failed with UNAVAILABLE, which
-    tells a caller to retry something that can never succeed.
-    """
+    """Crypto declares LIST, QUOTE and HISTORY, and still rejects fund-only calls."""
     from quotestack.errors import UnsupportedError
 
     async with MarketData() as client:
         instrument = client.resolve("BTC", AssetClass.CRYPTO, Market.CRYPTO)
-        assert {c.value for c in instrument.capabilities} == {"LIST"}
+        assert {c.value for c in instrument.capabilities} == {"LIST", "QUOTE", "HISTORY"}
 
         with pytest.raises(UnsupportedError):
-            await client.quote("BTC", AssetClass.CRYPTO, Market.CRYPTO)
+            await client.nav("BTC", AssetClass.CRYPTO, Market.CRYPTO)
 
 
 async def test_crypto_symbol_is_not_suffixed_twice() -> None:

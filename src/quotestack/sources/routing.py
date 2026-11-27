@@ -31,6 +31,9 @@ _ROUTES: dict[tuple[AssetClass, Market, Capability], tuple[str, ...]] = {
     (AssetClass.FUND, Market.CN, Capability.NAV): ("tiantian",),
     (AssetClass.FUND, Market.CN, Capability.HOLDINGS): ("tiantian",),
     (AssetClass.FUND, Market.CN, Capability.PROFILE): ("tiantian",),
+    # Crypto: Binance spot data mirror serves quotes and klines.
+    (AssetClass.CRYPTO, Market.CRYPTO, Capability.QUOTE): ("binance",),
+    (AssetClass.CRYPTO, Market.CRYPTO, Capability.HISTORY): ("binance",),
 }
 
 

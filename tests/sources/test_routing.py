@@ -47,9 +47,15 @@ def test_route_prefers_eastmoney_for_mainland() -> None:
     assert route(AssetClass.STOCK, Market.CN, Capability.QUOTE) == ("eastmoney", "tencent")
 
 
+def test_route_crypto_uses_binance() -> None:
+    """Crypto quotes and historical klines route to Binance."""
+    assert route(AssetClass.CRYPTO, Market.CRYPTO, Capability.QUOTE) == ("binance",)
+    assert route(AssetClass.CRYPTO, Market.CRYPTO, Capability.HISTORY) == ("binance",)
+
+
 def test_route_unknown_pair_is_empty() -> None:
     """An unregistered combination has no candidates."""
-    assert route(AssetClass.CRYPTO, Market.CRYPTO, Capability.QUOTE) == ()
+    assert route(AssetClass.CRYPTO, Market.CRYPTO, Capability.NAV) == ()
 
 
 async def test_batch_uses_fallback_source() -> None:

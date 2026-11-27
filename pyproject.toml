@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quotestack"
-version = "0.1.0"
+version = "0.2.0"
 description = "Multi-source market data adapter for A-shares, US stocks, mutual funds and crypto."
 readme = "README.md"
 requires-python = ">=3.11"

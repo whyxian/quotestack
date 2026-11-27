@@ -120,7 +120,7 @@ def create_app(config: Config | None = None, client: MarketData | None = None) -
 
     app = FastAPI(
         title="quotestack API",
-        version="0.1.0",
+        version="0.2.0",
         summary="多源行情适配层",
         lifespan=lifespan,
     )

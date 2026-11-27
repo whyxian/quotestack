@@ -195,8 +195,8 @@ iter_instruments(asset_class, market, *,
 
 | 能力 | 东财 | 腾讯 | 天天基金 | Binance | 东财外汇 |
 |---|---|---|---|---|---|
-| `QUOTE` | ✅ | ✅ | — | — | — |
-| `HISTORY` | ✅ | — | — | — | — |
+| `QUOTE` | ✅ | ✅ | — | ✅ | — |
+| `HISTORY` | ✅ | — | — | ✅ | — |
 | `NAV` | — | — | ✅ | — | — |
 | `PROFILE` | — | — | ✅ | — | — |
 | `HOLDINGS` | — | — | ✅ | — | — |

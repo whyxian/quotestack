@@ -202,11 +202,11 @@ v1|nav|CN:FUND:166002
 | `quotestack/client/__init__.py` | 1228 |
 | `quotestack/server/app.py` | 633 |
 | `quotestack/sources/tiantian.py` | 620 |
+| `quotestack/sources/binance.py` | 577 |
 | `quotestack/server/schemas.py` | 314 |
-| `quotestack/sync.py` | 309 |
-| 其余 48 个文件 | < 303 |
+| 其余 48 个文件 | < 309 |
 
-**合计**：8,181 行 / 53 文件。
+**合计**：8,634 行 / 53 文件。
 
 <!-- generated:end -->
 
